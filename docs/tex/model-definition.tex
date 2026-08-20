@@ -166,20 +166,65 @@ Section~\ref{sec:rotation}, where it is also shown that no per-supernova
 rotation should be fitted because no physical effect acts as one.
 
 \subsection{Time-to-arclength map}
+\label{sec:reparam}
 
-Timing is carried by a monotone map from observer time to arclength. Writing
-$u = (t - \tmax)/\tscale$,
+Photometry is recorded in observer-frame MJD, whereas the model curve is a
+rest-frame object. Observer-frame time intervals must therefore be divided by
+$1+\zred$ before anything else happens. Rest-frame phase is
+\begin{equation}
+  \phase = \frac{t - \tmax}{1 + \zred},
+  \label{eq:phase}
+\end{equation}
+with $t$ and $\tmax$ both observer-frame MJD. Since $\zred$ is measured for
+every object, the $1+\zred$ factor is a \emph{known} kinematic rescaling and is
+divided out deterministically rather than fitted. This keeps $\tscale$ below a
+genuine rest-frame stretch instead of a repackaging of time dilation, and it is
+the same logic applied to \texttt{mwebv} in Section~\ref{sec:samples}: known
+effects are removed, not absorbed into free parameters.
+
+Timing is then a monotone map from rest-frame phase to arclength. Writing
+$u = \phase/\tscale$ with $\tscale$ in rest-frame days,
 \begin{equation}
   \arc(t) = u\left[1 + \warpone u + \warptwo u^{2}\right],
+  \qquad
+  u = \frac{t - \tmax}{\tscale\,(1+\zred)},
   \qquad \deriv{\arc}{t} > 0 \ \text{on the fit window}.
   \label{eq:reparam}
 \end{equation}
-Setting $\warpone = \warptwo = 0$ recovers the affine map $\arc = (t-\tmax)/\tscale$,
+Setting $\warpone = \warptwo = 0$ recovers the affine map $\arc = \phase/\tscale$,
 which is the direct analogue of classical stretch \citep{Phillips1993}. The
 quadratic and cubic terms permit asymmetric warping between rise and decline.
 The positivity constraint is definitional, not regulatory: $\arc$ is arclength,
 so $\dd \arc/\dd t = \norm{\dot{\curve}}$ is strictly positive wherever the
 supernova is moving.
+
+\paragraph{$\tmax$ is free, and the gauge makes it the $g$-maximum.} The date of
+maximum is a fitted parameter for every supernova; it is never taken from the
+archive's \salt\ $t_{0}$, which would violate the requirement that \salt\ stay
+strictly downstream. Nothing needs to be added to enforce its interpretation.
+By construction $\arc(\tmax) = 0$, and the initial condition of
+Section~\ref{sec:rotation} places the template's $g$-band maximum at $\arc = 0$
+for every value of $\shape$. Because $\dd\arc/\dd t > 0$,
+\begin{equation}
+  \deriv{\magg}{t} = \deriv{\magg}{\arc}\,\deriv{\arc}{t}
+  \qquad\Longrightarrow\qquad
+  \deriv{\magg}{t} = 0 \iff \deriv{\magg}{\arc} = 0 ,
+\end{equation}
+so the fitted $\tmax$ \emph{is} the observer-frame epoch of $g$-band maximum.
+The identification is enforced by the gauge choice rather than imposed as a
+penalty or recovered after the fit.
+
+\paragraph{The anchor band is $g$, not $B$.} Phase zero is conventionally set at
+rest-frame $B$-band maximum, but locating $B$ maximum requires K-correcting into
+a filter that was not observed, hence an SED, which a two-band model does not
+have (Section~\ref{sec:limitations}). The anchor here is the maximum of
+rest-frame \ztf\ $g$, a band actually in hand. Since $g$ and $B$ are different
+filters, $\tmax$ and a $B$-maximum epoch need not coincide, and the offset
+between them is not predictable from effective wavelength: peak epoch is not a
+monotonic function of wavelength across UV to NIR. When \salt\ is used as an
+external benchmark, the distribution of $\tmax - t_{0}$ must therefore be
+\emph{measured} and reported --- neither its centre nor its sign assumed --- and
+its scatter, not its mean, is the check on timing recovery.
 
 \subsection{Per-supernova parameters}
 
@@ -192,8 +237,8 @@ Symbol & Role & Geometric character \\
 $\dm$        & normalization & translation along $(1,1)/\sqrt{2}$ \\
 $\shapeone$  & shape         & conditions $\curv$ \\
 $\shapetwo$  & shape         & conditions $\curv$ \\
-$\tscale$   & timing scale  & reparameterisation \\
-$\tmax$      & time origin   & reparameterisation \\
+$\tscale$    & timing scale (rest-frame d) & reparameterisation \\
+$\tmax$      & time origin (observer MJD)  & reparameterisation \\
 $\warpone$   & timing warp   & reparameterisation \\
 $\warptwo$   & timing warp   & reparameterisation \\
 \bottomrule
@@ -206,7 +251,8 @@ Section~\ref{sec:ladder}; it is not a claim that seven parameters are needed.
 \subsection{Forward model and likelihood}
 \label{sec:likelihood}
 
-Given latents, the predicted magnitude in band $X$ at observer time $t$ is
+Given latents, the predicted magnitude in band $X$ at observer-frame epoch $t$
+is, with $\arc(t)$ from \eqref{eq:reparam},
 \begin{equation}
   m_{X}^{\mathrm{pred}}(t) = \curve_{X}\bigl(\arc(t)\bigr) + \dm ,
 \end{equation}
@@ -219,19 +265,27 @@ and compared to the observed forced-photometry flux,
 \begin{equation}
   -2\ln\mathcal{L} = \sum_{X}\sum_{k}
     \frac{\left[f_{X,k}^{\mathrm{obs}} - f_{X}^{\mathrm{pred}}(t_{k})\right]^{2}}
-         {\sigma_{X,k}^{2}} .
+         {\sigma_{X,k}^{2}} ,
   \label{eq:chi2}
 \end{equation}
+where $\sigma_{X,k}$ is the reported flux measurement error of epoch $k$. Note
+that $\sigma$ denotes measurement error throughout and never the timing scale,
+which is $\tscale$.
+
 Evaluating the likelihood in flux is essential: \ztf\ difference-imaging
 photometry has approximately Gaussian flux errors and retains negative flux
 values at faint phases, both of which are destroyed by conversion to
 magnitudes. No data are ever converted to magnitudes; only the model is
-expressed there.
+expressed there. The sum runs over observer-frame epochs $t_{k}$ as recorded, in
+MJD; the transformation to the rest frame happens once, inside
+\eqref{eq:reparam}.
 
-Rest-frame phase is $\phase = (t - \tmax)/(1+\zred)$. The geometric curve is
-defined on a fixed rest-frame window, nominally
-$\phase \in [-15, +40]\,\mathrm{d}$, held as a configuration parameter so that
-sensitivity to the choice can be tested.
+The geometric curve is defined on a fixed \emph{rest-frame} window, nominally
+$\phase \in [-15, +40]\,\mathrm{d}$ with $\phase$ from \eqref{eq:phase}, held as
+a configuration parameter so that sensitivity to the choice can be tested. Since
+$\tmax$ is free, the window is itself a function of the fitted parameters: at
+$\zred = 0.05$ it spans $57.75$~d of observer time against $55$~d at
+$\zred = 0$, and it slides as $\tmax$ moves during optimisation.
 
 Peculiar velocities require no treatment in the likelihood. They shift the
 overall normalization only, and $\dm$ is free per supernova, so they are
@@ -267,6 +321,19 @@ invariant. The latter is small, but it is the only configuration in which the
 original motivation for a second shape parameter --- that torsion describes the
 evolution of inter-band magnitude differences --- can actually be tested. It
 should be treated as a distinct analysis, not as an afterthought.
+
+\paragraph{A caveat on the window used for counting.} Counting epochs inside
+$[-15,+40]$~d requires a date of maximum, but $\tmax$ is precisely what the model
+fits (Section~\ref{sec:reparam}); the numbers above were obtained using the
+archive's \salt\ $t_{0}$ to place the window. This is \salt\ entering upstream of
+\emph{selection}, which is far weaker than \salt\ entering the fit --- no
+photometry is transformed, initialised, or K-corrected by it, and the fitted
+$\tmax$ remains free and independent. It is nonetheless an exception to the rule
+that \salt\ stays strictly downstream, and is recorded here rather than left
+implicit. The check that settles it is to recount using an SED-free anchor, for
+instance a window placed on the brightest good $g$ epoch, and confirm the sample
+sizes move negligibly. The 36 objects with NaN $t_{0}$ must in any case be
+selected by such an estimator or excluded explicitly.
 
 \paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
 \texttt{mwebv}. It is a \emph{known} translation in magnitude space and is
@@ -352,12 +419,94 @@ $g$-band maximum,
   \tang(0) = (0, \pm 1).
   \label{eq:frameanchor}
 \end{equation}
-Imposing $\tang(0) = (0,1)$ \emph{is} the statement that $\arc = 0$ lies at the
-$g$-maximum: one condition fixes both gauges. It costs no generality, since
-every light curve in the fitted window has a $g$-maximum and any curve may be
-parameterised so that it occurs at $\arc = 0$. The condition is observable and
-lies inside the phase window, which the constraint of the next subsection does
-not.
+Imposing this \emph{is} the statement that $\arc = 0$ lies at the $g$-maximum:
+one condition fixes both gauges. It costs no generality, since every light curve
+in the fitted window has a $g$-maximum and any curve may be parameterised so
+that it occurs at $\arc = 0$. The condition is observable and lies inside the
+phase window, which the constraint of the next subsection does not.
+
+\subsubsection*{The residual sign is empirical, not a gauge choice}
+\label{sec:framesign}
+
+Arclength increases with time and a brightening band moves toward \emph{smaller}
+magnitude, so $\dd m_{X}/\dd \arc < 0$ while band $X$ rises. The two branches of
+\eqref{eq:frameanchor} therefore make different physical statements about the
+supernova at the epoch of $g$-maximum:
+\begin{equation}
+  \tang(0) = (0,-1) \iff \dd\magr/\dd\arc < 0 \iff \text{$r$ still brightening},
+  \qquad
+  \tang(0) = (0,+1) \iff \text{$r$ already fading}.
+  \label{eq:framesign}
+\end{equation}
+Equivalently, the sign records \emph{which of the two bands reaches maximum
+first}. That is a measurable property of the photometry, not a freedom to be
+fixed by convention, and it must be settled by measurement. In particular it
+cannot be inferred from effective wavelength: peak epoch is \emph{not} a
+monotonic function of wavelength across UV to NIR, so no band pair may be
+assumed ordered a~priori.
+
+It is worth being explicit that the asymptotics of Section~\ref{sec:sumrule}
+provide no independent handle on this, because the \emph{direction} of turning is
+itself equivalent to the ordering. Writing $\tang = (\cos\phi, \sin\phi)$, the
+tangent runs from $-(1,1)/\sqrt{2}$ to $+(1,1)/\sqrt{2}$; with monotone turning
+it may do so in either sense, and
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Turning & $\phi$ traverses & Implied ordering \\
+\midrule
+$\curv > 0$ & $225^{\circ} \to 405^{\circ}$, crossing $270^{\circ}$ then $360^{\circ}$ & $g$-maximum, then $r$-maximum \\
+$\curv < 0$ & $225^{\circ} \to 45^{\circ}$, crossing $180^{\circ}$ then $90^{\circ}$   & $r$-maximum, then $g$-maximum \\
+\bottomrule
+\end{tabular}
+\end{center}
+The sum rule fixes the net turning to $\pi$ in magnitude but says nothing about
+its sense, so it restates the empirical question rather than answering it. What
+the table does supply, given monotone turning, is that each band has exactly one
+maximum in the window; more than one --- as the secondary maximum of redder bands
+would require --- forces $\curv$ to change sign, consistent with
+Section~\ref{sec:sumrule}.
+
+\paragraph{How the sign is to be determined.} The measurement requires no model
+and no \salt: fit a low-order polynomial to each band separately near its own
+peak, locate the two maxima, and record their order. The global convention is
+then the sample-majority sign, reported together with the fraction of objects
+that disagree. Until that measurement is made, the sign should be carried in the
+configuration rather than hard-coded, and the fitted template should be checked
+against the alternative.
+
+\paragraph{Why a mixed sample would be a genuine problem.} The frame is global
+and no per-supernova rotation is fitted (Section~\ref{sec:rotation}), so a single
+sign is imposed on every object. If the sample is heterogeneous in the ordering
+of $g$- and $r$-maximum, the template cannot represent both populations, and this
+would be evidence against the no-rotation design rather than a detail to be
+tuned away. Two diagnostics bound the risk: the fraction of objects with the
+minority ordering, and the distribution of the interval between the two maxima,
+whose concentration near zero measures how close the sample sits to the
+degenerate case below.
+
+\paragraph{Simultaneous maxima break the parameterisation.} If all bands are
+stationary at the same epoch then $\norm{\dd\curve/\dd\phase} = 0$, hence
+$\dd\arc/\dd t = 0$ and the unit-speed parameterisation fails at that point: the
+curve has a stationary point rather than a regular one, and the positivity
+requirement of \eqref{eq:reparam} is violated. The framework therefore requires
+that the band maxima be non-coincident, which for $n=2$ means $g$- and
+$r$-maximum must not fall at the same epoch. This is a genuine regularity
+condition on the data, related to but distinct from the vanishing-$\curv$
+degeneracy of Section~\ref{sec:limitations}, and the distribution of maximum
+separations is the diagnostic for it.
+
+\paragraph{The one-condition claim holds only for $n=2$.} Fixing the frame means
+fixing an element of $\SO(n)$, which has $n(n-1)/2$ parameters. For $n = 2$ that
+is a single parameter and $\dd\magg/\dd\arc = 0$ fixes it, up to the sign
+resolved above. For the $n=3$ torsion subsample $\SO(3)$ has three parameters
+while the $g$-maximum condition supplies one, leaving $\tang(0) = (0, T_{r},
+T_{i})$ with $T_{r}^{2} + T_{i}^{2} = 1$ --- a continuous family, not a discrete
+sign --- and the orientation of $\norml(0)$ in the plane orthogonal to $\tang(0)$
+still free. The $n=3$ analysis therefore needs two further gauge conditions,
+which this document does not yet supply. They must be chosen from observables
+inside the phase window, on the same principle as the $g$-maximum anchor, and the
+choice is left open here rather than assumed away.
 
 \subsection{Asymptotic structure and a sum rule on $\curv$}
 \label{sec:sumrule}
@@ -440,9 +589,12 @@ diagnostic. If that correlation is large, the shape--timing separation that
 motivates the model is not being realised in practice, and this must be
 reported as a negative result rather than absorbed.
 
-\paragraph{Frame orientation.} Fixed by the $g$-maximum condition
-\eqref{eq:frameanchor}, $\tang(0) = (0,1)$, which is the same anchor that fixes
-the arclength origin. No per-supernova rotation is fitted, because
+\paragraph{Frame orientation.} Fixed for $n=2$ by the $g$-maximum condition
+\eqref{eq:frameanchor}, which is the same anchor that fixes the arclength origin.
+The residual sign in \eqref{eq:framesign} is not gauge: it encodes which band
+peaks first and must be measured from the photometry, as
+Section~\ref{sec:rotation} sets out. For $n=3$ two further conditions are needed
+and are not yet fixed. No per-supernova rotation is fitted, because
 Section~\ref{sec:rotation} shows that no physical effect acts as one.
 
 \section{Model ladder and validation}

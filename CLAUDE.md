@@ -38,10 +38,24 @@ Coverage measured directly from the archive (2026-08-20), at `z<0.05` with
 | >=5 | 606 | 631 | 179 | 599 | 177 |
 | >=10 | 490 | 537 | 82 | 465 | 80 |
 
+**Known exception to "SALT2 strictly downstream":** the phase window used to
+*count* these epochs was placed with the archive's SALT2 `t0`, because the window
+needs a date of maximum and `t_max` is what the model fits. Selection only — no
+photometry is transformed or initialised by it. Recount against an SED-free
+anchor (window on the brightest good `g` epoch) to confirm the counts barely
+move, and handle the 36 NaN-`t0` rows with that estimator or exclude them.
+
 ## Per-SN parameters (baseline, 7)
 
 `mu` (normalization) · `theta_1`, `theta_2` (shape, condition the network) ·
-`sigma`, `t_max` (timing) · `a_1`, `a_2` (timing warp)
+`w`, `t_max` (timing) · `a_1`, `a_2` (timing warp)
+
+`w` is the timing scale in **rest-frame days**; `t_max` is in **observer-frame
+MJD** and is always free per SN, never taken from the archive's SALT2 `t0`.
+`sigma` is reserved for flux measurement errors and must not be used for the
+timing scale. Time dilation is deterministic: rest-frame phase is
+`p = (t - t_max)/(1+z)`, divided out up front like `mwebv`, so `w` is a genuine
+rest-frame stretch and not a repackaging of `(1+z)`.
 
 SALT2 uses four. The excess is deliberate and is the object of study, not a
 free choice.
@@ -74,7 +88,28 @@ These were settled deliberately. Do not silently revise them.
    *(b)* The template frame is fixed by the same anchor as the arclength
    origin — at the `g`-maximum `dm_g/ds = 0`, hence `T(0) = (0,1)`. One
    condition fixes both gauges, costs no generality, and is observable inside
-   the phase window.
+   the phase window. **This one-condition claim holds only for `n=2`**: fixing
+   the frame means fixing an element of `SO(n)`, which has `n(n-1)/2` parameters,
+   so the `g`-max condition is enough in `R^2` but leaves two conditions unfixed
+   in the `R^3` torsion subsample. Those are an **open question**, not settled.
+   *(c)* The residual sign `T(0) = (0,-1)` vs `(0,+1)` is **empirical, not
+   gauge**. Arclength increases with time and brightening means *decreasing*
+   magnitude, so `(0,-1)` says `r` is still brightening at `g`-max and `(0,+1)`
+   says it is already fading — i.e. the sign records **which band peaks first**.
+   Determine it by direct measurement (per-band polynomial fit near each peak,
+   record the order); carry it in config, do not hard-code. Do **not** infer it
+   from effective wavelength: peak epoch is *not* monotonic in wavelength across
+   UV to NIR. The sum rule gives no independent handle — the *sense* of turning
+   (`kappa>0` vs `kappa<0`) is exactly equivalent to the peak ordering, so it
+   restates the question. Since the frame is global and no rotation is fitted, a
+   mixed-ordering sample would be evidence *against* the no-rotation design;
+   report the minority fraction and the distribution of max-to-max separation.
+   *(d)* **Coincident maxima break arclength.** If all bands peak at the same
+   epoch then `||dgamma/dp|| = 0`, so `ds/dt = 0` and unit-speed parameterisation
+   fails. Non-coincident band maxima is a regularity condition on the data.
+   *(e)* The anchor is `g`-maximum, **not** `B`-maximum. Locating `B` max needs
+   an SED. So `t_max` is not comparable to SALT2 `t0`; measure the offset
+   distribution, assume neither its centre nor its sign.
 
 5. **Curvature sum rule (`∫ kappa ds = pi mod 2pi`).** Flux vanishes before
    explosion and after, so `m -> +inf` in every band at both ends: the curve is
