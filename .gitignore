@@ -1,0 +1,34 @@
+# Data — never committed. Obtained via ztfidr from $ZTFIDRPATH.
+data/raw/
+data/interim/
+data/processed/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+docs/tex/*.pdf
+docs/tex/paper/*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Training outputs
+runs/
+checkpoints/
+*.eqx
+
+# OS
+.DS_Store

@@ -1,0 +1,249 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage[hidelinks]{hyperref}
+\input{macros}
+
+\title{\salt\ Distilled: \\ What the Classical Model Supplies to a Geometric One}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A working distillation of \citet{Guy2007} restricted to what bears on the
+differential-geometric light-curve model. This is not a summary of the paper.
+Spectroscopic recalibration, UV modelling, photometric identification and
+photometric redshifts are omitted; they are central to \salt\ and irrelevant
+here. What is retained is the parameterisation, the training strategy, the
+error model, the distance estimator, and the specific numerical values needed
+to benchmark against \salt\ on the same supernovae.
+\end{abstract}
+
+\section{The functional form}
+
+\salt\ models the rest-frame spectral energy distribution as a linear expansion
+about a mean sequence, modulated by a multiplicative colour term:
+\begin{equation}
+  F(\mathrm{SN}, \phase, \lambda)
+    = x_{0}\left[M_{0}(\phase,\lambda) + x_{1}M_{1}(\phase,\lambda) + \dots\right]
+      \times \exp\!\left[\colr\,\mathrm{CL}(\lambda)\right].
+  \label{eq:salt2form}
+\end{equation}
+Here $\phase$ is rest-frame phase relative to $B$-band maximum and $\lambda$ is
+rest-frame wavelength.
+
+\paragraph{Global quantities, shared by all supernovae.} The mean sequence
+$M_{0}(\phase,\lambda)$; the variability components $M_{k}(\phase,\lambda)$ for
+$k>0$; the colour law $\mathrm{CL}(\lambda)$.
+
+\paragraph{Per-supernova quantities.} The normalization $x_{0}$; the shape
+coefficients $x_{k}$ for $k>0$; the colour $\colr$; the date of $B$-band
+maximum $t_{0}$.
+
+In the released model only two components are retained, so each supernova
+carries exactly four parameters, $(x_{0}, x_{1}, \colr, t_{0})$. Additional
+components were found to be poorly constrained over most of the phase space and
+only marginally significant where coverage is good.
+
+\paragraph{Colour.} The colour parameter is defined as an offset from the mean,
+$\colr = (B-V)_{\mathrm{MAX}} - \langle B-V\rangle$. Critically,
+\eqref{eq:salt2form} makes the colour term \emph{phase-independent}: all
+remaining colour evolution with phase is carried by the linear components. The
+colour law is a third-order polynomial with two free coefficients, gauge-fixed
+by $\mathrm{CL}(\lambda_{B}) = 0$ and
+$\mathrm{CL}(\lambda_{V}) = 0.4\log 10$.
+
+\paragraph{Gauge on the shape parameter.} The mean and scale of $x_{1}$ are
+arbitrary, since any rescaling can be absorbed into $M_{1}$. \salt\ adopts
+$\langle x_{1}\rangle = 0$ and $\langle x_{1}^{2}\rangle = 1$. The geometric
+model faces the identical ambiguity in its latents and adopts the same
+convention.
+
+\section{Why this is not a principal component analysis}
+
+Equation~\eqref{eq:salt2form} is, apart from the colour exponential, a
+principal component decomposition. \salt\ does not obtain it by PCA, and the
+reason matters for us. PCA requires a dense, homogeneous set of observations
+for every object --- in practice a spectrophotometric spectrum every four or
+five days --- which does not exist. \salt\ instead fits a model with missing
+data by minimising a global $\chi^{2}$ over all supernovae at once.
+
+The geometric model inherits this constraint exactly. It cannot interpolate a
+supernova's curve and then measure its curvature; it must forward-model the
+sparse photometry and fit globally.
+
+\section{Basis and resolution}
+
+\salt\ expands the model on third-order B-splines in $(\phase,\lambda)$, chosen
+for continuous second derivatives. The stated resolution is $10\times120$
+parameters for $M_{0}$ (phase $\times$ wavelength) over a phase range
+$[-20,+50]$~d and spectral range $[2000,9200]$~\AA, giving roughly 60~\AA\
+spectral resolution, with $M_{1}$ at the coarser $10\times60$. The time axis is
+remapped so resolution near maximum is about twice as fine as at the extremes
+(roughly 4.5 versus 9 days).
+
+Two lessons transfer. First, the choice of basis is irrelevant where data are
+dense and controls the model only where they are sparse --- so the geometric
+model must identify and report its own poorly-constrained regions rather than
+trusting the network's extrapolation. Second, phase resolution should be
+non-uniform, concentrated near maximum. In the geometric model this happens
+naturally: arclength accumulates fastest where the curve moves fastest.
+
+\section{Training strategy}
+
+Training minimises a global $\chi^{2}$ over the full data set by Gauss--Newton
+iteration. The procedure is explicitly \emph{staged}: the mean sequence
+$M_{0}$, the colour law, and the per-supernova parameters are fitted first;
+once converged, a further component is added and everything is refitted. The
+authors report that convergence is insensitive to the initial guess for the
+components.
+
+This staging is directly applicable. The model ladder is not merely an
+evaluation device --- it is also the training schedule. Fit L0 to convergence,
+then introduce $\shapeone$, then $\shapetwo$, rather than optimising all
+latents from random initialisation.
+
+\paragraph{Regularisation.} Where a region of phase space is covered by
+photometry but not spectroscopy, combinations of parameters are unconstrained.
+\salt\ adds a penalty on second derivatives of each component,
+\begin{equation}
+  \chi^{2}_{\mathrm{REGUL}} = n \sum_{k} M_{k}^{\mathsf{T}} D^{\mathsf{T}} D M_{k},
+\end{equation}
+active only where data are insufficient. The normalisation $n$ was tuned on
+simulated data so that the induced bias in K-corrections stays below
+0.005~mag.
+
+The method of tuning is worth copying even though the penalty itself is not:
+generate synthetic data from the fitted model, retrain, and choose the
+regularisation strength so the recovered bias is small compared to statistical
+error. The geometric model needs the analogous procedure for its smoothness
+penalty on $\curv(\arc)$ and its shrinkage on $\warpone,\warptwo$.
+
+\section{Error model}
+
+\salt\ treats model error as a first-class term, not an afterthought. The model
+variance is a scaled version of the propagated component covariance,
+\begin{align}
+  V_{\mathrm{MODEL}}(x_{1},\phase,\lambda)
+    &= S(\phase,\lambda)\, V_{\mathrm{MEAN}}(x_{1},\phase,\lambda), \\
+  V_{\mathrm{MEAN}}(x_{1},\phase,\lambda)
+    &= H_{0}^{\mathsf{T}}V_{0}H_{0}
+     + x_{1}^{2}H_{1}^{\mathsf{T}}V_{1}H_{1}
+     + 2x_{1}H_{0}^{\mathsf{T}}C_{0,1}H_{1},
+\end{align}
+where $H_{k}(\phase,\lambda)$ are the basis vectors and $S(\phase,\lambda)$ is
+a scaling determined bin by bin so that the normalised residuals have unit
+variance. Note the explicit dependence on $x_{1}$: model error is larger for
+supernovae further from the mean.
+
+Remaining variability beyond the components is assessed by a \textbf{jackknife}:
+for each supernova, retrain on all others, then fit only that supernova's own
+parameters and examine its residuals. \salt\ reports that an additional
+0.022~mag must be added in quadrature to match the observed dispersion.
+
+The jackknife is the single most important methodological import. It is
+leave-one-out cross-validation, and it is the only defensible way to ask
+whether an added parameter genuinely improves prediction rather than merely
+absorbing noise. For a model with seven per-supernova parameters and a neural
+curvature representation, in-sample residuals are meaningless.
+
+\section{Distance estimator}
+
+Distances follow a Tripp-style linear standardisation \citep{Tripp1998}. With
+\begin{equation}
+  X_{s} = \begin{pmatrix} m^{*}_{B} \\ x_{1} \\ \colr \end{pmatrix},
+  \qquad
+  V = \begin{pmatrix} 1 \\ \alpha \\ -\beta \end{pmatrix},
+\end{equation}
+the corrected distance modulus is $V^{\mathsf{T}}X_{s}$ up to an absolute
+magnitude offset, i.e.
+\begin{equation}
+  \dm = m^{*}_{B} - M + \alpha x_{1} - \beta\,\colr .
+  \label{eq:tripp2}
+\end{equation}
+Fitting a flat $\Lambda$CDM cosmology to the A06 sample, \salt\ obtains
+\begin{equation}
+  \Omega_{M} = 0.240 \pm 0.033, \qquad
+  \alpha = 0.13 \pm 0.013, \qquad
+  \beta = 1.77 \pm 0.16 .
+\end{equation}
+The variance of $m^{*}_{B}$ includes both the intrinsic dispersion and a
+peculiar-velocity contribution taken at $300\ \mathrm{km\,s^{-1}}$.
+
+Two points transfer. The geometric model's analogue of \eqref{eq:tripp2} is
+$\dm_{\mathrm{corr}} = \dm - \alpha\shapeone - \beta\shapetwo + \mathcal{M}$,
+and $\alpha,\beta$ are gauge-dependent: they scale inversely with whatever
+normalisation is imposed on the latents, so they are comparable to \salt's
+values only after adopting the matching $\langle\shape\rangle=0$,
+$\langle\shape^{2}\rangle=1$ convention. Separately, the peculiar-velocity term
+enters only at the Hubble-diagram stage; it does not belong in the light-curve
+likelihood, where $\dm$ is free per supernova and absorbs it exactly.
+
+\section{The stretch correspondence}
+
+\salt\ reports that most of the variability captured by $x_{1}$ amounts to a
+simple stretching of the light curves, despite no such behaviour being imposed.
+The conversions given are
+\begin{align}
+  s^{(\mathrm{SALT})} &= 0.98 + 0.091x_{1} + 0.003x_{1}^{2} - 0.00075x_{1}^{3}, \\
+  s^{(\mathrm{G01})}  &= 1.07 + 0.069x_{1} - 0.015x_{1}^{2} + 0.00067x_{1}^{3}, \\
+  \Delta m_{15}       &= 1.09 - 0.161x_{1} + 0.013x_{1}^{2} - 0.00130x_{1}^{3}.
+\end{align}
+
+This is the most consequential result in the paper for our purposes, and it
+cuts both ways. It is encouraging, in that a model given free rein to find
+components recovers something close to a pure time reparameterisation --- which
+is precisely the degree of freedom the geometric model promotes to a
+first-class object in $\arc(t)$. It is also a warning: if $x_{1}$ is
+substantially a stretch, then a model that separates timing from shape should
+find that $\shapeone$ is largely \emph{redundant} with $\tscale$. A strong
+fitted correlation between them would confirm the interpretation; the absence
+of one would demand explanation.
+
+These conversions also supply the cleanest interpretability test available.
+Correlating fitted $(\tscale, \shapeone, \shapetwo)$ against \salt's
+$(x_{1}, \colr)$ and against $\Delta m_{15}$ tells us what the geometric
+latents have actually learned.
+
+\section{What is deliberately not adopted}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\salt\ element & Status here \\
+\midrule
+SED surface over $(\phase,\lambda)$ & replaced by a curve in band space \\
+B-spline basis                      & replaced by a neural representation \\
+Spectroscopic training data         & not used; photometry only \\
+Spectral recalibration polynomials  & not applicable \\
+Colour law $\mathrm{CL}(\lambda)$   & not identifiable with two bands \\
+K-corrections from the SED          & avoided by the $\zred<0.05$ cut \\
+Staged component training           & \textbf{adopted} \\
+Jackknife validation                & \textbf{adopted} \\
+Latent gauge $\langle x\rangle=0$, $\langle x^{2}\rangle=1$ & \textbf{adopted} \\
+Tripp standardisation               & \textbf{adopted} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The colour law entry deserves comment. With only $g$ and $r$, there is no
+wavelength axis along which to fit $\mathrm{CL}(\lambda)$; colour is a single
+number, not a law. This is why the geometric model must decide by experiment
+whether colour needs its own translational degree of freedom or can be absorbed
+into curvature, rather than importing a functional form from \salt.
+
+\section{Role of \salt\ in this project}
+
+\salt\ is used strictly \textbf{downstream}. Fits are performed independently
+on the same supernovae and compared against the geometric model on held-out
+Hubble residuals. \salt\ is never used to preprocess, K-correct, interpolate,
+or initialise. Were it used upstream, its SED errors would propagate silently
+into the data and the claim of an independent alternative would fail.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

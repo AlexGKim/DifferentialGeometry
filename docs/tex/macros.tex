@@ -1,0 +1,56 @@
+% Shared notation for the differential-geometric SN Ia light-curve project.
+% Input this file from every scientific document so notation stays consistent.
+%
+% Requires: amsmath, amssymb
+
+% --- Number sets -------------------------------------------------------
+\newcommand{\Real}{\mathbb{R}}
+\newcommand{\Rn}{\mathbb{R}^{n}}
+\newcommand{\Rtwo}{\mathbb{R}^{2}}
+\newcommand{\Rthree}{\mathbb{R}^{3}}
+
+% --- Differential geometry ---------------------------------------------
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\curve}{\gamma}                 % the light-curve curve
+\newcommand{\arc}{s}                        % arclength
+\newcommand{\curv}{\kappa}                  % curvature
+\newcommand{\tors}{\tau}                    % torsion (n >= 3 only)
+\newcommand{\frenet}[1]{\mathbf{E}_{#1}}    % Frenet frame vector
+\newcommand{\tang}{\mathbf{T}}              % unit tangent
+\newcommand{\norml}{\mathbf{N}}             % unit normal
+\newcommand{\arclen}{L}                     % total arclength of the window
+
+% --- Model parameters ---------------------------------------------------
+\newcommand{\shape}{\theta}                 % shape latents
+\newcommand{\shapeone}{\theta_{1}}
+\newcommand{\shapetwo}{\theta_{2}}
+\newcommand{\tscale}{\sigma}               % timing scale
+\newcommand{\tmax}{t_{\mathrm{max}}}        % time origin
+\newcommand{\warpone}{a_{1}}                % quadratic timing corrections
+\newcommand{\warptwo}{a_{2}}
+\newcommand{\dm}{\mu}                       % normalization / distance modulus
+\newcommand{\colr}{c}                       % colour translation (variant only)
+
+% --- Photometry ---------------------------------------------------------
+\newcommand{\magg}{m_{g}}
+\newcommand{\magr}{m_{r}}
+\newcommand{\fluxg}{f_{g}}
+\newcommand{\fluxr}{f_{r}}
+\newcommand{\zp}{\mathrm{zp}}
+\newcommand{\phase}{p}                      % rest-frame phase
+\newcommand{\zred}{z}
+
+% --- Objects and abbreviations -----------------------------------------
+\newcommand{\snia}{SN\,Ia}
+\newcommand{\sneia}{SNe\,Ia}
+\newcommand{\ztf}{ZTF}
+\newcommand{\salt}{SALT2}
+\newcommand{\NN}{\mathrm{NN}}
+
+% --- Operators ----------------------------------------------------------
+\DeclareMathOperator{\SO}{SO}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\deriv}[2]{\frac{\dd #1}{\dd #2}}
+\newcommand{\pderiv}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\abs}[1]{\left| #1 \right|}
+\newcommand{\norm}[1]{\left\| #1 \right\|}

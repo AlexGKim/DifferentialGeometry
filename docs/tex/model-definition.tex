@@ -1,0 +1,365 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage[hidelinks]{hyperref}
+\input{macros}
+
+\title{A Differential-Geometric Model for \\ Type Ia Supernova Multi-Band Light Curves}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We define an empirical model of \sneia\ multi-band light curves in which the
+object of study is not a flux surface but a \emph{curve}. The photometry of a
+single supernova traces a path through band-magnitude space; we parameterise
+that path by arclength and describe it by its curvature. Intrinsic diversity is
+carried by a small number of latent parameters entering a neural
+representation of the curvature, while the rate at which a supernova traverses
+its path is carried by a separate time-to-arclength map. The central claim to
+be tested is that this separation of \emph{shape} from \emph{timing} yields a
+more parsimonious description of \snia\ diversity than the linear
+component decomposition of \salt\ \citep{Guy2007}.
+\end{abstract}
+
+\section{Motivation}
+
+The standard empirical treatment of \snia\ light curves, exemplified by \salt,
+models the spectral energy distribution as a linear expansion about a mean
+sequence,
+\begin{equation}
+  F(p,\lambda) = x_{0}\left[M_{0}(p,\lambda) + x_{1}M_{1}(p,\lambda) + \dots\right]
+                 \exp\!\left[\colr\,\mathrm{CL}(\lambda)\right],
+  \label{eq:salt2}
+\end{equation}
+with per-supernova parameters $(x_{0}, x_{1}, \colr, t_{0})$. This is a
+description of a \emph{surface} over phase and wavelength, and the light curve
+in any band is recovered by integration against a filter response. The
+parameter $x_{1}$ is conventionally read as a ``stretch'', but it does not act
+as a reparameterisation of time: it changes the amplitude of a fixed additive
+component, so shape and timing are entangled in a single number.
+
+The geometric alternative begins from a different observation. A supernova
+observed in $n$ bands supplies, at each epoch, a point in $\Rn$. Over the
+course of the event those points trace a curve. That curve is a geometric
+object independent of when it was sampled, and by the fundamental theorem of
+curves it is determined, up to a rigid motion, by $n-1$ scalar invariants of
+arclength. Casting the model in these terms makes the separation between shape
+and timing exact rather than approximate:
+
+\begin{quote}
+A reparameterisation of time changes how fast a supernova moves along its
+curve. It does not change the curve.
+\end{quote}
+
+Shape therefore lives entirely in the curvature invariants, and timing lives
+entirely in the arclength map. This is the structural property the project
+exists to exploit and to test.
+
+\section{The geometric object}
+
+\subsection{The curve in band space}
+
+Let a supernova be observed in $n$ photometric bands. Write its rest-frame
+magnitude vector as a function of rest-frame phase $\phase$,
+\begin{equation}
+  \curve(\phase) = \bigl(m_{1}(\phase), \dots, m_{n}(\phase)\bigr) \in \Rn .
+\end{equation}
+The primary configuration of this project is \ztf\ $g$ and $r$
+\citep{Bellm2019}, so $n=2$ and
+$\curve = (\magg, \magr)$. The implementation is written for general $n$ so
+that the addition of a third band promotes the model without restructuring.
+
+\subsection{Arclength and the generalized Frenet frame}
+
+Reparameterise by arclength $\arc$, defined by
+$\dd \arc = \norm{\dd\curve/\dd \phase}\,\dd \phase$, so that
+$\norm{\curve'(\arc)} = 1$. A unit-speed curve in $\Rn$ that is sufficiently
+non-degenerate admits a Frenet frame $\frenet{1},\dots,\frenet{n}$ obeying
+\begin{align}
+  \frenet{1}' &= \curv_{1}\frenet{2}, \nonumber\\
+  \frenet{i}' &= -\curv_{i-1}\frenet{i-1} + \curv_{i}\frenet{i+1},
+                 \qquad 1 < i < n, \label{eq:frenet}\\
+  \frenet{n}' &= -\curv_{n-1}\frenet{n-1}, \nonumber
+\end{align}
+together with $\curve' = \frenet{1}$. The $n-1$ functions
+$\curv_{1}(\arc),\dots,\curv_{n-1}(\arc)$ determine the curve up to a rigid
+motion of $\Rn$.
+
+For $n=2$ this collapses to a single invariant, the signed planar curvature,
+\begin{equation}
+  \curve' = \tang, \qquad
+  \tang' = \curv\,\norml, \qquad
+  \norml' = -\curv\,\tang .
+  \label{eq:frenet2d}
+\end{equation}
+For $n=3$ a second invariant appears, the torsion $\tors = \curv_{2}$, which
+measures departure from the instantaneous osculating plane. With two bands
+there is no torsion; this is a real limitation of the \ztf\ public
+configuration and is recorded in Section~\ref{sec:limitations}.
+
+\subsection{Why the curve lives in magnitude space}
+\label{sec:magspace}
+
+Curvature is invariant under isometries of the ambient space and under nothing
+else. The choice of ambient space is therefore dictated by which physical
+nuisance transformations we need to quotient out, and whether they act as
+isometries.
+
+In magnitude space the two relevant nuisances are exactly translations:
+\begin{align}
+  \text{distance and absolute luminosity:} \quad
+    &\curve \mapsto \curve + \dm\,(1,1)/\sqrt{2}, \\
+  \text{dust reddening and intrinsic colour:} \quad
+    &\curve \mapsto \curve + \colr\,(1,-1)/\sqrt{2}.
+\end{align}
+Both are isometries, so $\curv(\arc)$ is exactly invariant under both. The
+curvature is a genuinely nuisance-free descriptor of the supernova.
+
+In flux space neither is an isometry. Distance acts as an isotropic dilation,
+$f \mapsto a f$, under which $\curv \mapsto \curv/a$ and $\arc \mapsto a\arc$.
+Worse, extinction acts as an \emph{anisotropic} dilation,
+\begin{equation}
+  \fluxg \mapsto \fluxg\,10^{-0.4 A_{g}}, \qquad
+  \fluxr \mapsto \fluxr\,10^{-0.4 A_{r}}, \qquad A_{g} \neq A_{r},
+\end{equation}
+which deforms the shape of the curve in a way no reparameterisation can undo.
+Working in flux space would mean quotienting by a group that does not act by
+isometries, which destroys the central claim that $\curv$ is intrinsic.
+
+The model curve is therefore defined in magnitude space. This is independent of
+the space in which the likelihood is evaluated; Section~\ref{sec:likelihood}
+evaluates the likelihood in native flux.
+
+\section{The model}
+
+\subsection{Curvature network}
+
+The curvature invariants are represented by a neural network conditioned on
+per-supernova latent parameters,
+\begin{equation}
+  \curv_{i}(\arc; \shape) = \NN_{i}\bigl(\arc, \shapeone, \shapetwo\bigr),
+  \qquad i = 1,\dots,n-1 .
+  \label{eq:kappanet}
+\end{equation}
+The network replaces the B-spline basis of \salt\ with a smooth, unconstrained
+function approximator. Conditioning is full rather than linear: $\shape$ enters
+as an input, not as coefficients multiplying fixed basis functions, so
+nonlinear interactions between shape and phase are learned rather than imposed.
+The cost of this choice is that $\shapeone$ and $\shapetwo$ do not carry an
+a~priori interpretation as ``amount of component one''; their meaning must be
+established after training by correlating them against observables.
+
+A supernova's curve is obtained by integrating \eqref{eq:frenet} from a
+\emph{globally fixed} initial point and initial frame. No per-supernova
+rotation is permitted: a rotation of $\Rn$ would mix photometric bands, which
+have fixed physical identities. The only per-supernova motion of the ambient
+space is the translation $\dm$, together with the optional colour translation
+$\colr$ in the variant of Section~\ref{sec:ladder}.
+
+\subsection{Time-to-arclength map}
+
+Timing is carried by a monotone map from observer time to arclength. Writing
+$u = (t - \tmax)/\tscale$,
+\begin{equation}
+  \arc(t) = u\left[1 + \warpone u + \warptwo u^{2}\right],
+  \qquad \deriv{\arc}{t} > 0 \ \text{on the fit window}.
+  \label{eq:reparam}
+\end{equation}
+Setting $\warpone = \warptwo = 0$ recovers the affine map $\arc = (t-\tmax)/\tscale$,
+which is the direct analogue of classical stretch \citep{Phillips1993}. The
+quadratic and cubic terms permit asymmetric warping between rise and decline.
+The positivity constraint is definitional, not regulatory: $\arc$ is arclength,
+so $\dd \arc/\dd t = \norm{\dot{\curve}}$ is strictly positive wherever the
+supernova is moving.
+
+\subsection{Per-supernova parameters}
+
+The baseline model assigns seven parameters to each supernova:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Symbol & Role & Geometric character \\
+\midrule
+$\dm$        & normalization & translation along $(1,1)/\sqrt{2}$ \\
+$\shapeone$  & shape         & conditions $\curv$ \\
+$\shapetwo$  & shape         & conditions $\curv$ \\
+$\tscale$   & timing scale  & reparameterisation \\
+$\tmax$      & time origin   & reparameterisation \\
+$\warpone$   & timing warp   & reparameterisation \\
+$\warptwo$   & timing warp   & reparameterisation \\
+\bottomrule
+\end{tabular}
+\end{center}
+For comparison, \salt\ uses four: $(x_{0}, x_{1}, \colr, t_{0})$. The excess is
+deliberate and is the subject of the model ladder in
+Section~\ref{sec:ladder}; it is not a claim that seven parameters are needed.
+
+\subsection{Forward model and likelihood}
+\label{sec:likelihood}
+
+Given latents, the predicted magnitude in band $X$ at observer time $t$ is
+\begin{equation}
+  m_{X}^{\mathrm{pred}}(t) = \curve_{X}\bigl(\arc(t)\bigr) + \dm ,
+\end{equation}
+with $\curve$ obtained by numerical integration of \eqref{eq:frenet}. This is
+converted to flux on the instrumental system,
+\begin{equation}
+  f_{X}^{\mathrm{pred}}(t) = 10^{-0.4\left(m_{X}^{\mathrm{pred}}(t) - \zp_{X}(t)\right)},
+\end{equation}
+and compared to the observed forced-photometry flux,
+\begin{equation}
+  -2\ln\mathcal{L} = \sum_{X}\sum_{k}
+    \frac{\left[f_{X,k}^{\mathrm{obs}} - f_{X}^{\mathrm{pred}}(t_{k})\right]^{2}}
+         {\sigma_{X,k}^{2}} .
+  \label{eq:chi2}
+\end{equation}
+Evaluating the likelihood in flux is essential: \ztf\ difference-imaging
+photometry has approximately Gaussian flux errors and retains negative flux
+values at faint phases, both of which are destroyed by conversion to
+magnitudes. No data are ever converted to magnitudes; only the model is
+expressed there.
+
+Rest-frame phase is $\phase = (t - \tmax)/(1+\zred)$. The geometric curve is
+defined on a fixed rest-frame window, nominally
+$\phase \in [-15, +40]\,\mathrm{d}$, held as a configuration parameter so that
+sensitivity to the choice can be tested.
+
+Peculiar velocities require no treatment in the likelihood. They shift the
+overall normalization only, and $\dm$ is free per supernova, so they are
+absorbed exactly and affect neither $\curv$ nor the timing parameters.
+
+\section{Relation to \salt}
+
+The two models can be placed side by side once the geometric quantities are
+mapped onto their photometric counterparts.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Concept & \salt & This work \\
+\midrule
+Underlying object & SED surface $F(p,\lambda)$ & curve $\curve(\arc) \subset \Rn$ \\
+Basis             & B-splines in $(p,\lambda)$ & neural network in $\arc$ \\
+Shape freedom     & $x_{1}$, linear coefficient & $\shapeone,\shapetwo$ conditioning $\curv$ \\
+Timing freedom    & $t_{0}$ only                & $\tmax, \tscale, \warpone, \warptwo$ \\
+Normalization     & $x_{0}$                     & $\dm$ \\
+Colour            & $\colr$ with law $\mathrm{CL}(\lambda)$ & translation, or absorbed into $\curv$ \\
+K-corrections     & built in via the SED        & avoided by the $\zred < 0.05$ cut \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The decisive structural difference is the treatment of timing. \salt\ has a
+single time parameter and forces all remaining temporal variation into the
+shape components; the geometric model gives timing its own map and can
+therefore ask whether shape variation is real or merely mis-assigned timing.
+
+Distance is not delivered directly by the geometry. Since $\dm$ is free per
+supernova, the geometry supplies standardization \emph{variables}, and distance
+follows from a Tripp-style relation \citep{Tripp1998},
+\begin{equation}
+  \dm_{\mathrm{corr}} = \dm - \alpha\,\shapeone - \beta\,\shapetwo + \mathcal{M},
+  \label{eq:tripp}
+\end{equation}
+with $\alpha$, $\beta$ and $\mathcal{M}$ fitted globally. This is the same
+logical structure as \salt\ cosmology and makes the comparison direct.
+
+\section{Degeneracies and gauge fixing}
+
+The model as stated has exact degeneracies that must be removed before the
+latents can be interpreted or compared across rungs of the ladder.
+
+\paragraph{Arclength origin.} The substitution $\arc \mapsto \arc + \arc_{0}$
+is absorbed by $\tmax$. Gauge is fixed by anchoring $\arc = 0$ to a
+geometrically defined point on the template curve, taken here as the $g$-band
+maximum, $\dd\magg/\dd \arc = 0$.
+
+\paragraph{Latent scale, sign and rotation.} Nothing in \eqref{eq:kappanet}
+fixes the scale, sign, or mutual orientation of $(\shapeone, \shapetwo)$. Gauge
+is fixed by requiring the population of fitted latents to have zero mean and
+unit diagonal covariance, and by fixing the sign so that $\shapeone$ correlates
+positively with light-curve width.
+
+\paragraph{Timing warp against shape.} This is the substantive one. Although a
+reparameterisation cannot change the curve in principle, over a finite phase
+window with noisy sampling a warp in $\arc(t)$ and a change in $\curv$ can
+mimic one another. The mitigation is to regularise $\warpone, \warptwo$ toward
+zero and to report the fitted correlation between them and $\shape$ as a
+diagnostic. If that correlation is large, the shape--timing separation that
+motivates the model is not being realised in practice, and this must be
+reported as a negative result rather than absorbed.
+
+\paragraph{Frame orientation.} Fixed globally by construction; no per-supernova
+rotation is fitted.
+
+\section{Model ladder and validation}
+\label{sec:ladder}
+
+With seven per-supernova parameters and a conditioned network, good fits are
+guaranteed and therefore carry no evidential weight. The scientific deliverable
+is not a fit but a comparison, conducted on held-out data.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Rung & Free per supernova & Question \\
+\midrule
+L0  & $\dm, \tscale, \tmax$        & is a rigid template sufficient? \\
+L1  & $+\ \shapeone$                & does one shape parameter earn its place? \\
+L2  & $+\ \shapetwo$                & does a second? \\
+L2c & L2 $+\ \colr$ translation     & does dust need its own direction? \\
+L3  & $+\ \warpone, \warptwo$       & does nonlinear timing earn its place? \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Rungs are compared by scatter in held-out Hubble residuals under
+cross-validation, never by in-sample scatter. \salt\ is fitted independently on
+the same supernovae and used as an external benchmark. It is never used
+upstream of the data.
+
+Rung L2c deserves emphasis. The baseline model permits only the $\dm$
+translation, so the template predicts each supernova's absolute colour from its
+shape alone. Host-galaxy dust is a genuine translation along $(1,-1)/\sqrt{2}$
+that varies from object to object and is not intrinsic; with no translation to
+absorb it, it will be forced into $\shapeone, \shapetwo$ and contaminate
+exactly the parameters under interpretation. Whether shape can absorb reddening
+or requires its own direction is a result worth reporting either way.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\paragraph{Two bands admit no torsion.} With $n=2$ there is a single curvature
+invariant, so $\shapetwo$ is a second direction of variation in $\curv$ rather
+than the torsion originally envisaged. Torsion, the invariant that most
+naturally describes how inter-band magnitude differences evolve, requires a
+third band. \ztf\ $i$-band is proprietary; the implementation is written for
+general $n$ so that torsion becomes available without restructuring if access
+changes.
+
+\paragraph{No SED, hence no K-corrections.} A two-band light-curve model cannot
+self-consistently K-correct, since that requires knowledge of the spectral
+energy distribution \citep{Nugent2002}. The project therefore restricts to
+$\zred < 0.05$, where K-corrections are small. This keeps the model entirely
+independent of \salt, at the cost of sample size and of any meaningful
+redshift lever for cosmology.
+
+\paragraph{Curvature degenerates at inflection points.} Where $\curv \to 0$ the
+Frenet frame is ill-defined in the classical construction. Light curves in the
+$(\magg, \magr)$ plane may pass near such points, particularly around the
+secondary maximum seen in redder bands \citep{Deckers2025}. The implementation
+must use a frame construction that remains well-defined through inflections,
+and must report where along $\arc$ the curvature approaches zero.
+
+\paragraph{Interpretability is traded for expressiveness.} Full conditioning
+means the latents are not linear coefficients and ablation is less clean than
+in \salt. The gauge fixing above is a partial remedy, not a complete one.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

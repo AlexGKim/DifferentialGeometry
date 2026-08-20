@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dgsn"
+version = "0.1.0"
+description = "Differential-geometric model of Type Ia supernova multi-band light curves"
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    "jax>=0.4.26",
+    "jaxlib>=0.4.26",
+    "diffrax>=0.5",
+    "equinox>=0.11",
+    "optax>=0.2",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "scipy>=1.11",
+    "pyyaml>=6.0",
+    "astropy>=6.0",
+]
+
+[project.optional-dependencies]
+# ztfidr is the ZTF SN Ia DR2 interface; it additionally requires
+# collaboration access to the password-protected ztfcosmoidr/dr2 repository,
+# with $ZTFIDRPATH pointing at it.
+data = ["ztfidr"]
+# Posterior sampling, used after point-estimate training converges.
+infer = ["numpyro>=0.13"]
+# SALT2 fits for the downstream benchmark only. Never used upstream.
+benchmark = ["sncosmo>=2.10"]
+dev = ["pytest>=8.0", "pytest-xdist", "matplotlib>=3.8", "jupyter"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
