@@ -46,10 +46,22 @@ is the padded max epochs per SN:
 | `band_idx` | integer index into the band list |
 | `mask` | `True` for real epochs, `False` for padding |
 
-**Depends on:** `ztfidr`, `$ZTFIDRPATH`. No other module imports `ztfidr`.
+**Depends on:** `ztfcosmo` (or the local archive). No other module imports it.
 
 The quality cuts and the `z < 0.05` selection live here and nowhere else, so
-that changing selection is a one-file change.
+that changing selection is a one-file change. Three things this module must get
+right, all verified against the archive:
+
+- **Flag cut is `flag & 31 == 0`**, not `flag == 0`. The flag is a bitmask;
+  only bits `[1,2,4,8,16]` indicate bad photometry. Cutting on `flag == 0`
+  preferentially keeps faint baseline epochs and destroys the sample.
+- **Milky Way extinction** (`mwebv`) is known and removed deterministically
+  before fitting. It is not a free parameter.
+- **Missing data**: 16 SNe passing metadata cuts have no light-curve file, and
+  36 catalogue rows have NaN `t0`. Both are dropped here, with counts logged.
+
+Band selection is a config field, since the same loader serves both the 599-SN
+`g,r` primary sample and the 177-SN `g,r,i` torsion subsample.
 
 ### `dgsn.geometry`
 
@@ -183,14 +195,23 @@ SN's data never enters the training loss.
 | `kappa -> 0` at inflections breaks the frame | Use an inflection-robust frame construction; report where along `s` curvature approaches zero. |
 | Dust forced into `theta` | Rung L2c exists precisely to measure this. |
 | 7 latents overfit | All scoring is out-of-sample. No in-sample number is ever reported as evidence. |
-| `$ZTFIDRPATH` access unavailable | Blocks all real-data work. Confirm access before implementation begins. |
+| Wrong flag cut silently guts the sample | Regression test asserting the `z<0.05` primary sample has 599 SNe at >=5 good `g` and `r` epochs. |
+| Torsion subsample too small (177) | Report it as a separate analysis with its own uncertainties; do not pool with the primary sample. |
 | JAX debugging cost | `direct.py` oracle runs eagerly and small; debug there first. |
 
 ---
 
-## 7. Open item
+## 7. Sample sizes
 
-**ZTF collaboration access.** `ztfidr` is an interface to a password-protected
-repository. Everything downstream of `dgsn.data` can be built and tested
-against synthetic photometry, but no scientific result is possible without it.
-This should be resolved before implementation starts.
+Measured from the archive on 2026-08-20 (`z<0.05`, both quality flags, epochs
+with `flag & 31 == 0` and SNR > 5 in the phase window):
+
+| min epochs/band | g | r | i | g&r | g&r&i |
+|---|---|---|---|---|---|
+| >=3 | 636 | 639 | 216 | 636 | 215 |
+| >=5 | 606 | 631 | 179 | **599** | **177** |
+| >=10 | 490 | 537 | 82 | 465 | 80 |
+
+The `g&r&i` column is the torsion subsample: the only configuration in which
+`theta_2` can be tested as a genuine second invariant rather than a second
+direction of curvature variation.

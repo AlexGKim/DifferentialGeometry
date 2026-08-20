@@ -69,9 +69,12 @@ magnitude vector as a function of rest-frame phase $\phase$,
   \curve(\phase) = \bigl(m_{1}(\phase), \dots, m_{n}(\phase)\bigr) \in \Rn .
 \end{equation}
 The primary configuration of this project is \ztf\ $g$ and $r$
-\citep{Bellm2019}, so $n=2$ and
-$\curve = (\magg, \magr)$. The implementation is written for general $n$ so
-that the addition of a third band promotes the model without restructuring.
+\citep{Bellm2019}, so $n=2$ and $\curve = (\magg, \magr)$. Direct inspection of
+the \ztf\ SN~Ia DR2 archive \citep{Rigault2025} shows that a subset of the
+low-redshift sample also carries usable $i$-band photometry, giving a second
+configuration with $n=3$ on fewer objects. Section~\ref{sec:samples} quantifies
+both. The implementation is written for general $n$ for this reason, not as
+speculative generality.
 
 \subsection{Arclength and the generalized Frenet frame}
 
@@ -232,6 +235,42 @@ Peculiar velocities require no treatment in the likelihood. They shift the
 overall normalization only, and $\dm$ is free per supernova, so they are
 absorbed exactly and affect neither $\curv$ nor the timing parameters.
 
+\section{Samples}
+\label{sec:samples}
+
+Coverage was measured directly from the \ztf\ SN~Ia DR2 archive. Starting from
+the 3628 catalogued objects, we require $\zred < 0.05$ and both the
+\texttt{lccoverage} and \texttt{fitquality} flags, leaving 669 supernovae, of
+which 654 have a light-curve file present in the release. Epochs are counted
+inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and
+with none of the quality bits $\{1,2,4,8,16\}$ set.
+
+\begin{center}
+\begin{tabular}{lrrrrr}
+\toprule
+Minimum epochs per band & $g$ & $r$ & $i$ & $g\,\&\,r$ & $g\,\&\,r\,\&\,i$ \\
+\midrule
+$\geq 3$  & 636 & 639 & 216 & 636 & 215 \\
+$\geq 5$  & 606 & 631 & 179 & 599 & 177 \\
+$\geq 10$ & 490 & 537 &  82 & 465 &  80 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two samples follow. The \textbf{primary sample} is the 599 supernovae with at
+least five good $g$ and $r$ epochs; here $n=2$ and there is a single invariant.
+The \textbf{torsion subsample} is the 177 that additionally have at least five
+good $i$-band epochs; here $n=3$ and $\tors(\arc)$ exists as a genuine second
+invariant. The latter is small, but it is the only configuration in which the
+original motivation for a second shape parameter --- that torsion describes the
+evolution of inter-band magnitude differences --- can actually be tested. It
+should be treated as a distinct analysis, not as an afterthought.
+
+\paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
+\texttt{mwebv}. It is a \emph{known} translation in magnitude space and is
+therefore removed deterministically before fitting. Only host-galaxy reddening
+remains a free quantity, and only in rung L2c.
+
 \section{Relation to \salt}
 
 The two models can be placed side by side once the geometric quantities are
@@ -333,13 +372,12 @@ or requires its own direction is a result worth reporting either way.
 \section{Limitations}
 \label{sec:limitations}
 
-\paragraph{Two bands admit no torsion.} With $n=2$ there is a single curvature
-invariant, so $\shapetwo$ is a second direction of variation in $\curv$ rather
-than the torsion originally envisaged. Torsion, the invariant that most
-naturally describes how inter-band magnitude differences evolve, requires a
-third band. \ztf\ $i$-band is proprietary; the implementation is written for
-general $n$ so that torsion becomes available without restructuring if access
-changes.
+\paragraph{Two bands admit no torsion.} In the primary sample $n=2$ and there
+is a single curvature invariant, so $\shapetwo$ is a second direction of
+variation in $\curv$ rather than the torsion originally envisaged, and should
+not be described as torsion. Torsion is available only on the 177-object
+subsample of Section~\ref{sec:samples}, where the reduced sample size is traded
+against the presence of a second genuine invariant.
 
 \paragraph{No SED, hence no K-corrections.} A two-band light-curve model cannot
 self-consistently K-correct, since that requires knowledge of the spectral

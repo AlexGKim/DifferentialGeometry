@@ -34,20 +34,27 @@ pdflatex model-definition && bibtex model-definition && pdflatex model-definitio
 pip install -e ".[dev,data,benchmark]"
 ```
 
-## Data access
+## Data
 
 Light curves come from ZTF SN Ia DR2 via
-[`ztfidr`](https://github.com/MickaelRigault/ztfidr). The package is only an
-interface — it reads from `$ZTFIDRPATH` pointing at the `ztfcosmoidr/dr2`
-repository, which requires **ZTF collaboration access**.
+[`ztfcosmo`](https://github.com/ZwickyTransientFacility/ztfcosmo), which needs
+no credentials — it reads remotely from `ztfcosmo.in2p3.fr`, or from a local
+copy:
 
 ```bash
-export ZTFIDRPATH=/path/to/ztfcosmoidr/dr2
+export ZTFCOSMODIR=/path/to/ztfsniadr2
 ```
 
-Bands are `g` and `r` (ZTF public survey); `i` is proprietary. The sample is
-cut to `z < 0.05`, where K-corrections are small enough that a two-band model
-with no SED remains self-consistent.
+The sample is cut to `z < 0.05`, where K-corrections are small enough that a
+two-band model with no SED remains self-consistent. Two samples result:
+
+| | SNe | ambient space | invariants |
+|---|---|---|---|
+| Primary | 599 | `R^2` (`g`,`r`) | `kappa(s)` |
+| Torsion subsample | 177 | `R^3` (`g`,`r`,`i`) | `kappa(s)`, `tau(s)` |
+
+Requiring at least five epochs per band with SNR > 5 and `flag & 31 == 0`
+inside the rest-frame phase window `[-15, +40]` d.
 
 ## Status
 

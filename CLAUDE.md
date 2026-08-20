@@ -21,12 +21,22 @@ shape and timing in a single linear coefficient.
 
 | | |
 |---|---|
-| Bands | ZTF `g`, `r` (public survey). `i` is proprietary — out of scope. |
-| Ambient space | `R^2`, so **one** invariant `kappa(s)`. No torsion. |
-| Code generality | Written for general `R^n` so a third band promotes the model without restructuring. |
-| Data | ZTF SN Ia DR2 via `ztfidr`, cut to `z < 0.05`. |
+| Data | ZTF SN Ia DR2 (`ztfcosmo`), `z < 0.05`, both quality flags. |
+| Primary sample | **599 SNe** with >=5 good `g` and `r` epochs in the phase window. Ambient space `R^2`, **one** invariant `kappa(s)`, no torsion. |
+| Torsion subsample | **177 SNe** that additionally have >=5 good `i` epochs. Ambient space `R^3`, so `kappa(s)` **and** `tau(s)`. |
+| Code generality | Written for general `R^n`. This is not speculative — the `R^3` subsample exists and is the reason. |
 | Curve space | **Magnitude**. Likelihood evaluated in **native flux**. |
 | Phase window | Rest-frame `[-15, +40]` d (config parameter). |
+
+Coverage measured directly from the archive (2026-08-20), at `z<0.05` with
+`lccoverage_flag` and `fitquality_flag` set, counting epochs with
+`flag & 31 == 0` and SNR > 5 inside the phase window:
+
+| min epochs/band | g | r | i | g&r | g&r&i |
+|---|---|---|---|---|---|
+| >=3 | 636 | 639 | 216 | 636 | 215 |
+| >=5 | 606 | 631 | 179 | 599 | 177 |
+| >=10 | 490 | 537 | 82 | 465 | 80 |
 
 ## Per-SN parameters (baseline, 7)
 
@@ -119,9 +129,10 @@ references/  source papers
 
 ## Known limitations to keep in view
 
-- **Two bands admit no torsion.** `theta_2` is a second direction of variation
-  in `kappa`, not the torsion originally envisaged. Do not describe it as
-  torsion in writing.
+- **Two bands admit no torsion.** In the primary `g,r` analysis `theta_2` is a
+  second direction of variation in `kappa`, *not* torsion. Do not call it
+  torsion in writing. Torsion is only meaningful on the 177-SN `g,r,i`
+  subsample, where it is a genuine second invariant.
 - **Timing warp vs shape degeneracy.** Over a finite, noisy window, a warp in
   `s(t)` and a change in `kappa` can mimic each other. Report the fitted
   correlation between `(a_1,a_2)` and `theta` as a diagnostic. A large
@@ -135,13 +146,48 @@ references/  source papers
   the `g`-band maximum; latents normalised to zero mean, unit variance; sign
   fixed so `theta_1` correlates positively with light-curve width.
 
-## Data access prerequisite
+## Data details
 
-`ztfidr` is only an interface. It reads from `$ZTFIDRPATH` pointing at the
-`ztfcosmoidr/dr2` repository, which is **password-protected** ZTF collaboration
-data. The package alone is not sufficient — collaboration access is required.
-`sample.data` carries SALT2 fits (`x1`, `c`, `t0`) for the downstream benchmark
-and supports `get_data(redshift_range=...)` for the `z<0.05` cut.
+A local copy of the archive is at `data/ztfsniadr2_lite.zip` (1.4 GB, gitignored
+along with everything else under `data/`). The maintained interface is
+[`ztfcosmo`](https://github.com/ZwickyTransientFacility/ztfcosmo), which needs
+no credentials — it reads remotely from `ztfcosmo.in2p3.fr`, or from
+`$ZTFCOSMODIR` if pointed at a local copy.
+
+**`tables/snia_data.csv`** — 3628 rows. Columns include `ztfname`, `redshift`,
+SALT2 fits `t0, x0, x1, c` with full covariances, `mwebv`, `sn_type`,
+`lccoverage_flag`, `fitquality_flag`.
+
+**`lightcurves/<name>_lc.csv`** — whitespace-delimited, `#` comment header.
+Columns: `mjd filter flux flux_err ZP flag mag mag_err field_id rcid
+flux_offset offset_unc err_scale in_baseline`. Filters are `ztfg/ztfr/ztfi`;
+`ZP = 30`; flux is difference-imaging flux with negatives retained; `mag = 99`
+marks a non-detection.
+
+**Flag handling — do not get this wrong.** `flag` is a bitmask, and `flag == 0`
+is *not* the right cut. The official `ztfcosmo` default excludes only bits
+`[1,2,4,8,16]`, i.e. **`flag & 31 == 0`**:
+
+| bit | meaning |
+|---|---|
+| 1 | `flux_err == 0`, unphysical error |
+| 2 | `chi2dof > 3`, extreme outlier |
+| 4 | `cloudy > 1` |
+| 8 | `infobits > 0` |
+| 16 | `mag_lim < 19.3` |
+
+Bits 32–1024 encode seeing, field, moon illumination, airmass and detection
+significance, and are informational — they are **not** excluded. Cutting on
+`flag == 0` throws away most genuine detections (it preferentially keeps faint
+baseline epochs) and silently reduces the usable sample to near zero.
+
+**Milky Way extinction.** `mwebv` is known per SN, so MW reddening is a
+*deterministic* translation in magnitude space and must be removed up front,
+not fitted. Only host-galaxy reddening is a free parameter.
+
+**Caveat:** 16 of the 669 SNe passing the metadata cuts have no light-curve
+file in the archive, and 36 rows sample-wide have NaN `t0`. Handle both in
+`dgsn.data` rather than downstream.
 
 ## Working agreements
 

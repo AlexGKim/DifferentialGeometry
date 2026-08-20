@@ -23,10 +23,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# ztfidr is the ZTF SN Ia DR2 interface; it additionally requires
-# collaboration access to the password-protected ztfcosmoidr/dr2 repository,
-# with $ZTFIDRPATH pointing at it.
-data = ["ztfidr"]
+# ztfcosmo is the maintained ZTF SN Ia DR2 interface. It works with no
+# credentials, reading remotely from ztfcosmo.in2p3.fr; set $ZTFCOSMODIR to
+# use a local copy of the archive instead.
+data = ["ztfcosmo"]
 # Posterior sampling, used after point-estimate training converges.
 infer = ["numpyro>=0.13"]
 # SALT2 fits for the downstream benchmark only. Never used upstream.
