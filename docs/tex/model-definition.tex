@@ -157,11 +157,13 @@ a~priori interpretation as ``amount of component one''; their meaning must be
 established after training by correlating them against observables.
 
 A supernova's curve is obtained by integrating \eqref{eq:frenet} from a
-\emph{globally fixed} initial point and initial frame. No per-supernova
-rotation is permitted: a rotation of $\Rn$ would mix photometric bands, which
-have fixed physical identities. The only per-supernova motion of the ambient
-space is the translation $\dm$, together with the optional colour translation
-$\colr$ in the variant of Section~\ref{sec:ladder}.
+\emph{globally fixed} initial point and initial frame. The only per-supernova
+motion of the ambient space is the translation $\dm$, together with the
+optional colour translation $\colr$ in the variant of
+Section~\ref{sec:ladder}. Fixing the frame is not an assumption about
+supernovae; it is a gauge choice, justified in
+Section~\ref{sec:rotation}, where it is also shown that no per-supernova
+rotation should be fitted because no physical effect acts as one.
 
 \subsection{Time-to-arclength map}
 
@@ -307,6 +309,111 @@ follows from a Tripp-style relation \citep{Tripp1998},
 with $\alpha$, $\beta$ and $\mathcal{M}$ fitted globally. This is the same
 logical structure as \salt\ cosmology and makes the comparison direct.
 
+\section{Orientation, boundary conditions, and a curvature sum rule}
+\label{sec:rotation}
+
+Integrating \eqref{eq:frenet} requires an initial frame, so the orientation of
+the reconstructed curve must be fixed by something. It is worth being precise
+about what fixes it, because two distinct questions are easily conflated:
+whether rotation is a physical degree of freedom, and whether the template
+frame is determined.
+
+\subsection{No physical effect acts as a rotation}
+
+Enumerating the per-supernova nuisances in magnitude space:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Effect & Action on $\curve$ \\
+\midrule
+Distance and absolute luminosity & translation $\parallel (1,1)$ \\
+Host dust and intrinsic colour   & translation along the reddening direction \\
+Per-band zeropoint error         & translation $(\delta_{g}, \delta_{r})$ \\
+Time dilation and stretch        & reparameterisation; does not move $\curve$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every entry is a translation or a reparameterisation. None is a rotation.
+Admitting a per-supernova rotation would therefore introduce a degree of
+freedom with no physical referent, and it should not appear in any rung of the
+ladder. Note that a supernova-dependent extinction law $R_{V}$ changes the
+\emph{direction} of the reddening translation but is still a translation.
+
+\subsection{The frame is fixed by the $g$-maximum}
+
+That rotation is unphysical does not by itself determine the template frame. It
+is determined instead by the same anchor that fixes the arclength origin. At a
+$g$-band maximum,
+\begin{equation}
+  \deriv{\magg}{\arc}\bigg|_{\arc=0} = 0
+  \qquad\Longrightarrow\qquad
+  \tang(0) = (0, \pm 1).
+  \label{eq:frameanchor}
+\end{equation}
+Imposing $\tang(0) = (0,1)$ \emph{is} the statement that $\arc = 0$ lies at the
+$g$-maximum: one condition fixes both gauges. It costs no generality, since
+every light curve in the fitted window has a $g$-maximum and any curve may be
+parameterised so that it occurs at $\arc = 0$. The condition is observable and
+lies inside the phase window, which the constraint of the next subsection does
+not.
+
+\subsection{Asymptotic structure and a sum rule on $\curv$}
+\label{sec:sumrule}
+
+Supernova flux vanishes before explosion and tends to zero long after, so in
+every band $f \to 0$ and hence $m \to +\infty$ at both extremes. In magnitude
+space \emph{both ends of the curve escape to infinity along the diagonal}
+$(1,1)$. The curve is a hairpin, not an arc, and its two asymptotes are
+parallel rays whose separation is the terminal colour.
+
+This pins the tangent at both ends. While brightening the supernova moves
+toward smaller magnitudes, and while fading it moves toward larger ones:
+\begin{equation}
+  \tang \longrightarrow -\tfrac{1}{\sqrt{2}}(1,1) \quad (\text{early}),
+  \qquad
+  \tang \longrightarrow +\tfrac{1}{\sqrt{2}}(1,1) \quad (\text{late}).
+\end{equation}
+The tangent therefore turns through $\pi$ over the life of the supernova, and
+since $\curv$ is precisely the rate of turning of the tangent, the total
+curvature obeys the exact sum rule
+\begin{equation}
+  \int_{-\infty}^{\infty} \curv(\arc)\,\dd \arc \;=\; \pi \pmod{2\pi}.
+  \label{eq:sumrule}
+\end{equation}
+The modulus allows for complete loops; local reversals of turning, such as
+those the secondary maximum in redder bands may produce
+\citep{Deckers2025}, redistribute curvature without altering the net total. Two
+corollaries follow: $\curv \to 0$ at both extremes as the curve straightens
+onto its asymptote, and the asymptotic offset between the rays is the terminal
+colour.
+
+Equation~\eqref{eq:sumrule} is a global constraint on the shape function that
+has no counterpart in a linear component decomposition. \salt\ has no way to
+express it, because ``the total turning of the light curve'' is not a
+statement about the amplitude of an additive component.
+
+\paragraph{How it may legitimately be used.} The asymptotes lie far outside the
+fitted window $[-15,+40]$~d, so \eqref{eq:sumrule} is not a constraint that the
+data can enforce; it constrains the \emph{extrapolation} of a trained
+$\curv$. In decreasing order of safety it may be used as
+\begin{enumerate}
+  \item a validation diagnostic, asking whether a trained $\curv$ integrates to
+        something near $\pi$ when extrapolated beyond the window;
+  \item a weak prior on total turning during training;
+  \item motivation to widen the phase window, which is a configuration
+        parameter for exactly this reason.
+\end{enumerate}
+It must not be imposed as a hard constraint on a fit that cannot see the
+asymptotes.
+
+\paragraph{A cost of magnitude space.} The divergence of $m$ at both ends is
+the reason the phase window exists at all. Flux space would keep the curve
+bounded --- it would begin and end at the origin --- but would forfeit the
+isometry property of Section~\ref{sec:magspace}. The sum rule is the sharpest
+available statement of what the magnitude-space choice buys and what it costs.
+
 \section{Degeneracies and gauge fixing}
 
 The model as stated has exact degeneracies that must be removed before the
@@ -315,7 +422,8 @@ latents can be interpreted or compared across rungs of the ladder.
 \paragraph{Arclength origin.} The substitution $\arc \mapsto \arc + \arc_{0}$
 is absorbed by $\tmax$. Gauge is fixed by anchoring $\arc = 0$ to a
 geometrically defined point on the template curve, taken here as the $g$-band
-maximum, $\dd\magg/\dd \arc = 0$.
+maximum, $\dd\magg/\dd \arc = 0$. By \eqref{eq:frameanchor} this simultaneously
+fixes the frame orientation, so the two gauges are one condition.
 
 \paragraph{Latent scale, sign and rotation.} Nothing in \eqref{eq:kappanet}
 fixes the scale, sign, or mutual orientation of $(\shapeone, \shapetwo)$. Gauge
@@ -332,8 +440,10 @@ diagnostic. If that correlation is large, the shape--timing separation that
 motivates the model is not being realised in practice, and this must be
 reported as a negative result rather than absorbed.
 
-\paragraph{Frame orientation.} Fixed globally by construction; no per-supernova
-rotation is fitted.
+\paragraph{Frame orientation.} Fixed by the $g$-maximum condition
+\eqref{eq:frameanchor}, $\tang(0) = (0,1)$, which is the same anchor that fixes
+the arclength origin. No per-supernova rotation is fitted, because
+Section~\ref{sec:rotation} shows that no physical effect acts as one.
 
 \section{Model ladder and validation}
 \label{sec:ladder}

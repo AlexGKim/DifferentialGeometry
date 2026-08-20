@@ -66,13 +66,32 @@ These were settled deliberately. Do not silently revise them.
    K-correct. The cut buys independence at the cost of sample size. Do not
    relax it to gain statistics without revisiting the whole K-correction story.
 
-4. **No per-SN rotation.** A rotation of `R^n` mixes photometric bands, which
-   have fixed physical identities. The initial point and frame are global.
+4. **No per-SN rotation, and the frame is fixed by the g-maximum.** Two
+   separate claims, both needed.
+   *(a)* Rotation is not a physical degree of freedom: distance, dust, and
+   zeropoint errors are all **translations**; stretch is a
+   **reparameterisation**. Nothing acts as a rotation, so none is fitted.
+   *(b)* The template frame is fixed by the same anchor as the arclength
+   origin — at the `g`-maximum `dm_g/ds = 0`, hence `T(0) = (0,1)`. One
+   condition fixes both gauges, costs no generality, and is observable inside
+   the phase window.
 
-5. **Peculiar velocity is not in the likelihood.** `mu` is free per SN and
+5. **Curvature sum rule (`∫ kappa ds = pi mod 2pi`).** Flux vanishes before
+   explosion and after, so `m -> +inf` in every band at both ends: the curve is
+   a **hairpin** whose two asymptotes are parallel rays along `(1,1)`. The
+   tangent turns from `-(1,1)/sqrt2` to `+(1,1)/sqrt2`, a net turning of `pi`.
+   Corollaries: `kappa -> 0` at both extremes, and the asymptotic ray
+   separation is the terminal colour.
+
+   The asymptotes lie **outside** the `[-15,+40]` d window, so this constrains
+   the *extrapolation* of a trained `kappa`, not the fit. Use it as a
+   validation diagnostic, or at most a weak prior. **Never impose it as a hard
+   constraint** on a fit that cannot see the asymptotes.
+
+6. **Peculiar velocity is not in the likelihood.** `mu` is free per SN and
    absorbs it exactly. It enters only at the Hubble-diagram stage.
 
-6. **Evaluation is out-of-sample, always.** With 7 latents and a conditioned
+7. **Evaluation is out-of-sample, always.** With 7 latents and a conditioned
    network, good in-sample fits are guaranteed and carry no evidential weight.
 
 ## The deliverable is a ladder, not a fit

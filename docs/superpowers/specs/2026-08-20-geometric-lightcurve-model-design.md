@@ -173,6 +173,13 @@ they check the mathematics rather than the fit quality.
 - **Oracle agreement:** `frenet.integrate` and `direct.curve_and_invariants`
   agree on `kappa` to tolerance. Regression test against silent solver bugs.
 - `ds/dt > 0` is enforced across the fit window for sampled `(a1, a2)`.
+- **Gauge anchor:** at `s = 0` the reconstructed curve satisfies
+  `dm_g/ds = 0` and `T(0) = (0,1)`. This is the single condition fixing both
+  the arclength origin and the frame orientation, so it must be asserted
+  directly rather than assumed.
+- **Total turning:** for a synthetic hairpin curve with known asymptotes along
+  `(1,1)`, `integrate(kappa) ds` recovers `pi` to tolerance. Validates the sum
+  rule machinery on a case where the answer is known.
 
 **Model.** Round-trip recovery: generate synthetic photometry from known
 latents with realistic ZTF cadence and noise, confirm training recovers them
@@ -197,6 +204,7 @@ SN's data never enters the training loss.
 | 7 latents overfit | All scoring is out-of-sample. No in-sample number is ever reported as evidence. |
 | Wrong flag cut silently guts the sample | Regression test asserting the `z<0.05` primary sample has 599 SNe at >=5 good `g` and `r` epochs. |
 | Torsion subsample too small (177) | Report it as a separate analysis with its own uncertainties; do not pool with the primary sample. |
+| `kappa` extrapolates nonsensically outside the window | Report `integral kappa ds` against the sum-rule value `pi`. A trained `kappa` that extrapolates to something far from `pi` is unphysical even if it fits the window well. Diagnostic only — never a hard constraint, since the asymptotes are unobserved. |
 | JAX debugging cost | `direct.py` oracle runs eagerly and small; debug there first. |
 
 ---
