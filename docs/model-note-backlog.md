@@ -267,11 +267,13 @@ degeneracy became *more* load-bearing under the restructure, not less, and was k
 
 ## Use of an external SED template
 
-**Settled.** An external SED template (e.g. Hsiao) and a standard extinction law (e.g.
-Fitzpatrick) are allowed for *quantifying these systematics only* — constructing `u(s)`,
-evaluating `Δκ`. Never to fit, initialise, or K-correct the photometry. Used this way it
-does not compromise the independence from SALT2.
+**Settled.** An external SED template (Hsiao et al. 2007) and a standard extinction law
+(Fitzpatrick 1999) are allowed for *quantifying these systematics only* — constructing
+`u(s)`, evaluating `Δκ`. Never to fit, initialise, or K-correct the photometry. Used this
+way it does not compromise the independence from SALT2.
 
-**Open:** `refs.bib` entries for Hsiao and Fitzpatrick. Blocked on NASA ADS auth (token
-expired 2026-08-20). Retry; if it still fails, make no citation rather than fabricating a
-bibkey.
+**Closed 2026-08-21.** `refs.bib` now carries `Hsiao2007` (`2007ApJ...663.1187H`) and
+`Fitzpatrick1999` (`1999PASP..111...63F`), both exported from NASA ADS once the token was
+renewed, and both cited in the note at the point where `u(s)` is defined. Volume and page
+were filled in from the bibcodes, which encode them — ADS's short export omits both, as
+the header of `refs.bib` already warns.

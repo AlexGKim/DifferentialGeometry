@@ -453,3 +453,7 @@ labels would render wrongly under any `\ref` anyway.
 Implementing any of it in `src/`; adding Hsiao/Fitzpatrick to `refs.bib` (ADS auth expired —
 make no citation rather than fabricating a bibkey); revisiting `z < 0.05` or
 SALT2-strictly-downstream.
+
+**Amendment, 2026-08-21:** the ADS token was renewed later the same day and the
+Hsiao/Fitzpatrick entries were added and cited, so that item is closed rather than
+out of scope. The other two exclusions stand.

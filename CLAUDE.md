@@ -180,8 +180,9 @@ These were settled deliberately. Do not silently revise them.
      ⇒ the shape latents are substantially measuring dust there: a negative result
      for interpretation, to be reported as one.
 
-   An external SED template (e.g. Hsiao) is allowed for *quantifying these
-   systematics only* — never to fit, initialise, or K-correct.
+   An external SED template (`Hsiao2007`) and extinction law (`Fitzpatrick1999`)
+   are allowed for *quantifying these systematics only* — constructing `u(s)`,
+   evaluating `Delta kappa` — never to fit, initialise, or K-correct.
 
    **SALT2 is structurally better placed on dust, and that is an honest cost.**
    SALT2's colour *law* is phase-independent by construction, but SALT2 carries an
