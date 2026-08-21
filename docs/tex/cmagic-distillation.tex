@@ -1,0 +1,229 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage[hidelinks]{hyperref}
+\input{macros}
+
+\title{CMAGIC Distilled: \\ Empirical Evidence for Light Curves as Curves in Magnitude Space}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A working distillation of \citet{Wang2003}, restricted to what bears on the
+differential-geometric light-curve model. \salt\ supplied the parameterisation to
+beat; CMAGIC supplies something different and prior --- direct empirical evidence
+that the object this project treats as fundamental, the track a \snia\ traces in
+magnitude space, is real, is measurable, and has exactly the invariance and
+segment structure the geometric model assumes. Wang et al.\ do not fit a curve;
+they fit one straight line on one post-maximum segment of the colour--magnitude
+plane. But in doing so they demonstrate, on 1990s photometry, three things this
+project asserts: that shape in magnitude space is insensitive to distance,
+redshift, and (to first order) extinction; that \snia\ are not a one-parameter
+family; and that a magnitude read off a \emph{geometric feature} of the track
+standardises better than the magnitude at maximum. What is retained here is the
+linear relation and its invariances, the slope and intercept as observables, the
+quantified reduction in extinction sensitivity, and the honest boundary between
+what a single line proves and what a full curve must still earn.
+\end{abstract}
+
+\section{The linear relation}
+
+Wang et al.\ plot $B$ magnitude against $B-V$ colour --- the ``colour--magnitude''
+or CMAG plane --- rather than either quantity against time. The central empirical
+finding is that for much of the first month past $B$ maximum this track is
+\emph{strikingly linear}:
+\begin{equation}
+  B = B_{BV} + \beta_{BV}\,(B-V),
+  \label{eq:cmagic}
+\end{equation}
+and likewise for $B-R$ and $B-I$. The slope and intercept are constants in time for
+a given supernova. Linearity holds down to the $0.01$~mag level to which the data
+are sensitive (their Fig.~5): typical $\chi^{2}$ per degree of freedom is well below
+one and the scatter about the line is under $0.05$~mag, so that ``higher order fits
+or more complicated colour--magnitude templates are not necessary.'' The linear
+regime runs roughly from day $+5$ to $+35$ after $B$ maximum for the $B$ vs $B-V$
+relation (later and shorter for redder colour pairs and for fast decliners), bounded
+below by a pre-maximum excursion and above by a sharp turn into the nebular phase.
+
+The slope is defined by a ratio of rates,
+\begin{equation}
+  \beta_{BV} = \frac{\dot{B}}{\dot{B} - \dot{V}},
+  \label{eq:slope}
+\end{equation}
+which is the single most important structural fact in the paper for present
+purposes: \eqref{eq:slope} is the direction of the tangent to the track in the
+colour--magnitude plane. CMAGIC measures a tangent direction on a segment where the
+curvature is, empirically, zero.
+
+\section{Why the shape is invariant --- the point that transfers most directly}
+
+The morphology of the CMAG track is set by the derivatives in \eqref{eq:slope}, and
+Wang et al.\ observe that this makes it insensitive to precisely the quantities this
+project removes as translations and reparameterisations:
+
+\begin{itemize}
+  \item \textbf{Extinction displaces the track without deforming it.} Host and
+        Galactic reddening move the entire CMAG curve along a fixed vector in the
+        $(B, B-V)$ plane but leave its shape --- and hence $\beta_{BV}$ --- unchanged.
+  \item \textbf{Distance and absolute luminosity} enter $B$ additively and so shift
+        the track bodily, again leaving the slope untouched.
+  \item \textbf{Redshift stretches the time coordinate by $1+\zred$ equally in all
+        bands}, a reparameterisation that does not change the slopes in
+        \eqref{eq:slope}. The shape depends on redshift and extinction only
+        indirectly, through the K-correction.
+\end{itemize}
+
+This is the central design decision of the geometric model
+--- that in magnitude space distance and dust act as translations, to which
+curvature is blind, and time dilation and stretch act as reparameterisations, which
+leave the curve pointwise unchanged --- stated and demonstrated empirically a decade
+and a half earlier, in a two-band special case. Wang et al.\ reach it by direct
+inspection of the data rather than by the fundamental theorem of curves, which is
+exactly why it is worth citing: it is external, prior, and observational
+corroboration that magnitude-space \emph{shape} is the extinction- and
+distance-invariant carrier of \snia\ information.
+
+Two honest boundaries on the corroboration. First, Wang et al.\ treat extinction as
+a \emph{constant} displacement vector --- the phase-independent, zeroth-order picture.
+The refinement that host reddening is a phase-dependent displacement, and therefore
+deforms the curve at second order, is beyond CMAGIC and is this project's own
+concern. CMAGIC supports the leading-order translation claim, not the second-order
+correction. Second, their invariance to stretch is conditional: it holds only if the
+$B$ and $V$ light curves stretch by the \emph{same} factor, $s_{B} \propto s_{V}$.
+Where they do not, the shape changes --- which is the subject of the next section.
+
+\section{\sneia\ are not a one-parameter family}
+
+If \snia\ light curves were a one-parameter family --- a single stretch or $\Delta
+m_{15}$ governing everything, with $s_{B} \propto s_{V}$ --- then by \eqref{eq:slope}
+every CMAG track would have identical shape and $\beta_{BV}$ would be universal. Wang
+et al.\ find it is not. The slope has a real dispersion beyond observational error
+(K-corrected $\langle\beta_{BV}\rangle = 1.94 \pm 0.16$; without K-correction
+$2.07 \pm 0.18$), it is uncorrelated with $\Delta m_{15}$, and the variations outside
+the linear region --- notably a pre-maximum ``bump'' present in the brightest objects
+and absent in others --- cannot be reproduced by stretching a single template
+sequence. They read this as direct evidence that ``\snia\ light curves are \emph{not}
+a one-parameter family,'' and note a suggestive bimodality in $\beta_{BV}$
+(a branch near $1.65$ and another near $2.0$) that may separate intrinsically
+distinct progenitor or burning classes.
+
+This is the empirical warrant for carrying more than one shape degree of freedom.
+The geometric model's ladder introduces $\shapeone$ and then $\shapetwo$ precisely to
+test whether a second shape parameter earns its place; CMAGIC is prior evidence that
+there is genuine structure for a second parameter to capture, and that at least one
+axis of it --- the tangent direction on the linear segment --- is measurable and
+extinction-robust.
+
+\section{The intercept as a standardisation variable}
+
+CMAGIC uses the \emph{intercept} of \eqref{eq:cmagic}, evaluated at a fixed reference
+colour to control extrapolation error, as a distance indicator in place of the
+magnitude at maximum. Wang et al.\ adopt $B_{BV0.6}$ (the fit evaluated at $B-V=0.6$,
+near the sample mean colour) and a standard intercept $B_{BV} \equiv B_{BV0.6} -
+1.164$~mag.
+
+The payoff is that a magnitude defined by a geometric feature of the track
+standardises \emph{better} than the peak magnitude. After a $\Delta m_{15}$
+correction, the low-extinction subsample shows Hubble-residual dispersion
+$\sigma \sim 0.07$~mag for the colour--magnitude intercept $M^{B}_{BV}$ against
+$\sim 0.10$~mag for the maximum magnitude $M^{B}_{\max}$. On raw intercepts the
+dispersion is $\approx 0.08$~mag for $(B_{\max}-V_{\max}) \le 0.05$ and $\approx
+0.11$~mag for $\le 0.2$, consistent with being observational-error dominated. The
+intercept is also robust for poorly observed supernovae, for which a reliable
+$\Delta m_{15}$ or peak magnitude cannot be recovered.
+
+This is the closest external precedent for the project's deliverable. The geometric
+model does not standardise on peak magnitude either: its distance variable $\dm$ is
+tied to the template $g$-maximum, and its Tripp-style standardisation is corrected by
+latents that describe the \emph{shape of the curve}. CMAGIC establishes that reading
+a distance off the geometry of the track, rather than off a single photometric peak,
+is not only viable but tighter.
+
+\section{Reduced extinction sensitivity, quantified}
+
+Because the CMAG intercept mixes magnitude and colour, its extinction correction is
+not the conventional $A_{B} = R_{B}\,E(B-V)$. Wang et al.\ show
+\begin{equation}
+  A_{BV} = \bigl(R_{B} - \beta_{BV}\bigr)\,E(B-V),
+  \label{eq:extcorr}
+\end{equation}
+so with $R_{B} \approx 4.1$ and $\beta_{BV} \approx 2$ the extinction correction
+applied to $B_{BV}$ is roughly \emph{half} that applied to the raw peak magnitude.
+The practical consequence is that an error in $E(B-V)$ propagates into the distance
+multiplied by $R_{B}-\beta_{BV} \approx 2$ rather than by $R_{B} \approx 4.1$ --- a
+factor-of-two reduction in the dominant systematic for reddened objects. They further
+construct an $E(B-V)$-free magnitude combination and an alternative colour-excess
+estimator $\mathcal{E}(B-V) = (B_{\max}-B_{BV})/\beta_{BV}$ that tracks
+$(B_{\max}-V_{\max})$ with unit slope.
+
+This quantifies, in the two-band case, what magnitude space buys against dust: not
+elimination, but a measurable reduction. It is consistent with the project's own
+claim that magnitude space \emph{reduces} dust from a shape-destroying anisotropic
+dilation to a small deformation about a rigid part --- reduced, not removed.
+
+\section{What transfers and what does not}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+CMAGIC element & Status here \\
+\midrule
+Track lives in a colour--magnitude plane            & \textbf{shared premise} (curve in $\Rn$) \\
+Linear segment with constant slope                  & \textbf{adopted} as empirical support for $\curv=0$ regions \\
+Shape invariant to distance, redshift               & \textbf{adopted} --- external corroboration of the translation/reparam.\ argument \\
+Shape invariant to extinction (constant vector)     & adopted at \emph{first order} only; phase-dependent dust is beyond CMAGIC \\
+Not a one-parameter family                          & \textbf{adopted} --- warrant for $\shapetwo$ \\
+Slope $\beta_{BV}$ as tangent direction             & \textbf{benchmark} for the model's tangent on the post-max linear phase \\
+Intercept as distance variable                      & \textbf{precedent} for standardising on curve geometry, not peak \\
+Reduced extinction sensitivity \eqref{eq:extcorr}   & \textbf{consistent with} the reduced-not-removed claim \\
+\midrule
+Fit only one line on one post-max segment           & not adopted --- the model fits the \emph{whole} curve, all epochs \\
+Zero weight to data outside the linear regime       & not adopted --- curved regions carry $\curv(\arc)$, the signal \\
+Linear feature is \emph{post}-maximum (day $+5$--$35$) & distinct from the model's built-in \emph{early}/pre-explosion ray \\
+$B$ vs $B-V$ (needs $B$-like and $V$-like bands)     & mapped onto \ztf\ $g,r$; slope values not directly portable \\
+Closed-form linear fit, transparent errors          & a caution: the neural $\curv$ is less transparent than a line \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two entries deserve comment. The linear segment CMAGIC exploits is \emph{post}
+maximum, whereas the straight segment built into the geometric model is the
+\emph{early}, pre-explosion ray where curvature is set to zero by construction. These
+are different segments of the same curve, and CMAGIC does not license the early one.
+What CMAGIC licenses is the more general proposition that \snia\ tracks in magnitude
+space contain extended intervals of vanishing curvature that are real and measurable
+--- which makes a zero-curvature construction physically credible rather than a
+convenience. It also hands the model a concrete post-maximum test: the learned
+$\curv(\arc)$, mapped onto the $g,r$ analogue of the $(B,B-V)$ plane, should approach
+zero over the corresponding phase interval, and the tangent direction there should
+reproduce a CMAGIC-like slope. That is an independent check on the fitted geometry,
+not an input to it.
+
+The physical reading Wang et al.\ offer for the linearity --- that just after maximum
+the ejecta seen at the photosphere lie in zones of more complete nuclear burning and
+so are more uniform, echoed by the drop in spectropolarimetric asphericity after
+maximum --- is worth keeping in view: it suggests the low-curvature regions are where
+the model's shape description should be most reliable, and the high-curvature regions
+near maximum and the secondary bump are where intrinsic diversity, and thus the
+latents, do their work.
+
+\section{Role of CMAGIC in this project}
+
+CMAGIC is not a benchmark to fit against and is not used in the pipeline. Its role is
+evidential. It is the prior empirical demonstration that the geometric model's
+foundational choice --- represent the light curve as a curve in magnitude space and
+let shape live in the geometry of that curve --- describes something real, invariant
+to the right nuisances, and richer than one parameter. Where \salt\ is the model to
+beat, CMAGIC is the observation that the beating is worth attempting. Its concrete
+numbers ($\langle\beta_{BV}\rangle$, the intercept dispersions, the factor-of-two
+extinction reduction) are targets the geometric quantities can be compared against
+once fitted, on the post-maximum linear phase where the two descriptions overlap.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

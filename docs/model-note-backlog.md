@@ -265,6 +265,26 @@ degeneracy became *more* load-bearing under the restructure, not less, and was k
 
 ---
 
+## Why the latent count is `K = 2`
+
+**Settled as a working value; the empirical question is what the ladder answers.** Moved
+out of the note on 2026-08-21 — it is a justification of a modelling choice, i.e. argument,
+not model definition.
+
+The latent count is not fixed by the geometry: `n` fixes the number of curvature functions,
+`n-1`, and says nothing about how many parameters condition them. So `K` is a modelling
+choice, and ultimately an empirical one.
+
+The working value `K = 2` is set by parity with SALT2 plus a single increment. SALT2
+describes a supernova with one time-dependent shape coefficient `x_1` and one
+time-independent colour `c`. In the present framework the colour is not a latent at all: it
+is a translation, and translations leave `κ` untouched (`eq:transinv`), so it conditions
+nothing. That leaves one latent to carry the SALT2 shape freedom and one more — the extra
+time-dependent degree of freedom this model exists to test. Hence `θ = (θ₁, θ₂)`, and
+whether the second earns its place is answered by the ladder, not asserted.
+
+---
+
 ## Use of an external SED template
 
 **Settled.** An external SED template (Hsiao et al. 2007) and a standard extinction law

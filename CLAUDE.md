@@ -69,6 +69,20 @@ every rung. What changes along the ladder is the *function it multiplies*: split
 exactly SALT2's `c`), and **L2c restores the full `u(s)` at no extra parameter**. L2c
 tests whether the second-order `c*du(s)` term matters.
 
+**The reddening direction is a fitted global parameter (revised 2026-08-22).**
+Previously the phase-independent reddening translation was fixed along `(1,-1)` (i.e.
+`perp (1,1)`) and `ubar`, hence its direction, was imported from the extinction law. It
+is now a **single sample-wide fit parameter `e_c`**, a unit vector in the `(m_g, m_r)`
+plane, common to all SNe exactly as the global orientation `Phi` is — the two-band
+analogue of SALT2 fitting `beta` rather than adopting `R_V`. `(1,-1)/sqrt2` is the
+nested fixed-`R_V` idealisation. Per-SN `c` remains the *amplitude* along `e_c`; only
+the *phase variation* `du(s)` is still imported from the template (`Fitzpatrick1999` +
+`Hsiao2007`) at L2c, with `e_c` setting its mean direction. A **per-SN** reddening
+direction is *not* fitted — it would be a per-SN rotation of the colour axis with no
+physical referent, the same reason no per-SN rotation is fitted (decision 4a). So the
+two per-SN phase-independent shifts are `mu` along `(1,1)` (distance, all bands equal,
+direction fixed by physics) and `c` along `e_c` (reddening, direction fitted globally).
+
 `w` is the timing scale in **rest-frame days**; `t_max` is in **observer-frame
 MJD** and is always free per SN, never taken from the archive's SALT2 `t0`.
 `sigma` is reserved for flux measurement errors and must not be used for the
@@ -144,9 +158,11 @@ These were settled deliberately. Do not silently revise them.
      problem and does nothing to the dust branch.
    - **`mwebv` removal is approximate too.** `E(B-V)` is known; `A_g(p)`,
      `A_r(p)` are not without an SED. Milder (low Galactic columns), not exact.
-   - **L2c fits the amplitude `c` of a precomputed `u(s)`**, not a constant
+   - **L2c fits the amplitude `c` of `u(s)`**, not a constant
      vector — a constant absorbs only `c*ubar` and leaves `c*du(s)` to contaminate
-     `theta`, which is the failure L2c exists to prevent. Same parameter count.
+     `theta`, which is the failure L2c exists to prevent. Same parameter count. (Since
+     the 2026-08-22 revision the mean *direction* of `u` is the fitted global `e_c`;
+     only the phase-variation *shape* `du(s)` is precomputed.)
      But by the order counting this is **cheap insurance, not a necessity**: a
      constant would capture most of the displacement, and the refinement matters
      only for the reddest objects. Adopted because it costs nothing. Cost:
@@ -221,49 +237,45 @@ These were settled deliberately. Do not silently revise them.
    K-correct. The cut buys independence at the cost of sample size. Do not
    relax it to gain statistics without revisiting the whole K-correction story.
 
-4. **No per-SN rotation, and the frame is fixed on the early zero-curvature
-   segment.** Two separate claims, both needed. *(b)* and *(c)* were **revised on
-   2026-08-21** when the anchor moved from the `g`-maximum to the early ray; *(a)*,
-   *(d)* and *(e)* are **untouched** — no rotation is still fitted, and the
-   revision must not be over-read as reopening that.
-   *(a)* Rotation is not a physical degree of freedom: distance and zeropoint
+4. **No per-SN rotation; the template's single global orientation is fitted, not
+   fixed.** Two separate claims, both needed. *(b)* and *(c)* were **revised on
+   2026-08-22**: the frame orientation, previously *fixed* by a constant-early-colour
+   assumption (the earlier 2026-08-21 revision that anchored on the early ray), is now
+   a **single global fit parameter `Phi`**, and the "which band peaks first" prediction
+   is **dropped** (the author has no interest in it). *(a)*, *(d)* and *(e)* survive —
+   no *per-SN* rotation is fitted, and the revision must not be over-read as reopening
+   that.
+   *(a)* No **per-SN** rotation is a physical degree of freedom: distance and zeropoint
    errors are **translations**, stretch is a **reparameterisation**, and dust is a
-   **phase-dependent displacement** (see decision 1 — *not* a translation).
-   Nothing acts as a rotation, so none is fitted.
-   *(b)* The template frame is fixed on the built-in zero-curvature segment
-   (decision 8) by `T = -(1,1)/sqrt2`, the early asymptotic direction of decision 5.
-   **This is a substantive assumption, not a costless gauge, and the note must not
-   present it as one.** A straight segment along the diagonal means
-   `d(m_g - m_r)/ds = 0`: the model asserts *constant colour throughout the earliest
-   modelled phase*, equivalently that both bands share one early power-law index.
-   Falsifiable, and weakly tested by ZTF, whose early sampling is sparse — a caution
-   as much as a defence. The anchor it replaced (`dm_g/ds = 0` at `s=0`) genuinely
-   *was* costless, since it only labelled a point of the template; swapping a
-   costless condition for a substantive one is the content of the change.
-   Two returns pay for it. The frame sign becomes a **prediction** per *(c)*. And
-   fixing a *direction* rather than one scalar supplies `n-1` of the `n(n-1)/2`
-   parameters of `SO(n)`: complete for `n=2`, and **2 of 3** for the `R^3` torsion
-   subsample instead of 1 of 3, leaving only the rotation about the diagonal axis
-   open. That halves the recorded `R^3` open question rather than merely restating
-   it — but it does not close it, and the remaining condition must come from an
-   observable, not an assumption.
-   The `g`-maximum is now *located* rather than *imposed*: it is the first root
-   `s_g(theta)` of `dm_g/ds = 0`, a `theta`-dependent root-find differentiable
-   through the implicit function theorem. The arclength origin `s = 0` moves to the
-   **end of the segment**, and that placement is load-bearing — see the gauge bullet
-   under Known limitations.
-   *(c)* The residual sign is a **model prediction, not a config input**. Arclength
-   increases with time and brightening means *decreasing* magnitude, so
-   `T(s_g) = (0,-1)` says `r` is still brightening at `g`-max and `(0,+1)` says it is
-   already fading — the sign records **which band peaks first**. Under *(b)* that
-   sign is `sign(kappa)`, an output of the trained network. So the direct
-   measurement (per-band polynomial fit near each peak, record the order) becomes a
-   **validation target**, and the config entry that used to carry the sign
-   disappears. Do **not** infer it from effective wavelength: peak epoch is *not*
-   monotonic in wavelength across UV to NIR. Since the frame is global and no
-   rotation is fitted, a mixed-ordering sample would be evidence *against* the
-   no-rotation design; report the minority fraction and the distribution of
-   max-to-max separation.
+   **phase-dependent displacement** (see decision 1 — *not* a translation). None acts
+   as a per-SN rotation, so none is fitted per SN. The template *as a whole* is the one
+   exception (see *(b)*).
+   *(b)* The template frame orientation is a **single global parameter `Phi`**, shared
+   across the whole sample, `T(s<=0) = R(Phi)(-(1,1)/sqrt2)` on the built-in
+   zero-curvature segment (decision 8). It is a **parameter, not an assumption and not a
+   gauge**: a rigid rotation is not absorbed by the per-SN translations `mu, c`, and
+   `kappa(s;theta)` is rotation-invariant, so the template orientation is the unique
+   rigid DOF the geometry leaves free — rotating the template changes predicted
+   magnitudes and cannot be undone downstream, hence it is identifiable. Being one
+   number over the whole sample it is well constrained by the population colour–phase
+   relation (densely sampled near maximum), *not* by the sparse early ray of any single
+   SN. `Phi = 0` is the diagonal ray `T = -(1,1)/sqrt2`, i.e. `d(m_g-m_r)/ds = 0` and
+   equal early power-law indices — the old constant-early-colour condition, now the
+   **nested null** of a fitted quantity rather than an imposed assumption. Physically
+   `Phi` is the two-band analogue of SALT2's global colour law: a shared
+   colour-evolution alignment, with per-SN `c` the offset. It costs **no per-SN
+   parameter** (count stays 8). For `n >= 3` the orientation is all 3 of `SO(3)`, fitted
+   globally — this **closes** the former `R^3` open frame question (fixing a direction
+   supplied only 2 of 3; fitting supplies all 3).
+   The `g`-maximum is *located*, not *imposed*: the first root `s_g(theta)` of
+   `dm_g/ds = 0`, a `theta`-dependent root-find differentiable through the implicit
+   function theorem. The arclength origin `s = 0` is at the **end of the segment**, and
+   that placement is load-bearing — see the gauge bullet under Known limitations.
+   *(c)* **The "which band peaks first" / frame-sign prediction is dropped.** With `Phi`
+   fitted the sign of the turning is no longer an independent config-free prediction of
+   peak ordering, and it is not a quantity of interest. Do not reintroduce a
+   `sign(kappa)` peak-ordering diagnostic or a max-to-max ordering report; the branch
+   table of decision 5 is deleted for the same reason.
    *(d)* **Coincident maxima break arclength.** If all bands peak at the same
    epoch then `||dgamma/dp|| = 0`, so `ds/dt = 0` and unit-speed parameterisation
    fails. Non-coincident band maxima is a regularity condition on the data.
@@ -271,41 +283,30 @@ These were settled deliberately. Do not silently revise them.
    an SED. So `t_max` is not comparable to SALT2 `t0`; measure the offset
    distribution, assume neither its centre nor its sign.
 
-5. **Curvature sum rule (`∫ kappa ds = pi mod 2pi`).** Flux vanishes before
-   explosion and after, so `m -> +inf` in every band at both ends: the curve is
-   a **hairpin** whose two asymptotes are parallel rays along `(1,1)`. The
-   tangent turns from `-(1,1)/sqrt2` to `+(1,1)/sqrt2`, a net turning of `pi`.
-   Corollaries: `kappa -> 0` at both extremes, and the asymptotic ray
-   separation is the terminal colour — predicted only *relative* to the early
-   colour, since the free `c` shifts both together.
+5. **Curvature sum rule — qualitative only (`∫ kappa ds ≈ pi`).** Flux vanishes before
+   explosion and after, so `m -> +inf` in every band at both ends: the curve is a
+   **hairpin**, both ends escaping to infinity, and the tangent reverses between them,
+   turning through **approximately `pi`**. Corollaries that do *not* depend on the
+   escape direction: `kappa -> 0` at both extremes (this is decision 8a), and the
+   asymptotic ray separation is the terminal colour — predicted only *relative* to the
+   early colour, since the free `c` shifts both together.
 
-   **The tangent and the integral are now treated differently — this is a revision
-   of 2026-08-21, not a silent extension.** The early asymptotic *tangent* **is**
-   imposed, at finite `s`, as the frame anchor of decision 4(b). That is legitimate
-   because zero flux means `m = +inf`, and unit speed gives
-   `||gamma(s) - gamma(0)|| <= |s|`, so `f = 0` requires `|s| = infinity`: with the
-   zero-curvature segment of decision 8 extended to `s -> -infinity`, the early
-   asymptote lies in the **closure of the model domain** and imposing a condition
-   there is an initial condition, not a constraint on an unmodelled extrapolation.
+   **Demoted to a qualitative diagnostic (revision of 2026-08-22).** With the early
+   orientation now *fitted* (`Phi`, decision 4b) and the late asymptote lying **outside
+   the model domain** and never observed, the total turning is **not pinned to an exact
+   value**. The old exact `∫ kappa ds = pi (mod 2pi)`, the exact `(1,1)` asymptote
+   directions, and the branch table splitting the integral at the `g`-maximum are all
+   **deleted** — the branch table was peak-ordering machinery, and 4(c) drops that.
+   `∫ kappa ds ≈ pi` may be quoted as a rough validation number on a trained `kappa`'s
+   extrapolation. **Never impose it as a constraint.**
 
-   The *integral* is not imposed, and remains diagnostic-only. It also **splits
-   branch-dependently** at the `g`-maximum, so a value may only ever be quoted with
-   its branch. Writing `T = (cos phi, sin phi)` gives `∫ kappa ds = Δphi` exactly,
-   with the early asymptote at `phi = 225 deg`:
-
-   | branch | pre-max | post-max | total |
-   |---|---|---|---|
-   | `kappa > 0` (g peaks first) | `+pi/4` | `+3pi/4` | `+pi` |
-   | `kappa < 0` (r peaks first) | `-3pi/4` | `-pi/4` | `-pi = pi (mod 2pi)` |
-
-   So `pi/4` is **not** a branch-independent constant, and imposing it for every
-   `theta` would *assert* the peak ordering — no SN could come out with the minority
-   ordering and decision 4(c)'s diagnostic would return nothing by construction.
-   Report both halves as validation numbers, stratified by the predicted
-   `sign(kappa)`. The late asymptote lies **outside** the window and stays
-   unobserved, so the total constrains *extrapolation* of a trained `kappa`, not the
-   fit: a validation diagnostic, or at most a weak prior. **Never impose the
-   integral as a hard constraint.**
+   What survives as an *imposed initial condition* is only decision 8a's `kappa = 0` on
+   the early segment: zero flux means `m = +inf`, and unit speed gives
+   `||gamma(s) - gamma(0)|| <= |s|`, so `f = 0` requires `|s| = infinity`; with the
+   segment extended to `s -> -infinity` the early asymptote lies in the **closure of the
+   model domain**, so imposing straightness there is an initial condition, not a
+   constraint on an unmodelled extrapolation. Its *orientation* is then the fitted
+   `Phi`, not an assumed direction.
 
 6. **Peculiar velocity is not in the likelihood.** `mu` is free per SN and
    absorbs it exactly. It enters only at the Hubble-diagram stage.
@@ -344,11 +345,14 @@ These were settled deliberately. Do not silently revise them.
    else.
 
    *(d)* **The payoff: the early rise is a prediction.** On the ray
-   `m_X = c_X - s/sqrt2`, so near `t_expl` the log term gives
-   `f_X ~ (t - t_expl)^alpha` with `alpha = 0.4 ln10 A / sqrt2 ~= 0.651 A`, identical
-   in both bands. A fireball `alpha = 2` corresponds to `A ~= 3.07`. Equality of
-   `alpha` across bands *is* the constant-early-colour assumption of decision 4(b),
-   in testable form. So the segment is not an architectural device.
+   `m_X = c_X - e_X s`, where `(e_g, e_r) = R(Phi)(1,1)/sqrt2` is the unit ray direction
+   (decision 4b), the log term gives `f_X ~ (t - t_expl)^alpha_X` with
+   `alpha_X = 0.4 ln10 e_X A`. The two indices share the scale `A` and differ only
+   through the fitted orientation: `alpha_g = alpha_r` **precisely when `Phi = 0`**,
+   where `e_X = 1/sqrt2` and `alpha ~= 0.651 A` (fireball `alpha = 2` ⇒ `A ~= 3.07`).
+   So the ratio `alpha_g/alpha_r` is the **observable form of `Phi`** — equal indices
+   confirm the diagonal ray, a fitted `Phi != 0` predicts a definite inequality. The
+   segment is not an architectural device.
 
    *(e)* **`n >= 3`: `tau` is undefined on the segment, not merely ill-conditioned.**
    Where `kappa_1 = 0` there is no osculating plane, so whatever `tau(s)` the network
@@ -539,22 +543,27 @@ and expressible as mathematics. Do not let it become a second note.
     correlates positively with light-curve width; position along `(1,1)` fixed by
     normalising the template so `m_g = 0` at its own `g`-maximum, which makes `mu`
     *exactly* the peak `g` magnitude.
-  - *Assumption* (substantive, falsifiable): **frame orientation moved here** from
-    the gauge list — decision 4(b)'s constant early colour. Also
-    `t_expl` scaling with `w` (decision 8c) and `Corr(c, theta) = 0`.
-  - *Prediction* (checked, not chosen): which band peaks first, via `sign(kappa)`;
-    colour **evolution**; the early power-law index.
-  - *Parameter*: position perpendicular to `(1,1)` is `c`, free per SN. **Revised
-    2026-08-21** — this was previously listed as a template function of `theta` and
-    so as a prediction. With `c` free, neither early nor terminal colour is predicted
-    absolutely; only their *difference* is, since `c` displaces the whole curve and
-    cancels. The model predicts colour evolution and leaves the colour zero point
-    free — structurally the same split SALT2 makes between a fixed colour law and a
-    fitted `c`.
-- **The `s`-origin and `mu` span an exactly flat direction unless the origin is
-  fixed.** On a straight segment, translating the arclength origin displaces the curve
-  *along* the ray, i.e. along `(1,1)` — which is precisely what `mu` does. Anchoring
-  `s = 0` at the end of the segment is what removes it. This is a genuine null
+  - *Assumption* (substantive, falsifiable): `t_expl` scaling with `w` (decision 8c)
+    and `Corr(c, theta) = 0`. **Frame orientation is no longer here** — as of
+    2026-08-22 it is a fitted global parameter (below), not an assumption.
+  - *Prediction* (checked, not chosen): colour **evolution**; the early power-law
+    index (whose two-band ratio is the observable form of `Phi`, decision 8d). **Not**
+    "which band peaks first" — that prediction was dropped with the 2026-08-22 revision.
+  - *Parameter*: position along the fitted reddening direction `e_c` is `c`, free per SN
+    (**revised 2026-08-21** from a template function of `theta`); the **reddening
+    direction `e_c`** itself (**revised 2026-08-22** from fixed `(1,-1)`/imported), one
+    global unit vector for the whole sample, not per-SN; and the **template's global
+    orientation `Phi`** (revised 2026-08-22), one number for the whole sample, not
+    per-SN. With `c` free, neither early nor terminal colour is predicted absolutely;
+    only their *difference* is, since `c` displaces the whole curve and cancels. The
+    model predicts colour evolution and leaves the colour zero point free — structurally
+    the same split SALT2 makes between a fixed colour law and a fitted `c`, with `Phi`
+    the analogue of SALT2's global colour law.
+- **The `s`-origin and the per-SN translations span an exactly flat direction unless
+  the origin is fixed.** On a straight segment, translating the arclength origin
+  displaces the curve *along* the early ray, `R(Phi)(1,1)` — which reduces to `mu`'s own
+  axis `(1,1)` at `Phi = 0` and otherwise mixes `mu` with `c`. Anchoring `s = 0` at the
+  end of the segment is what removes it. This is a genuine null
   direction of the likelihood, not a slow direction; it must be fixed, not
   regularised. `mu` stays an **all-band** offset — a `g`-only offset would mix the
   distance and colour channels and would revise decision 1.
