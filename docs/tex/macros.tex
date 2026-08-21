@@ -31,7 +31,9 @@
 \newcommand{\warpone}{a_{1}}                % quadratic timing corrections
 \newcommand{\warptwo}{a_{2}}
 \newcommand{\dm}{\mu}                       % normalization / distance modulus
-\newcommand{\colr}{c}                       % colour translation (variant only)
+\newcommand{\colr}{c}                       % colour amplitude (variant only)
+\newcommand{\dustdir}{\mathbf{u}}           % phase-dependent reddening
+                                            % displacement, u(s); NOT a constant
 
 % --- Photometry ---------------------------------------------------------
 \newcommand{\magg}{m_{g}}
@@ -51,6 +53,7 @@
 
 % --- Operators ----------------------------------------------------------
 \DeclareMathOperator{\SO}{SO}
+\DeclareMathOperator{\SE}{SE}
 \DeclareMathOperator*{\argmin}{arg\,min}
 \newcommand{\deriv}[2]{\frac{\dd #1}{\dd #2}}
 \newcommand{\pderiv}[2]{\frac{\partial #1}{\partial #2}}

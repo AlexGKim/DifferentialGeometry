@@ -64,13 +64,43 @@ free choice.
 
 These were settled deliberately. Do not silently revise them.
 
-1. **Curve in magnitude space, likelihood in flux.** In magnitude space both
-   distance (`(1,1)/sqrt2`) and colour (`(1,-1)/sqrt2`) are *translations*,
-   hence isometries, hence `kappa` is exactly invariant. In flux space distance
-   is an isotropic dilation and extinction an *anisotropic* one — neither is an
-   isometry, and the claim that `kappa` is intrinsic collapses. But ZTF errors
-   are Gaussian in flux and negative fluxes are meaningful, so the likelihood
-   must use native flux. **Never convert data to magnitudes.**
+1. **Curve in magnitude space, likelihood in flux.** In magnitude space distance
+   (`(1,1)/sqrt2`) and colour (`(1,-1)/sqrt2`) are *translations*, hence
+   isometries, hence `kappa` is invariant. In flux space distance is an isotropic
+   dilation and extinction an *anisotropic* one — neither is an isometry, and the
+   claim that `kappa` is intrinsic collapses. Extinction, not distance, is what
+   forces the choice: an isotropic dilation is repairable by rescaling, an
+   anisotropic one takes a circle to an ellipse and is not. But ZTF errors are
+   Gaussian in flux and negative fluxes are meaningful, so the likelihood must
+   use native flux. **Never convert data to magnitudes.**
+
+   **Exact for distance and zeropoint; only approximate for dust.** Band
+   extinction `A_X(p)` is a flux-weighted average of the monochromatic law over
+   the filter, weighted by the SN's own SED — which evolves with phase. So dust
+   is a *phase-dependent displacement* `gamma -> gamma + c*u(s)`, not a
+   translation, and it does change `kappa` and arclength. Three consequences:
+   - **`z < 0.05` does not help.** This is a *rest-frame* effect, identical at
+     `z=0`. Low `z` suppresses the K-correction branch of the missing-SED
+     problem and does nothing to the dust branch.
+   - **`mwebv` removal is approximate too.** `E(B-V)` is known; `A_g(p)`,
+     `A_r(p)` are not without an SED. Milder (low Galactic columns), not exact.
+   - **L2c fits the amplitude `c` of a precomputed `u(s)`**, not a constant
+     vector — a constant absorbs only the mean and leaves the phase variation to
+     contaminate `theta`, which is the failure L2c exists to prevent. Same
+     parameter count. Cost: `kappa` is not intrinsic under dust; reddening
+     becomes a known deformation in the forward model, not a quotiented symmetry.
+
+   **Required diagnostic before trusting `theta`:** propagate the `u(s)`
+   deformation through Frenet to get `Delta kappa(s)`, and compare to the `kappa`
+   range the network spans over fitted `theta`. Order unity ⇒ the shape latents
+   are substantially measuring dust. An external SED template (e.g. Hsiao) is
+   allowed for *quantifying this systematic only* — never to fit, initialise, or
+   K-correct.
+
+   **Metric is a convention.** `kappa` presupposes a metric on magnitude space
+   and none is physically preferred. `diag(1,1)` is a choice; it does not affect
+   invariance (translations are isometries of any translation-invariant metric)
+   but does set what "shape" means. Declared in the gauge-fixing section.
 
 2. **SALT2 is strictly downstream.** Used only as an independent benchmark on
    the same objects. Never to preprocess, K-correct, interpolate, or
@@ -136,7 +166,7 @@ These were settled deliberately. Do not silently revise them.
 | L0 | `mu, sigma, t_max` | is a rigid template enough? |
 | L1 | `+ theta_1` | does one shape parameter earn its place? |
 | L2 | `+ theta_2` | does a second? |
-| L2c | L2 `+ c` translation | does dust need its own direction? |
+| L2c | L2 `+ c` amplitude of `u(s)` | does dust need its own direction? |
 | L3 | `+ a_1, a_2` | does nonlinear timing earn its place? |
 
 Scored on **held-out Hubble residual scatter** under cross-validation

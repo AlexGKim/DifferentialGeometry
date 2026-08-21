@@ -26,6 +26,7 @@ component decomposition of \salt\ \citep{Guy2007}.
 \end{abstract}
 
 \section{Motivation}
+\label{sec:motivation}
 
 The standard empirical treatment of \snia\ light curves, exemplified by \salt,
 models the spectral energy distribution as a linear expansion about a mean
@@ -107,35 +108,158 @@ configuration and is recorded in Section~\ref{sec:limitations}.
 \subsection{Why the curve lives in magnitude space}
 \label{sec:magspace}
 
-Curvature is invariant under isometries of the ambient space and under nothing
-else. The choice of ambient space is therefore dictated by which physical
-nuisance transformations we need to quotient out, and whether they act as
-isometries.
+Curvature is invariant under orientation-preserving isometries of the ambient
+space, and among transformations of that space, under nothing else. Two
+qualifications on the second clause. The signed planar curvature of
+\eqref{eq:frenet2d} picks up a factor $\det Q$ under an isometry with linear part
+$Q$, so reflections flip its sign and the invariance group is $\SE(n)$ rather
+than the full isometry group; only $\abs{\curv}$ is invariant under reflections.
+And the clause is restricted to maps of the ambient space because
+reparameterisation also leaves $\curv(\arc)$ unchanged --- that is the claim of
+Section~\ref{sec:motivation} --- but it does not move the image of the curve at
+all, so it is not a competing counterexample. With those qualifications the
+statement is a rigidity theorem, not a failure of imagination: a diffeomorphism
+preserving the curvature of \emph{every} curve must be an isometry. That is what
+makes the comparison below a derivation rather than a preference, since it
+forecloses the possibility that some non-isometry preserves $\curv$ for an
+unrelated reason.
 
-In magnitude space the two relevant nuisances are exactly translations:
+The choice of ambient space is therefore dictated by which physical nuisance
+transformations we need to quotient out, and whether they act as isometries. In
+magnitude space the leading behaviour of both is a translation,
 \begin{align}
   \text{distance and absolute luminosity:} \quad
-    &\curve \mapsto \curve + \dm\,(1,1)/\sqrt{2}, \\
+    &\curve \mapsto \curve + \dm\,(1,1)/\sqrt{2}, \label{eq:transdist}\\
   \text{dust reddening and intrinsic colour:} \quad
-    &\curve \mapsto \curve + \colr\,(1,-1)/\sqrt{2}.
+    &\curve \mapsto \curve + \colr\,(1,-1)/\sqrt{2}, \label{eq:transcol}
 \end{align}
-Both are isometries, so $\curv(\arc)$ is exactly invariant under both. The
-curvature is a genuinely nuisance-free descriptor of the supernova.
+because magnitudes are logarithmic and both effects are multiplicative in flux.
+The first of these is exact. The second is not, and
+Section~\ref{sec:phasedust} treats the difference, which is consequential.
+
+\paragraph{Distance is an exact translation.} Luminosity distance dims every band
+by the same factor, independent of wavelength and of phase, so
+\eqref{eq:transdist} holds with no approximation and requires no knowledge of the
+spectral energy distribution. The same is true of a per-band zeropoint error,
+which is additive in magnitude by construction. Under these, $\curv(\arc)$ is
+exactly invariant and is a genuinely nuisance-free descriptor.
 
 In flux space neither is an isometry. Distance acts as an isotropic dilation,
 $f \mapsto a f$, under which $\curv \mapsto \curv/a$ and $\arc \mapsto a\arc$.
-Worse, extinction acts as an \emph{anisotropic} dilation,
+This one is in principle repairable, since $a$ is a single constant and
+scale-invariant combinations such as $\arclen\,\curv(\arc/\arclen)$ survive it.
+Extinction is not repairable: it acts as an \emph{anisotropic} dilation,
 \begin{equation}
   \fluxg \mapsto \fluxg\,10^{-0.4 A_{g}}, \qquad
   \fluxr \mapsto \fluxr\,10^{-0.4 A_{r}}, \qquad A_{g} \neq A_{r},
 \end{equation}
-which deforms the shape of the curve in a way no reparameterisation can undo.
-Working in flux space would mean quotienting by a group that does not act by
-isometries, which destroys the central claim that $\curv$ is intrinsic.
+which deforms the shape of the curve in a way no rescaling or reparameterisation
+can undo --- it takes a circle to an ellipse, and constant curvature to
+non-constant. Working in flux space would mean quotienting by a group that does
+not act by isometries, which destroys the central claim that $\curv$ is
+intrinsic. Extinction, not distance, is therefore what forces the choice.
 
 The model curve is therefore defined in magnitude space. This is independent of
 the space in which the likelihood is evaluated; Section~\ref{sec:likelihood}
 evaluates the likelihood in native flux.
+
+\paragraph{An unremarked convention: the metric.} Curvature has dimensions of
+inverse length, so it presupposes a metric on magnitude space, and there is no
+physically preferred one: nothing dictates how one magnitude of $g$ compares in
+length to one magnitude of $r$. Writing \eqref{eq:transdist} and
+\eqref{eq:transcol} with the normalisations $1/\sqrt{2}$, and calling the two
+directions orthogonal, presumes the Euclidean form $\mathrm{diag}(1,1)$. The
+invariance argument is robust to this, since translations are isometries of
+\emph{every} translation-invariant metric, so the reasoning above holds whatever
+form is chosen. The numerical values of $\curv$ are not robust to it: rescaling
+$\magr \mapsto 2\magr$ changes every curvature while changing nothing physical.
+The metric is thus a gauge convention on the same footing as the arclength origin
+and the latent normalisation of Section~\ref{sec:gauge}, and it is recorded there.
+
+\paragraph{What $\curv$ cannot know.} Invariance under the \emph{full}
+translation group has a corollary worth stating, since it constrains what the
+geometry can deliver: $\curv$ carries no information about absolute magnitude or
+about absolute colour, only about how they evolve. Both must be supplied
+separately --- absolute magnitude by $\dm$, and absolute colour by the globally
+fixed initial point $\curve(0)$, or by $\colr$ in rung L2c.
+
+\subsection{Dust extinction is phase-dependent, so \eqref{eq:transcol} is only
+approximate}
+\label{sec:phasedust}
+
+Equation~\eqref{eq:transcol} treats reddening as a fixed vector. It is not.
+Broadband extinction is a flux-weighted average of the monochromatic law over the
+filter,
+\begin{equation}
+  A_{X}(\phase) = -2.5\log_{10}
+    \frac{\int S_{X}(\lambda)\,F(\lambda,\phase)\,10^{-0.4A(\lambda)}\,\dd\lambda}
+         {\int S_{X}(\lambda)\,F(\lambda,\phase)\,\dd\lambda},
+  \label{eq:bandext}
+\end{equation}
+and the weights are the supernova's own spectral energy distribution
+$F(\lambda,\phase)$, which evolves strongly over the event
+\citep{Nugent2002}. As the \snia\ reddens intrinsically, the flux-weighted
+effective wavelength within each filter shifts, so the extinction suffered per
+unit reddening drifts with phase. Both the magnitude and the direction of the
+displacement change. Dust therefore acts not as a translation but as a
+\emph{phase-dependent displacement},
+\begin{equation}
+  \curve(\arc) \mapsto \curve(\arc) + \colr\,\dustdir(\arc),
+  \qquad \dustdir(\arc) \ \text{a fixed vector-valued function, not a constant},
+  \label{eq:dustcurve}
+\end{equation}
+which is not an isometry and does change both $\curv$ and arclength.
+
+Three consequences follow, in increasing order of importance.
+
+\paragraph{The invariance is approximate, not exact.} The claim that $\curv$ is
+nuisance-free holds exactly for distance and zeropoint errors and only to leading
+order for dust. The residual is a systematic to be bounded, not a symmetry to be
+invoked, and the wording of Section~\ref{sec:magspace} is qualified accordingly.
+
+\paragraph{The redshift cut does not help.} This is a \emph{rest-frame} effect: it
+is exactly as large at $\zred = 0$ as at $\zred = 0.1$. The defence offered in
+Section~\ref{sec:limitations} --- that $\zred < 0.05$ keeps K-corrections small
+--- is therefore no defence here. Phase-dependent extinction and K-corrections are
+the same underlying problem, that band-integrated magnitudes depend on an SED the
+model does not have, but only the K-correction branch is suppressed by low
+redshift. The dust branch survives the cut untouched and must be handled on its
+own terms. The same caveat applies to the Milky Way correction of
+Section~\ref{sec:samples}: \texttt{mwebv} is known, but converting it to
+$A_{g}(\phase)$ and $A_{r}(\phase)$ is not possible without an SED, so subtracting
+a constant offset is an approximation there too, smaller only because Galactic
+columns at high latitude are low.
+
+\paragraph{A constant $\colr$ cannot absorb it, so rung L2c is respecified.} A
+constant translation removes the mean of $\colr\,\dustdir(\arc)$ and leaves its
+variation, which is then free to be absorbed by $\shapeone, \shapetwo$ --- exactly
+the contamination that motivates L2c in Section~\ref{sec:ladder}, reached by a
+remedy that does not extend to it. Rung L2c is therefore defined with the
+displacement of \eqref{eq:dustcurve} rather than a constant vector: $\dustdir$ is
+precomputed once from an extinction law and a template SED and held fixed, while
+its amplitude $\colr$ remains free per supernova. This costs no additional free
+parameter. It does cost the clean statement that $\curv$ is intrinsic under dust:
+reddening becomes a known deformation fitted in the forward model rather than a
+symmetry quotiented out by the geometry. That trade is stated here rather than
+hidden, because it is a real retreat from the position of
+Section~\ref{sec:magspace}.
+
+Note finally that $\dustdir$ depends on the SED, which depends on the shape being
+measured, so the dust deformation and intrinsic colour evolution are physically
+coupled and not merely similar in direction. Treating $\dustdir$ as fixed is
+itself an approximation, tolerable only while the deformation is small.
+
+\paragraph{Required diagnostic.} The size of the effect must be measured, not
+assumed small. Evaluate \eqref{eq:bandext} on a grid of $E(B-V)$ and $R_{V}$ using
+a standard extinction law and a template \snia\ SED, propagate the resulting
+deformation through the Frenet equations to obtain $\Delta\curv(\arc)$, and
+compare it with the variation in $\curv$ that the network spans over the fitted
+range of $\shape$. That ratio is the decisive number. If it is of order unity the
+shape latents are substantially measuring dust and the interpretation programme in
+Section~\ref{sec:gauge} fails; if it is small the effect is a systematic to quote.
+Using an external SED template for this purpose does not compromise the
+independence from \salt\ of Section~\ref{sec:ladder}, provided it is used only to
+quantify a systematic and never to fit, initialise, or K-correct the photometry.
 
 \section{The model}
 
@@ -336,9 +460,14 @@ sizes move negligibly. The 36 objects with NaN $t_{0}$ must in any case be
 selected by such an estimator or excluded explicitly.
 
 \paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
-\texttt{mwebv}. It is a \emph{known} translation in magnitude space and is
-therefore removed deterministically before fitting. Only host-galaxy reddening
-remains a free quantity, and only in rung L2c.
+\texttt{mwebv}, so its \emph{amplitude} is known and is removed deterministically
+before fitting rather than being fitted. Only host-galaxy reddening remains a free
+quantity, and only in rung L2c. Note that what is known is $E(B-V)$, not
+$A_{g}(\phase)$ and $A_{r}(\phase)$; by Section~\ref{sec:phasedust} the conversion
+is phase-dependent and needs an SED, so removing a constant offset is an
+approximation here as well. It is a milder one, since Galactic columns at the
+high latitudes of this sample are low, but it is the same approximation and is
+not exact.
 
 \section{Relation to \salt}
 
@@ -394,19 +523,25 @@ Enumerating the per-supernova nuisances in magnitude space:
 \toprule
 Effect & Action on $\curve$ \\
 \midrule
-Distance and absolute luminosity & translation $\parallel (1,1)$ \\
-Host dust and intrinsic colour   & translation along the reddening direction \\
-Per-band zeropoint error         & translation $(\delta_{g}, \delta_{r})$ \\
+Distance and absolute luminosity & translation $\parallel (1,1)$; exact \\
+Host dust and intrinsic colour   & displacement along the reddening direction,
+                                   phase-dependent (Section~\ref{sec:phasedust}) \\
+Per-band zeropoint error         & translation $(\delta_{g}, \delta_{r})$; exact \\
 Time dilation and stretch        & reparameterisation; does not move $\curve$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Every entry is a translation or a reparameterisation. None is a rotation.
+Every entry is a translation, a phase-dependent displacement, or a
+reparameterisation. None is a rotation.
 Admitting a per-supernova rotation would therefore introduce a degree of
 freedom with no physical referent, and it should not appear in any rung of the
 ladder. Note that a supernova-dependent extinction law $R_{V}$ changes the
-\emph{direction} of the reddening translation but is still a translation.
+\emph{direction} of the reddening displacement but does not rotate the curve; it
+selects a different $\dustdir(\arc)$ in \eqref{eq:dustcurve}. The
+phase-dependence of that displacement is a departure from isometry, but it is not
+a rotation either, so the conclusion of this subsection is unaffected by
+Section~\ref{sec:phasedust}.
 
 \subsection{The frame is fixed by the $g$-maximum}
 
@@ -564,6 +699,7 @@ isometry property of Section~\ref{sec:magspace}. The sum rule is the sharpest
 available statement of what the magnitude-space choice buys and what it costs.
 
 \section{Degeneracies and gauge fixing}
+\label{sec:gauge}
 
 The model as stated has exact degeneracies that must be removed before the
 latents can be interpreted or compared across rungs of the ladder.
@@ -573,6 +709,14 @@ is absorbed by $\tmax$. Gauge is fixed by anchoring $\arc = 0$ to a
 geometrically defined point on the template curve, taken here as the $g$-band
 maximum, $\dd\magg/\dd \arc = 0$. By \eqref{eq:frameanchor} this simultaneously
 fixes the frame orientation, so the two gauges are one condition.
+
+\paragraph{Metric on magnitude space.} Curvature presupposes a metric, and no
+metric on magnitude space is physically preferred
+(Section~\ref{sec:magspace}). The Euclidean choice $\mathrm{diag}(1,1)$ is adopted
+as a convention. It does not affect the invariance arguments, since translations
+are isometries of any translation-invariant metric, but it does set the numerical
+scale of $\curv$ and hence what the model means by shape. It must be declared
+alongside the other conventions here rather than left implicit.
 
 \paragraph{Latent scale, sign and rotation.} Nothing in \eqref{eq:kappanet}
 fixes the scale, sign, or mutual orientation of $(\shapeone, \shapetwo)$. Gauge
@@ -612,7 +756,7 @@ Rung & Free per supernova & Question \\
 L0  & $\dm, \tscale, \tmax$        & is a rigid template sufficient? \\
 L1  & $+\ \shapeone$                & does one shape parameter earn its place? \\
 L2  & $+\ \shapetwo$                & does a second? \\
-L2c & L2 $+\ \colr$ translation     & does dust need its own direction? \\
+L2c & L2 $+\ \colr$ amplitude of $\dustdir(\arc)$ & does dust need its own direction? \\
 L3  & $+\ \warpone, \warptwo$       & does nonlinear timing earn its place? \\
 \bottomrule
 \end{tabular}
@@ -625,11 +769,17 @@ upstream of the data.
 
 Rung L2c deserves emphasis. The baseline model permits only the $\dm$
 translation, so the template predicts each supernova's absolute colour from its
-shape alone. Host-galaxy dust is a genuine translation along $(1,-1)/\sqrt{2}$
-that varies from object to object and is not intrinsic; with no translation to
-absorb it, it will be forced into $\shapeone, \shapetwo$ and contaminate
-exactly the parameters under interpretation. Whether shape can absorb reddening
-or requires its own direction is a result worth reporting either way.
+shape alone. Host-galaxy dust varies from object to object and is not intrinsic;
+with nothing to absorb it, it will be forced into $\shapeone, \shapetwo$ and
+contaminate exactly the parameters under interpretation. Whether shape can absorb
+reddening or requires its own direction is a result worth reporting either way.
+
+The free parameter in L2c is the amplitude $\colr$ of the phase-dependent
+displacement $\dustdir(\arc)$ of \eqref{eq:dustcurve}, not of a constant vector
+along $(1,-1)/\sqrt{2}$. Section~\ref{sec:phasedust} gives the reason: a constant
+translation removes only the mean of the reddening displacement and leaves its
+phase variation free to contaminate the shape latents, which is the very failure
+L2c exists to prevent. The parameter count is unchanged.
 
 \section{Limitations}
 \label{sec:limitations}
@@ -647,6 +797,16 @@ energy distribution \citep{Nugent2002}. The project therefore restricts to
 $\zred < 0.05$, where K-corrections are small. This keeps the model entirely
 independent of \salt, at the cost of sample size and of any meaningful
 redshift lever for cosmology.
+
+The absence of an SED has a second consequence that the redshift cut does
+\emph{not} mitigate, and it is the more serious of the two. Band-integrated
+extinction depends on the SED inside the filter, so it is phase-dependent
+(Section~\ref{sec:phasedust}); this is a rest-frame effect, identical in size at
+$\zred = 0$ and $\zred = 0.05$. Low redshift suppresses the K-correction branch of
+the missing-SED problem and does nothing to the dust branch. The mitigation there
+is the fixed displacement $\dustdir(\arc)$ of rung L2c, together with the
+$\Delta\curv$ diagnostic of Section~\ref{sec:phasedust}, and it is a mitigation
+rather than a solution.
 
 \paragraph{Curvature degenerates at inflection points.} Where $\curv \to 0$ the
 Frenet frame is ill-defined in the classical construction. Light curves in the
