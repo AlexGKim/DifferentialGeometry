@@ -225,11 +225,12 @@ with no other home at the time, and are recorded here as well as in `CLAUDE.md`.
 now stated mathematically in the note; restating them argumentatively is the failure mode
 that forced the 18→14 page cut.
 
-### `tau` is undefined, not merely ill-conditioned, on the zero-curvature segment
+### `tau` is undefined, not merely ill-conditioned, wherever `kappa_1 = 0`
 
-**Settled, and worse than the limitation it replaces.** The old wording was contingent —
-`kappa` "may pass near" zero near the secondary maximum — whereas the built-in segment
-makes `kappa = 0` on a set of positive measure, for every `theta`, always.
+**Settled.** *Rewritten 2026-08-22*: the built-in segment is gone (see the turn-on rung
+entry below), so `kappa = 0` is no longer a set of positive measure by construction and
+the claim is once again about **incidental** zeros. The mathematics is unchanged and does
+not depend on how the zero arises.
 
 For `n = 2` this costs **nothing**, and the recorded "curvature degenerates at
 inflections" limitation does not bite at all: the Frenet system in the plane is a
@@ -239,16 +240,17 @@ definition `N ∝ gamma''/|gamma''|` fails. Integrating the ODE rather than
 differentiating the curve is therefore the definition that survives, not a numerical
 convenience.
 
-For `n >= 3` it is a genuinely new limitation. Where `kappa_1 = 0` the osculating plane
-does not exist, so `tau` is not ill-conditioned but **undefined**: whatever `tau(s)` the
-network emits on the segment is **unidentifiable** and must be reported as such. This
-requires a rotation-minimising (Bishop / parallel-transport) frame, not merely an
-"inflection-robust" one, and it compounds the open `R^3` frame question rather than
-being independent of it.
+For `n >= 3` it is a genuine limitation. Where `kappa_1 = 0` the osculating plane does not
+exist, so `tau` is not ill-conditioned but **undefined**: whatever `tau(s)` the network
+emits there is **unidentifiable** and must be reported as such. This requires a
+rotation-minimising (Bishop / parallel-transport) frame, not merely an
+"inflection-robust" one. It no longer compounds the `R^3` frame question, which is
+**closed** — see the orientation/origin redundancy entry below.
 
 ### Incidental near-zero curvature remains a limitation
 
-**Open.** Distinct from the by-design segment: the `(m_g, m_r)` path may approach
+**Open.** Since 2026-08-22 this is the *only* case, the by-design segment having been
+dropped: the `(m_g, m_r)` path may approach
 `kappa = 0` *incidentally* near the secondary maximum of redder bands. Only this case
 makes the instruction "report where along `s` curvature approaches zero" meaningful, so
 the instruction survives — but it now belongs to `CLAUDE.md` and the code, not to the
@@ -297,3 +299,107 @@ way it does not compromise the independence from SALT2.
 renewed, and both cited in the note at the point where `u(s)` is defined. Volume and page
 were filled in from the bibcodes, which encode them — ADS's short export omits both, as
 the header of `refs.bib` already warns.
+
+---
+
+## The turn-on rung: singular traversal, `t_expl`, pre-explosion nulls, power-law rise
+
+**Open — a candidate later rung.** Added to the model as `CLAUDE.md` decision 8 on
+2026-08-21 and **struck in full on 2026-08-22**, one day later. Parked here because the
+physics is right and the machinery is coherent; what failed was its place in the *current*
+model.
+
+**Why it was struck.** Three things, of which the first is fatal on its own terms.
+
+1. **The defining equation was inconsistent.** `s in (-inf, s_end]` with `kappa_i = 0` for
+   `s <= 0` truncates the *late* end, while the unit-speed argument that motivated the
+   segment ("both ends escape to infinity") forces `(-inf, +inf)`. The same paragraph both
+   called the one-sided statement the two-sided one and claimed the terminal colour was an
+   *output* while placing the late asymptote outside the domain.
+2. **It did not fix the gauge it was carried for.** Nothing forbade `kappa == 0` on
+   `(0, s_1]` as well, so "the end of the segment" was not a well-defined arclength origin,
+   and the origin-versus-translation flat direction it existed to remove survived it. The
+   replacement — anchoring `s = 0` at the `g`-maximum, an **intrinsic** feature — does fix it.
+3. **The dark phase never needed a semi-infinite ray.** By unit speed,
+   `f = 0 <=> m = +inf <=> |s| = infinity`, so the dark phase is the **single ideal point**
+   `s = -infinity` in the closure of the domain, not an interval. The semi-infinite ray was
+   occupied by the *early rise*, which is finite in time and infinite in arclength — a fact
+   about the traversal, not about the curve. Checked: on a ray with band indices
+   `alpha_g, alpha_r`, `ds/d(Delta t) = (2.5/ln10) sqrt(alpha_g^2 + alpha_r^2)/Delta t`, so
+   `s = A ln(Delta t) + const` with exactly the `A` of the log term the segment introduced —
+   about `A ln10 ≈ 7` arclength units per decade of `Delta t`. The identification is right;
+   it just does not require prescribing `kappa = 0` anywhere.
+
+**What the rung would be.** A semi-infinite arclength domain with `kappa_i = 0` imposed
+early; a traversal `s(t) = ... + A ln[(u - u_expl)/(-u_expl)]` singular as `t -> t_expl+`,
+so predicted flux is continuous at turn-on rather than gated; `t_expl` either derived as
+`t_max + w u_expl (1+z)` (the assumption being that dark-phase duration scales with `w`,
+i.e. rise time is a stretch property) or free per SN; pre-explosion epochs in the
+likelihood, which carry **zero** Fisher information about the geometry and constrain
+`t_expl` only, so they must never count toward the ">=5 good epochs per band" selection;
+and the payoff, an early power-law rise `f_X ~ (t - t_expl)^alpha_X` with
+`alpha_X = 0.4 ln10 e_X A` — `0.651 A` on the diagonal ray, so fireball `alpha = 2` needs
+`A ≈ 3.07`, and the ratio `alpha_g/alpha_r` is the observable form of the ray direction.
+
+**What returning it would cost.** The data-side work is nontrivial and is recorded in
+`CLAUDE.md`'s "Pre-explosion (null) epochs" block, still marked **not verified against
+`ztfcosmo`**: `flux_offset` subtraction, rank-one `offset_unc`, excluding `in_baseline`
+epochs, and a null-specific quality cut (the detection cut `flag & 31 == 0` is the *wrong*
+cut for a null, and an `SNR > 5` cut on a null is a one-sided selection on the noise). It
+would also define a further subsample, whose size must be **measured**, not asserted.
+Scored on held-out residuals like any other rung.
+
+---
+
+## The orientation/origin redundancy, and why `n = 2` has no free orientation
+
+**Settled, 2026-08-22.** This is the result that closed the long-standing "open `R^3` frame
+question", and it did so by turning it into a count rather than answering it.
+
+Integrating `kappa(.;theta)` from initial tangent angle `psi` gives the **same curve** as
+integrating `kappa(.+a;theta)` from `psi + int_0^a kappa`. So the network's own arclength
+origin and the frame orientation are not independent: they carry **one joint redundancy**.
+Of the `n(n-1)/2` rotational numbers in the Frenet initial data, one is absorbed by sliding
+the network origin, leaving
+
+```
+n(n-1)/2 - 1   global orientation parameters
+```
+
+— **zero** for `n = 2`, **two** for `n = 3`.
+
+Three consequences. (i) The global orientation `Phi`, introduced earlier the same day as a
+sample-wide fit parameter, is not added capacity but a *coordinate* on this redundancy; for
+two bands it does not exist, and orientation is **pure gauge**. (ii) The old `R^3` question
+("fixing a direction supplies only 2 of 3 — what fixes the third?") is malformed: only two
+are ever free. (iii) The arclength origin must therefore be anchored at an **intrinsic**
+feature of the curve. The choice is the principal `g`-maximum, `dm_g/ds|_{s=0} = 0` with
+`T(0) = (0,-1)` and `kappa(0) > 0`. It costs no generality — every turning planar curve has
+a vertical tangent — and it does **not** constrain which band peaks first. Sign check, worth
+keeping because it is easy to get backwards: `m_g'' = -sin(phi) kappa = kappa(0) > 0`, a
+**minimum of magnitude**, i.e. peak brightness. The mirror convention `T(0) = (0,+1)`,
+`kappa(0) < 0` is equivalent. A useful side effect: `t_max` maps to `s = 0`, so the
+`s_g(theta)` root-find disappears from the model entirely.
+
+---
+
+## `e_c` is exactly unidentifiable below L2c
+
+**Settled, 2026-08-22.** The reddening direction was made a sample-wide fit parameter
+earlier the same day; the same afternoon showed that below L2c there is nothing to fit.
+
+With `mu` free per SN along `(1,1)` and `c` free per SN along `e_c`, the two span `R^2` for
+any `e_c` not parallel to `(1,1)`. So changing `e_c` is undone **exactly** by an invertible
+relabelling of `(mu, c)`: a flat likelihood direction, not a slow one. At L0–L2, `e_c` is
+therefore **gauge** — fix it at `(1,-1)/sqrt2` and do not fit it; a round-trip that appears
+to recover it is a bug.
+
+It gains content only at **L2c**, through the phase-varying `du(s)`, which is not a
+translation and so cannot be absorbed by any relabelling of two amplitudes. There it is a
+genuine global parameter, the two-band analogue of SALT2's fitted `beta`, with
+`(1,-1)/sqrt2` the nested fixed-`R_V` idealisation.
+
+The general lesson is worth stating once, because it recurs: **a direction is only
+identifiable if something in the model varies along it in a way the free amplitudes cannot
+mimic.** Two free per-SN amplitudes spanning the plane make every phase-*independent*
+direction question vacuous.

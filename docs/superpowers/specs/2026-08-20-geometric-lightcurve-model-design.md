@@ -63,14 +63,16 @@ right, all verified against the archive:
 Band selection is a config field, since the same loader serves both the 599-SN
 `g,r` primary sample and the 177-SN `g,r,i` torsion subsample.
 
-**Pre-explosion (null) epochs are a second epoch set with its own rules**, added
-2026-08-21. `PhotBatch` gains an `is_null` mask and per-band `flux_offset`,
-`offset_unc`. See `CLAUDE.md`'s "Pre-explosion (null) epochs" for the four rules and
-the warning that the column readings are **not yet verified against `ztfcosmo`** — that
-verification is a prerequisite of writing this module, and the module must not be built
-on the inferred reading. The consequence for other modules: nulls must **not** count
-toward the ">=5 good epochs per band" selection, so the 599/177 counts and the
-line-below regression test are unaffected.
+~~**Pre-explosion (null) epochs are a second epoch set with its own rules**~~ — added
+2026-08-21, **removed 2026-08-22** with `CLAUDE.md` decision 8. There is no `is_null`
+mask, no null epoch set, and no separate null cut: the likelihood epoch set is the
+in-window detections, full stop. What survives from that work is narrower and still
+required — `PhotBatch` carries per-band `flux_offset` and `offset_unc`, because
+`flux_offset` is subtracted deterministically (the same rule as `1+z` and `mwebv`) and
+`offset_unc` is rank-one, which matters for *faint detections late in the window* whether
+or not nulls are used. Those column readings remain **not yet verified against
+`ztfcosmo`** and that verification is still a prerequisite of writing this module. Null
+handling returns only if the parked turn-on rung does.
 
 ### `dgsn.geometry`
 
@@ -79,11 +81,15 @@ Pure geometry. Knows nothing about supernovae, flux, or photometry.
 ```
 frenet.integrate(kappa_fn, s_grid, n_dim) -> gamma            # (len(s), n)
 direct.curve_and_invariants(gamma_fn, s)  -> (gamma, kappa)
-reparam.s_of_t(t, t_max, tscale, a1, a2, z, A, u_expl) -> s   # singular at t_expl
+reparam.s_of_t(t, t_max, tscale, a1, a2, z) -> s              # cubic, no singularity
 reparam.ds_dt(...)                        -> ds/dt            # for the constraint
-reparam.t_expl(t_max, tscale, z, u_expl)  -> t_expl           # derived, not fitted
-invariants.g_max_arclength(gamma_fn, theta) -> s_g            # root of dm_g/ds = 0
 ```
+
+**Removed 2026-08-22** with `CLAUDE.md` decision 8: the `A, u_expl` arguments to
+`s_of_t` and its logarithmic singularity; `reparam.t_expl`; and
+`invariants.g_max_arclength`. The last is gone because `s = 0` *is* the `g`-maximum by the
+`eq:frameanchor` gauge, so `t_max` maps to `s = 0` and there is no root-find anywhere in
+the model.
 
 `frenet.integrate` solves the generalized Frenet system in `R^n` via diffrax
 with an adjoint. `direct` is the independent oracle: parameterise `gamma(s)`
@@ -102,13 +108,16 @@ likelihood.chi2(params, latents, batch)      -> scalar
 `forward` composes `reparam` → `frenet` → magnitude → flux → mask. The
 magnitude-to-flux conversion is the *only* place the two spaces meet, and the
 one place `mu` is applied. It is also what absorbs the `m -> +inf` divergence: the
-conversion extends continuously to `f = 0`, so a pre-explosion prediction is an
-ordinary value of the forward model rather than a branch.
+conversion extends continuously to `f = 0`, so a faint prediction is an ordinary value of
+the forward model rather than a branch. The divergence itself is never reached — it sits at
+`|s| = infinity`, outside the bounded arclength domain.
 
 `likelihood.chi2` is **not diagonal**. Per band,
 `C = diag(sigma^2) + offset_unc^2 · 1·1^T`, inverted in closed form by
 Sherman–Morrison; `flux_offset` is subtracted from the data, not fitted. Adds no
-parameter. A diagonal implementation is a bug, not an approximation — see `CLAUDE.md`.
+parameter. Negligible beside bright detections, it matters for the faint epochs late in
+the window, where a diagonal treatment overstates their joint information. A diagonal
+implementation is a bug, not an approximation — see `CLAUDE.md`.
 
 ### `dgsn.train`
 
@@ -148,7 +157,7 @@ that SN's own latents, examine its residuals.
 ztfidr ──► dgsn.data ──► PhotBatch (padded, masked)
                               │
                               ▼
-   latents (N,7) ──► reparam.s_of_t ──► s
+   latents (N,8) ──► reparam.s_of_t ──► s
                                         │
    KappaNet(s, theta) ──► frenet.integrate ──► gamma(s)  [magnitudes]
                                         │
@@ -172,27 +181,32 @@ free and which regularisers are active. Shared keys: phase window, band list,
 redshift cut, network width/depth, solver tolerances, optimiser schedule.
 
 The phase window `[-15, +40]` d is a config value precisely so sensitivity to
-it can be tested later. Three windows are distinct config concerns and must not be
-collapsed into one key: *model support* (extends before `-15` d), the *likelihood epoch
-set* (in-window detections plus nulls), and the *selection window* (`[-15,+40]` d).
+it can be tested later. **Two** windows, not three (revised 2026-08-22, when the
+three-window split went with decision 8): the *arclength domain* `[s_min, s_max]`, and the
+*selection window* `[-15,+40]` d, which also delimits the likelihood epoch set.
 
-The template hyperparameters `A` (log coefficient, hence the early power-law index) and
-`u_expl` (template explosion phase) are config values, **not** per-SN parameters, so the
-per-SN count is unchanged. Both need a sensitivity test; `A` has an external check via
-`alpha = 0.651 A` against the observed rise index (at `Phi = 0`; off-diagonal each
-band's index is `0.4 ln10 e_X A`). The global template orientation `Phi` (revised
-2026-08-22) is a **single sample-wide fit parameter**, not a config entry and not a
-per-SN latent; there is no frame-sign config entry.
+The **arclength domain** is a config value with a checkable condition attached: it must be
+wide enough that `reparam.s_of_t` stays inside it across the selection window for every
+sampled parameter value. That is a runtime assertion, not an assumption — a fit that walks
+off the end of the domain has no forward model, and must fail loudly rather than
+extrapolate. There are no `A` or `u_expl` hyperparameters and no `t_expl`; both went with
+decision 8, along with the frame-sign entry and the global orientation `Phi`. For `n = 2`
+the orientation is **gauge**, fixed by `eq:frameanchor`, so there is nothing to configure
+and nothing to fit; for `n >= 3` there are `n(n-1)/2 - 1` global orientation parameters
+(two for `n = 3`), fitted, not configured.
 
-The **reddening direction `e_c`** (revised 2026-08-22) is likewise a **single
-sample-wide fit parameter**, a unit vector in the `(m_g, m_r)` plane, not a config entry
-and not a per-SN latent — the two-band analogue of SALT2's fitted `beta`. It replaces
-the previously fixed `(1,-1)` direction, of which `(1,-1)/sqrt2` is now the nested
-fixed-`R_V` idealisation. Per-SN `c` is the amplitude along `e_c`; only the phase
+The **reddening direction `e_c`** is a unit vector in the `(m_g, m_r)` plane whose status
+depends on the rung (revised twice on 2026-08-22). Below L2c it is **exactly
+unidentifiable** — free per-SN `mu` along `(1,1)` and `c` along `e_c` span `R^2`, so
+changing `e_c` is undone by an invertible relabelling of `(mu, c)` — so at L0–L2 it is a
+**config value fixed at `(1,-1)/sqrt2`**, and any attempt to fit it there is a bug. At
+**L2c** it becomes a genuine **single sample-wide fit parameter**, the two-band analogue of
+SALT2's fitted `beta`, given content by the phase-varying `du(s)`; `(1,-1)/sqrt2` is then
+the nested fixed-`R_V` idealisation. Per-SN `c` is the amplitude along `e_c`; only the phase
 variation `du(s)` is precomputed from the extinction law and template SED, with `e_c`
-setting its mean direction. A per-SN reddening direction is **not** fitted (it would
-reintroduce a forbidden per-SN rotation). So the two per-SN phase-independent shifts are
-`mu` along the physics-fixed `(1,1)` and `c` along the globally fitted `e_c`.
+setting its mean direction. A per-SN reddening direction is **not** fitted at any rung (it
+would reintroduce a forbidden per-SN rotation). So the two per-SN phase-independent shifts
+are `mu` along the physics-fixed `(1,1)` and `c` along `e_c`.
 
 ---
 
@@ -241,30 +255,34 @@ they check the mathematics rather than the fit quality.
 - **Oracle agreement:** `frenet.integrate` and `direct.curve_and_invariants`
   agree on `kappa` to tolerance. Regression test against silent solver bugs.
 - `ds/dt > 0` is enforced across the fit window for sampled `(a1, a2)`.
-- **Frame orientation (revised 2026-08-22 — now a fitted global parameter).** The
-  initial frame is `T(s) = R(Phi)(-(1,1)/sqrt2)` for all `s <= 0` on the built-in
-  segment, with `Phi` a **single sample-wide fit parameter**. Assert the frame is
-  constant on the segment and that `s = 0` is where curvature turns on. Three things
-  this test must **not** do. It must not assert `dm_g/ds = 0` at `s = 0` — the
-  `g`-maximum is *located* at `s_g(theta) > 0` by root-find, so assert instead that the
-  root is found, is unique in the window, and is differentiable in `theta`
-  (finite-difference the implicit derivative). It must not assert or record a frame sign
-  / peak ordering: that prediction is **dropped**, there is no `sign(kappa)` ordering
-  diagnostic, and no config entry carries a sign. And it must check `Phi` is
-  **identifiable** — a global rotation is not absorbed by per-SN `mu, c` and `kappa` is
-  rotation-invariant, so a synthetic round-trip should recover an injected `Phi`. In
-  `R^3` all three `SO(3)` parameters are fitted globally; there is no leftover open
-  rotation.
-- **Reddening direction `e_c` (revised 2026-08-22 — global fit parameter).** The
-  phase-independent reddening translation is `c * e_c` with `e_c` a **single
-  sample-wide** unit vector, `(1,-1)/sqrt2` its fixed-`R_V` idealisation. Assert `e_c`
-  is **identifiable**: inject a synthetic `e_c != (1,-1)/sqrt2`, generate a population
-  with a spread of per-SN `c`, and confirm a round-trip recovers it — it is fixed by the
-  population colour spread, not per-SN, and is not absorbed by per-SN `mu, c` since a
-  single amplitude cannot rotate the shared direction. Assert `e_c` is **not** a per-SN
-  latent (fitting it per SN would recover a forbidden per-SN rotation). At L2c assert the
-  imported `du(s)` uses `e_c` for its mean direction, so `e_c` and the imported shape are
-  consistent.
+- **The frame anchor (revised 2026-08-22 — orientation is gauge for `n = 2`).** Assert
+  the `eq:frameanchor` gauge holds on the integrated template: `dm_g/ds = 0` at `s = 0`
+  with `T(0) = (0,-1)` and `kappa(0) > 0`, and that this is a **minimum of magnitude**
+  (`m_g'' = kappa(0) > 0`), i.e. peak brightness — a sign error here silently anchors on the
+  faintest point. Assert it costs no generality: for a random turning `kappa`, a vertical
+  tangent exists and the anchor is reachable by shifting the network origin. Two things
+  this test must **not** do. It must not assert or record a frame sign / peak ordering:
+  that prediction is **dropped**, there is no `sign(kappa)` ordering diagnostic, and no
+  config entry carries a sign. And it must not try to recover a global orientation `Phi`
+  for `n = 2` — there is none.
+- **The orientation/origin redundancy (new 2026-08-22).** The sharpest test of the
+  counting: integrating `kappa(.;theta)` from initial tangent angle `psi` must give the
+  **same set of points** as integrating `kappa(.+a;theta)` from `psi + int_0^a kappa`, to
+  solver tolerance, for random `a`. Assert it, then assert the consequence — a
+  synthetic round-trip must **fail** to recover an injected global rotation for `n = 2`
+  (it is gauge), and must recover exactly `n(n-1)/2 - 1` of them for `n >= 3` (two for
+  `n = 3`). A test that recovers a two-band `Phi` is detecting a bug in the gauge fixing.
+- **Reddening direction `e_c` (revised twice 2026-08-22 — gauge below L2c).** Below L2c
+  assert `e_c` is **exactly unidentifiable**: the Fisher matrix over
+  `(mu, c, e_c-angle)` must have a null direction, and two fits with different fixed `e_c`
+  (not parallel to `(1,1)`) must reach the *same* likelihood with `(mu, c)` related by the
+  predicted invertible relabelling. A round-trip that appears to recover `e_c` at L0–L2 is a
+  bug. At **L2c** assert the opposite: inject a synthetic `e_c != (1,-1)/sqrt2`, generate a
+  population with a spread of per-SN `c`, and confirm a round-trip recovers it — the
+  phase-varying `du(s)` is what breaks the flat direction, so also assert the null direction
+  *reappears* if `du(s)` is set to zero. Assert `e_c` is **not** a per-SN latent at any rung
+  (fitting it per SN would recover a forbidden per-SN rotation), and that at L2c the imported
+  `du(s)` uses `e_c` for its mean direction.
 - **Regularity — coincident maxima break arclength:** construct a synthetic curve
   whose bands peak at the same epoch and assert `ds/dt -> 0` there, i.e. that
   unit-speed parameterisation fails rather than silently returning garbage.
@@ -276,30 +294,34 @@ they check the mathematics rather than the fit quality.
   test of a model sum rule, which is now qualitative (`CLAUDE.md` decision 5). The
   branch-resolved turning-split test is **deleted** along with the branch table and the
   peak-ordering prediction (revised 2026-08-22).
-- **The built-in zero-curvature segment.** `frenet.py` handles it for free in `R^2`,
-  since the rotation ODE is regular at `kappa = 0` — but **`direct.py` must return
-  exactly `0` there**, and on a straight segment its recovery of `kappa` from
-  `gamma''` is a `0/0` form. This is a new requirement on the correctness oracle and
-  needs its own regression test: assert exact zero, not "small", on a straight
-  segment, and assert the two implementations still agree across the junction at
-  `s = 0` where curvature turns on.
-- **`tau` is unidentifiable on the segment (`n >= 3`).** Assert that the code
-  **reports** `tau` as unidentifiable on `kappa_1 = 0`, not merely noisy — there is no
-  osculating plane there, so whatever the network emits is meaningless. This is a
-  reporting assertion, not a numerical one.
-- **Power-law rise.** On the segment, assert `f_X ~ (t - t_expl)^alpha_X` with
-  `alpha_X = 0.4 ln10 e_X A` and `(e_g, e_r) = R(Phi)(1,1)/sqrt2`, fitted numerically
-  from generated flux. At `Phi = 0` (`e_X = 1/sqrt2`) assert both bands return the same
-  `alpha = 0.651 A`, including the fireball case `A = 3.071 -> alpha = 2`. For an
-  injected `Phi != 0` assert the two indices match the predicted ratio `e_g/e_r` — that
-  ratio is the observable form of `Phi` (revised 2026-08-22).
-- **Continuity at `t_expl`.** Assert predicted flux is continuous there. A naive gate
-  would be discontinuous; the logarithmic term is what removes it, so this test is
-  what protects the singular map from being "simplified" back to a polynomial.
-- **`s`-origin / `mu` null direction.** Assert that with `s = 0` anchored at the end
-  of the segment the Fisher matrix has no null direction in `(s_offset, mu)`, and that
-  removing the anchor produces one. This is an exactly flat direction, so it is
-  cheaply detectable and catastrophic if reintroduced.
+- **Vanishing curvature, incidental only (revised 2026-08-22).** There is no by-design
+  zero-curvature set any more, so this tests the *incidental* case. For `n = 2`, assert
+  `frenet.py` integrates cleanly through an isolated `kappa = 0` — the rotation ODE is
+  regular there — and that **`direct.py` returns exactly `0`**, not "small", from what is a
+  `0/0` form in its `gamma''` recovery; then assert the two implementations still agree
+  across the crossing. For `n >= 3`, assert the code **reports** `tau` as unidentifiable
+  wherever `kappa_1 = 0`, not merely noisy: there is no osculating plane, so whatever the
+  network emits is meaningless. That is a reporting assertion, not a numerical one, and it
+  requires the frame be carried by parallel transport (**Bishop**), which is itself worth an
+  assertion.
+- **Arclength domain coverage (new 2026-08-22).** Assert that `reparam.s_of_t` maps the
+  whole selection window inside the configured `[s_min, s_max]` for every sampled
+  parameter value, and that a deliberately narrow domain raises rather than silently
+  extrapolating. This replaces the deleted continuity-at-`t_expl` test as the guard on the
+  traversal.
+- **`s`-origin / `mu` null direction.** Assert that with `s = 0` anchored at the
+  `g`-maximum (`eq:frameanchor`) the Fisher matrix has no null direction in
+  `(s_offset, mu, c)`, and that removing the anchor produces one. This is an exactly flat
+  direction, so it is cheaply detectable and catastrophic if reintroduced. Note the anchor
+  must be an **intrinsic** feature of the curve for this to work — the old
+  "end of the zero-curvature segment" anchor did not remove the flat direction, because
+  nothing forbade the curvature staying zero past `s = 0`.
+
+**Deleted 2026-08-22 with decision 8**, and not to be reinstated while the turn-on rung
+stays parked: the straight-segment oracle test, the power-law rise test
+(`alpha_X = 0.4 ln10 e_X A`, the fireball case `A = 3.071`), the continuity-at-`t_expl`
+test, and the `s_g(theta)` root-find tests (uniqueness and differentiability through the
+implicit function theorem). Six tests in, six tests out.
 
 **Model.** Round-trip recovery: generate synthetic photometry from known
 latents with realistic ZTF cadence and noise, confirm training recovers them
@@ -345,13 +367,13 @@ not optional extras:
 | Risk | Mitigation |
 |---|---|
 | Timing warp degenerate with shape | Shrink `a1,a2` toward zero; report correlation with `theta` as a headline diagnostic. A large correlation is a negative result to publish, not to hide. |
-| `kappa -> 0` breaks the frame | Two distinct cases. **By design** (the segment, `CLAUDE.md` decision 8a): harmless for `n=2`, since `eq:frenet2d` is a rotation ODE regular at `kappa = 0` and `N` is defined as the fixed 90-degree rotation of `T`; for `n >= 3` the osculating plane does not exist, so a **Bishop / parallel-transport** frame is required — not merely an "inflection-robust" one — and `tau` must be reported unidentifiable there. **Incidentally**, near the secondary maximum: report where along `s` curvature approaches zero. |
+| `kappa -> 0` breaks the frame | **Incidental only** since decision 8 was struck (2026-08-22) — there is no by-design zero-curvature set. Harmless for `n=2`: `eq:frenet2d` is a rotation ODE regular at `kappa = 0` and `N` is defined as the fixed 90-degree rotation of `T`. For `n >= 3` the osculating plane does not exist, so a **Bishop / parallel-transport** frame is required — not merely an "inflection-robust" one — and `tau` must be reported unidentifiable there. Either way: report where along `s` curvature approaches zero, near the secondary maximum in particular. |
 | Dust forced into `theta` | Not preventable by geometry — dust and intrinsic diversity are both deformations. But only the *varying* part `c*du(s)` competes with shape, and that is second order where the signal is first, so the expectation is that this risk is small. Rung L2c plus `Corr(c, theta)` measures it, stratified by `c` since the hierarchy weakens for red objects. Harmless for the Hubble-diagram result either way. |
 | Good news on shape obscures the colour degeneracy | Separate risk, opposite sign. `c*ubar` is indistinguishable from a per-SN intrinsic colour offset at *first* order, and no order counting helps. Do not let a clean shape-channel result be reported as though dust were solved. Quote the two channels separately. |
 | 8 per-SN parameters overfit | All scoring is out-of-sample. No in-sample number is ever reported as evidence. Note L0 carries only 4, matching SALT2's count, so the base rung is not over-parameterised at all. |
 | Wrong flag cut silently guts the sample | Regression test asserting the `z<0.05` primary sample has 599 SNe at >=5 good `g` and `r` epochs. |
 | Torsion subsample too small (177) | Report it as a separate analysis with its own uncertainties; do not pool with the primary sample. |
-| `kappa` extrapolates nonsensically outside the window | Report `integral kappa ds` against the qualitative value `≈ pi`. A trained `kappa` extrapolating to something far from `pi` is suspect, but the total is not pinned exactly (early orientation fitted, late asymptote unobserved — `CLAUDE.md` decision 5). Diagnostic only, never a hard constraint. |
+| `kappa` extrapolates nonsensically outside the window | Report `integral kappa ds` against the qualitative value `≈ pi`. A trained `kappa` extrapolating to something far from `pi` is suspect, but the total is not pinned exactly — **both** asymptotes lie outside the bounded arclength domain and neither is observed (`CLAUDE.md` decision 5). Diagnostic only, never a hard constraint. |
 | JAX debugging cost | `direct.py` oracle runs eagerly and small; debug there first. |
 
 ---
