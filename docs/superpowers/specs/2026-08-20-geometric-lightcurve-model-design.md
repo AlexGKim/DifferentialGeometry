@@ -63,6 +63,15 @@ right, all verified against the archive:
 Band selection is a config field, since the same loader serves both the 599-SN
 `g,r` primary sample and the 177-SN `g,r,i` torsion subsample.
 
+**Pre-explosion (null) epochs are a second epoch set with its own rules**, added
+2026-08-21. `PhotBatch` gains an `is_null` mask and per-band `flux_offset`,
+`offset_unc`. See `CLAUDE.md`'s "Pre-explosion (null) epochs" for the four rules and
+the warning that the column readings are **not yet verified against `ztfcosmo`** — that
+verification is a prerequisite of writing this module, and the module must not be built
+on the inferred reading. The consequence for other modules: nulls must **not** count
+toward the ">=5 good epochs per band" selection, so the 599/177 counts and the
+line-below regression test are unaffected.
+
 ### `dgsn.geometry`
 
 Pure geometry. Knows nothing about supernovae, flux, or photometry.
@@ -70,9 +79,10 @@ Pure geometry. Knows nothing about supernovae, flux, or photometry.
 ```
 frenet.integrate(kappa_fn, s_grid, n_dim) -> gamma            # (len(s), n)
 direct.curve_and_invariants(gamma_fn, s)  -> (gamma, kappa)
-reparam.s_of_t(t, t_max, tscale, a1, a2)  -> s
+reparam.s_of_t(t, t_max, tscale, a1, a2, z, A, u_expl) -> s   # singular at t_expl
 reparam.ds_dt(...)                        -> ds/dt            # for the constraint
-invariants.gauge_anchor(gamma, s)         -> s_offset
+reparam.t_expl(t_max, tscale, z, u_expl)  -> t_expl           # derived, not fitted
+invariants.g_max_arclength(gamma_fn, theta) -> s_g            # root of dm_g/ds = 0
 ```
 
 `frenet.integrate` solves the generalized Frenet system in `R^n` via diffrax
@@ -91,7 +101,14 @@ likelihood.chi2(params, latents, batch)      -> scalar
 
 `forward` composes `reparam` → `frenet` → magnitude → flux → mask. The
 magnitude-to-flux conversion is the *only* place the two spaces meet, and the
-one place `mu` is applied.
+one place `mu` is applied. It is also what absorbs the `m -> +inf` divergence: the
+conversion extends continuously to `f = 0`, so a pre-explosion prediction is an
+ordinary value of the forward model rather than a branch.
+
+`likelihood.chi2` is **not diagonal**. Per band,
+`C = diag(sigma^2) + offset_unc^2 · 1·1^T`, inverted in closed form by
+Sherman–Morrison; `flux_offset` is subtracted from the data, not fitted. Adds no
+parameter. A diagonal implementation is a bug, not an approximation — see `CLAUDE.md`.
 
 ### `dgsn.train`
 
@@ -154,7 +171,15 @@ free and which regularisers are active. Shared keys: phase window, band list,
 redshift cut, network width/depth, solver tolerances, optimiser schedule.
 
 The phase window `[-15, +40]` d is a config value precisely so sensitivity to
-it can be tested later.
+it can be tested later. Three windows are distinct config concerns and must not be
+collapsed into one key: *model support* (extends before `-15` d), the *likelihood epoch
+set* (in-window detections plus nulls), and the *selection window* (`[-15,+40]` d).
+
+The template hyperparameters `A` (log coefficient, hence the early power-law index) and
+`u_expl` (template explosion phase) are config values, **not** per-SN parameters, so the
+count stays at 7. Both need a sensitivity test; `A` has an external check via
+`alpha = 0.651 A` against the observed rise index. The frame-sign config entry is
+**deleted** — that sign is now a model output.
 
 ---
 
@@ -203,13 +228,17 @@ they check the mathematics rather than the fit quality.
 - **Oracle agreement:** `frenet.integrate` and `direct.curve_and_invariants`
   agree on `kappa` to tolerance. Regression test against silent solver bugs.
 - `ds/dt > 0` is enforced across the fit window for sampled `(a1, a2)`.
-- **Gauge anchor:** at `s = 0` the reconstructed curve satisfies `dm_g/ds = 0`
-  and `T(0) = ±(0,1)`. Two things this test must **not** assert. The sign is
-  empirical, not gauge — it records which band peaks first, is expected to be
-  `(0,-1)`, and is carried in config; assert against the configured value, never
-  a hard-coded `+1`. And "one condition fixes both gauges" holds only for `n=2`:
-  in `R^3` the frame is an element of `SO(3)` and two conditions remain unfixed,
-  so the `n=3` case must be skipped rather than asserted.
+- **Gauge anchor (revised 2026-08-21 — the anchor moved).** Assert
+  `T(s) = -(1,1)/sqrt2` for all `s <= 0`, i.e. on the built-in segment, and that
+  `s = 0` is where curvature turns on. Three things this test must **not** do. It must
+  not assert `dm_g/ds = 0` at `s = 0` — the `g`-maximum is now *located* at
+  `s_g(theta) > 0` by root-find, so assert instead that the root is found, is unique in
+  the window, and is differentiable in `theta` (finite-difference the implicit
+  derivative). It must not assert the frame sign from config: the sign is now
+  `sign(kappa)`, a **model output**, so the test records it and the config entry that
+  used to carry it is **deleted**. And in `R^3` the direction condition supplies 2 of
+  the 3 parameters of `SO(3)`, not all 3, so the remaining rotation about the diagonal
+  axis must be skipped as an open question rather than asserted.
 - **Regularity — coincident maxima break arclength:** construct a synthetic curve
   whose bands peak at the same epoch and assert `ds/dt -> 0` there, i.e. that
   unit-speed parameterisation fails rather than silently returning garbage.
@@ -218,6 +247,35 @@ they check the mathematics rather than the fit quality.
 - **Total turning:** for a synthetic hairpin curve with known asymptotes along
   `(1,1)`, `integrate(kappa) ds` recovers `pi` to tolerance. Validates the sum
   rule machinery on a case where the answer is known.
+- **Branch-resolved turning split.** Beyond the total, assert the *halves* against
+  `CLAUDE.md` decision 5's table: `(+pi/4, +3pi/4)` for `kappa > 0` and
+  `(-3pi/4, -pi/4)` for `kappa < 0`, split at the located `s_g(theta)`. **The test
+  must be parameterised over both branches and must never hard-code `pi/4`** — an
+  unqualified `pi/4` is wrong for half the possible peak orderings, and asserting it
+  would bake in the very ordering the diagnostic exists to measure.
+- **The built-in zero-curvature segment.** `frenet.py` handles it for free in `R^2`,
+  since the rotation ODE is regular at `kappa = 0` — but **`direct.py` must return
+  exactly `0` there**, and on a straight segment its recovery of `kappa` from
+  `gamma''` is a `0/0` form. This is a new requirement on the correctness oracle and
+  needs its own regression test: assert exact zero, not "small", on a straight
+  segment, and assert the two implementations still agree across the junction at
+  `s = 0` where curvature turns on.
+- **`tau` is unidentifiable on the segment (`n >= 3`).** Assert that the code
+  **reports** `tau` as unidentifiable on `kappa_1 = 0`, not merely noisy — there is no
+  osculating plane there, so whatever the network emits is meaningless. This is a
+  reporting assertion, not a numerical one.
+- **Power-law rise.** On the segment, assert
+  `f_X ~ (t - t_expl)^alpha` with `alpha = 0.4 ln10 A / sqrt2`, fitted numerically
+  from generated flux, and assert both bands return the same `alpha` — that equality
+  *is* the constant-early-colour assumption, so it is the test of it. Include the
+  fireball case `A = 3.071 -> alpha = 2`.
+- **Continuity at `t_expl`.** Assert predicted flux is continuous there. A naive gate
+  would be discontinuous; the logarithmic term is what removes it, so this test is
+  what protects the singular map from being "simplified" back to a polynomial.
+- **`s`-origin / `mu` null direction.** Assert that with `s = 0` anchored at the end
+  of the segment the Fisher matrix has no null direction in `(s_offset, mu)`, and that
+  removing the anchor produces one. This is an exactly flat direction, so it is
+  cheaply detectable and catastrophic if reintroduced.
 
 **Model.** Round-trip recovery: generate synthetic photometry from known
 latents with realistic ZTF cadence and noise, confirm training recovers them
@@ -263,7 +321,7 @@ not optional extras:
 | Risk | Mitigation |
 |---|---|
 | Timing warp degenerate with shape | Shrink `a1,a2` toward zero; report correlation with `theta` as a headline diagnostic. A large correlation is a negative result to publish, not to hide. |
-| `kappa -> 0` at inflections breaks the frame | Use an inflection-robust frame construction; report where along `s` curvature approaches zero. |
+| `kappa -> 0` breaks the frame | Two distinct cases. **By design** (the segment, `CLAUDE.md` decision 8a): harmless for `n=2`, since `eq:frenet2d` is a rotation ODE regular at `kappa = 0` and `N` is defined as the fixed 90-degree rotation of `T`; for `n >= 3` the osculating plane does not exist, so a **Bishop / parallel-transport** frame is required — not merely an "inflection-robust" one — and `tau` must be reported unidentifiable there. **Incidentally**, near the secondary maximum: report where along `s` curvature approaches zero. |
 | Dust forced into `theta` | Not preventable by geometry — dust and intrinsic diversity are both deformations. But only the *varying* part `c*du(s)` competes with shape, and that is second order where the signal is first, so the expectation is that this risk is small. Rung L2c plus `Corr(c, theta)` measures it, stratified by `c` since the hierarchy weakens for red objects. Harmless for the Hubble-diagram result either way. |
 | Good news on shape obscures the colour degeneracy | Separate risk, opposite sign. `c*ubar` is indistinguishable from a per-SN intrinsic colour offset at *first* order, and no order counting helps. Do not let a clean shape-channel result be reported as though dust were solved. Quote the two channels separately. |
 | 7 latents overfit | All scoring is out-of-sample. No in-sample number is ever reported as evidence. |

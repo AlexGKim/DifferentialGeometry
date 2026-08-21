@@ -13,7 +13,6 @@
 \maketitle
 
 \section{Motivation}
-\label{sec:motivation}
 
 The standard empirical treatment of \snia\ light curves, exemplified by \salt,
 models the spectral energy distribution as a linear expansion about a mean
@@ -21,7 +20,6 @@ sequence,
 \begin{equation}
   F(p,\lambda) = x_{0}\left[M_{0}(p,\lambda) + x_{1}M_{1}(p,\lambda) + \dots\right]
                  \exp\!\left[\colr\,\mathrm{CL}(\lambda)\right],
-  \label{eq:salt2}
 \end{equation}
 with per-supernova parameters $(x_{0}, x_{1}, \colr, t_{0})$: a description of a
 \emph{surface} over phase and wavelength, from which the light curve in any band
@@ -38,44 +36,52 @@ of arclength. Shape then lives entirely in those invariants and timing entirely 
 the arclength map, since a reparameterisation of time changes how fast a supernova
 moves along its curve but does not change the curve.
 
-That separation is exact as a statement about curves; it is not a guarantee about
-fits. Over a finite window with noisy sampling, a warp in the arclength map and a
-change in curvature can mimic one another, so the separation may fail in practice
-even though it holds identically in principle. Section~\ref{sec:gauge} gives the
-degeneracy and its diagnostic; a large measured correlation is a negative result to
-report, not to absorb.
+That separation is exact as a statement about curves and is not thereby a guarantee
+about fits; Section~\ref{sec:gauge} gives the degeneracy that limits it in practice.
 
-\section{The geometric object}
+\section{The model}
 
-\subsection{The curve in band space}
+A light curve is two objects: a \emph{curve}, carrying shape, and a \emph{traversal}
+of that curve, carrying timing. Sections~\ref{sec:curve}--\ref{sec:place} define the
+curve and fix where it sits, Section~\ref{sec:traversal} defines the traversal, and
+Section~\ref{sec:likelihood} maps the pair onto the observed photometry.
 
-Let a supernova be observed in $n$ photometric bands. Write its magnitude vector
+\subsection{A light curve is a curve and a traversal}
+
+Let a supernova be observed in $n$ photometric bands and write its magnitude vector
 as a function of rest-frame phase $\phase$,
 \begin{equation}
-  \curve(\phase) = \bigl(m_{1}(\phase), \dots, m_{n}(\phase)\bigr) \in \Rn .
+  \curve(\phase) = \bigl(m_{1}(\phase), \dots, m_{n}(\phase)\bigr) \in \Rn ,
+  \qquad \phase = \frac{t - \tmax}{1+\zred} .
+  \label{eq:curvedef}
 \end{equation}
 The $m_{X}$ are magnitudes in the \emph{observed} bands, corrected for Galactic
-extinction but not K-corrected; only the phase argument is rest-frame, through
-$\phase = (t - \tmax)/(1+\zred)$. The distinction matters and is not pedantry:
-recasting the $m_{X}$ as rest-frame quantities would require an SED, which this
-model does not have, and the $\zred < 0.05$ cut exists precisely to keep the
-resulting mismatch small rather than to remove it
-(Sections~\ref{sec:samples} and~\ref{sec:limitations}).
+extinction but not K-corrected; only the phase argument is rest-frame. The
+distinction is not pedantry: recasting the $m_{X}$ as rest-frame quantities would
+require an SED, which this model does not have, and the $\zred < 0.05$ cut of
+Section~\ref{sec:samples} exists to keep the resulting mismatch small rather than to
+remove it.
 
-The primary configuration of this project is \ztf\ $g$ and $r$
-\citep{Bellm2019}, so $n=2$ and $\curve = (\magg, \magr)$. Direct inspection of
-the \ztf\ SN~Ia DR2 archive \citep{Rigault2025} shows that a subset of the
-low-redshift sample also carries usable $i$-band photometry, giving a second
-configuration with $n=3$ on fewer objects. Section~\ref{sec:samples} quantifies
-both. The implementation is written for general $n$ for this reason, not as
-speculative generality.
+The primary configuration is \ztf\ $g$ and $r$ \citep{Bellm2019}, so $n=2$ and
+$\curve = (\magg, \magr)$; a subset of the low-redshift sample also carries usable
+$i$-band photometry, giving $n=3$ on fewer objects (Section~\ref{sec:samples}). The
+implementation is written for general $n$ for that reason, not as speculative
+generality.
 
-\subsection{Arclength and the generalized Frenet frame}
+The curve is defined in \emph{magnitude} space, with the Euclidean metric
+$\mathrm{diag}(1,1)$. Both are choices, argued in Section~\ref{sec:magspace}: the
+space because the nuisances that matter act there as translations, to which curvature
+is blind; the metric because none is physically preferred, so one must be declared.
+The likelihood, by contrast, is evaluated in native flux
+(Section~\ref{sec:likelihood}).
+
+\subsection{The curve}
+\label{sec:curve}
 
 Reparameterise by arclength $\arc$, defined by
 $\dd \arc = \norm{\dd\curve/\dd \phase}\,\dd \phase$, so that
-$\norm{\curve'(\arc)} = 1$. A unit-speed curve in $\Rn$ that is sufficiently
-non-degenerate admits a Frenet frame $\frenet{1},\dots,\frenet{n}$ obeying
+$\norm{\curve'(\arc)} = 1$. A unit-speed curve in $\Rn$ admits a Frenet frame
+$\frenet{1},\dots,\frenet{n}$ obeying
 \begin{align}
   \frenet{1}' &= \curv_{1}\frenet{2}, \nonumber\\
   \frenet{i}' &= -\curv_{i-1}\frenet{i-1} + \curv_{i}\frenet{i+1},
@@ -83,164 +89,599 @@ non-degenerate admits a Frenet frame $\frenet{1},\dots,\frenet{n}$ obeying
   \frenet{n}' &= -\curv_{n-1}\frenet{n-1}, \nonumber
 \end{align}
 together with $\curve' = \frenet{1}$. The $n-1$ functions
-$\curv_{1}(\arc),\dots,\curv_{n-1}(\arc)$ determine the curve up to a rigid
-motion of $\Rn$.
-
-For $n=2$ this collapses to a single invariant, the signed planar curvature,
+$\curv_{1}(\arc),\dots,\curv_{n-1}(\arc)$ determine the curve up to a rigid motion of
+$\Rn$. For $n=2$ this collapses to a single invariant, the signed planar curvature,
 \begin{equation}
   \curve' = \tang, \qquad
   \tang' = \curv\,\norml, \qquad
   \norml' = -\curv\,\tang .
   \label{eq:frenet2d}
 \end{equation}
-For $n=3$ a second invariant appears, the torsion $\tors = \curv_{2}$, which
-measures departure from the instantaneous osculating plane. With two bands
-there is no torsion; this is a real limitation of the \ztf\ public
-configuration and is recorded in Section~\ref{sec:limitations}.
+For $n=3$ a second invariant appears, the torsion $\tors = \curv_{2}$, measuring
+departure from the instantaneous osculating plane. With two bands there is no
+torsion, so in the primary sample $\shapetwo$ is a second direction of variation in
+$\curv$ and must not be called torsion.
 
-\subsection{Why the curve lives in magnitude space}
+The invariants are represented by a neural network conditioned on per-supernova
+latents,
+\begin{equation}
+  \curv_{i}(\arc; \shape) = \NN_{i}\bigl(\arc, \shapeone, \shapetwo\bigr),
+  \qquad i = 1,\dots,n-1 .
+  \label{eq:kappanet}
+\end{equation}
+Conditioning is full rather than linear: $\shape$ enters as an input, not as
+coefficients multiplying fixed basis functions, so nonlinear interactions between
+shape and phase are learned rather than imposed. The cost is that $\shapeone$ and
+$\shapetwo$ carry no a~priori reading as ``amount of component one''; their meaning
+is established after training by correlating them against observables.
+
+\paragraph{An early straight segment, by construction.} The domain is semi-infinite
+and the network is not asked to represent the earliest phases:
+\begin{equation}
+  \arc \in (-\infty, \arc_{\mathrm{end}}], \qquad
+  \curv_{i}(\arc; \shape) = 0 \quad \text{for } \arc \le 0 ,
+  \label{eq:straight}
+\end{equation}
+so the curve begins as a ray and $\arc = 0$ marks the end of that ray. This is the
+$\curv \to 0$ corollary of the asymptotic structure (Section~\ref{sec:place})
+imposed rather than learned, and Section~\ref{sec:place} shows it is what makes the
+early boundary condition well posed.
+
+\paragraph{Vanishing curvature and the frame.} On \eqref{eq:straight} the classical
+normal $\norml \propto \curve''/\norm{\curve''}$ is undefined --- not at a point but
+on an interval, so there is no repair by continuity. This costs nothing for $n=2$ and
+is a real restriction for $n \ge 3$:
+\begin{itemize}
+  \item For $n=2$, \eqref{eq:frenet2d} is a rotation ODE and is \emph{regular} at
+        $\curv = 0$, because $\norml$ is \emph{defined} as the fixed $90^{\circ}$
+        rotation of $\tang$, globally and independently of $\curve''$. On the segment
+        $\tang$ and $\norml$ are simply constant. Integrating \eqref{eq:frenet2d}
+        rather than differentiating the curve is therefore not a numerical
+        convenience but the definition that survives $\curv = 0$.
+  \item For $n \ge 3$ the osculating plane does not exist where $\curv_{1} = 0$, so
+        $\tors$ is not merely ill-conditioned there but \emph{undefined}: whatever
+        $\tors(\arc)$ the network emits on the segment is unidentifiable and must be
+        reported as such. The frame must be carried by parallel transport
+        (a Bishop frame) rather than by the classical construction. Together with the
+        two frame conditions left open for $n=3$ in Section~\ref{sec:place}, this is
+        an open problem of the torsion subsample, not a solved one.
+\end{itemize}
+Distinct from this by-design interval is the possibility that $\curv$ passes near zero
+\emph{incidentally} inside the fitted window, as the secondary maximum of redder bands
+may cause \citep{Deckers2025}; the implementation must report where along $\arc$ the
+curvature approaches zero.
+
+\subsection{Where the curve sits}
+\label{sec:place}
+
+Integrating \eqref{eq:frenet} needs an initial point and an initial frame. Both are
+supplied by the physical fact that a supernova has no flux before it explodes and
+returns to none long after.
+
+\paragraph{The curve is a hairpin.} In every band $f \to 0$ at both extremes, hence
+$m \to +\infty$, so \emph{both ends escape to infinity along the diagonal} $(1,1)$.
+The curve is a hairpin, not an arc; its two asymptotes are parallel rays whose
+separation is the terminal colour, and the tangent runs
+\begin{equation}
+  \tang \longrightarrow -\tfrac{1}{\sqrt{2}}(1,1) \ \ (\text{early}),
+  \qquad
+  \tang \longrightarrow +\tfrac{1}{\sqrt{2}}(1,1) \ \ (\text{late}),
+  \label{eq:asymptotes}
+\end{equation}
+turning through $\pi$ over the life of the supernova. Since $\curv$ is the rate of
+turning of the tangent, the total curvature obeys the exact sum rule
+\begin{equation}
+  \int_{-\infty}^{\infty} \curv(\arc)\,\dd \arc \;=\; \pi \pmod{2\pi},
+  \label{eq:sumrule}
+\end{equation}
+the modulus allowing complete loops and local reversals of turning to redistribute
+curvature without altering the net total. Two corollaries: $\curv \to 0$ at both
+extremes as the curve straightens onto its asymptote --- which is
+\eqref{eq:straight} --- and the asymptotic offset between the rays is the terminal
+colour, an output of the model rather than an input. Equation~\eqref{eq:sumrule} has
+no counterpart in a linear component decomposition, because ``the total turning of the
+light curve'' is not a statement about the amplitude of an additive component.
+
+\paragraph{Zero flux is at infinite arclength.} The two ends are not points of $\Rn$,
+and the reason is worth one line, because it governs the traversal. The curve is
+unit-speed, so
+\begin{equation}
+  \norm{\curve(\arc) - \curve(0)} \le \abs{\arc},
+  \qquad\text{hence}\qquad
+  f = 0 \iff m = +\infty \iff \abs{\arc} = \infty .
+  \label{eq:unitspeed}
+\end{equation}
+Zero predicted flux is therefore unreachable at any finite arclength. This is why
+\eqref{eq:straight} is stated on a \emph{semi-infinite} interval: with the ray
+extended to $\arc \to -\infty$ the early asymptote lies in the closure of the model
+domain, and imposing a condition there is an initial condition rather than a
+constraint on an unmodelled extrapolation. The late asymptote is not in the domain
+and remains unobserved.
+
+\paragraph{Orientation: the frame is fixed on the early ray.} The initial frame is
+fixed by \eqref{eq:asymptotes} at the early end,
+\begin{equation}
+  \tang(\arc) = -\tfrac{1}{\sqrt{2}}(1,1) \quad \text{for } \arc \le 0 ,
+  \label{eq:frameanchor2}
+\end{equation}
+constant on the segment by \eqref{eq:straight}. \textbf{This is a substantive
+assumption, not a gauge choice}, and must not be presented as costless. A straight
+segment along the diagonal means $\dd(\magg - \magr)/\dd\arc = 0$: the model asserts
+\emph{constant colour throughout the earliest modelled phase}, equivalently that the
+two bands share one early power-law index (Section~\ref{sec:traversal}). It is
+falsifiable by the earliest detections. Two things bound the exposure: the segment
+covers only the earliest phases, and \ztf\ sampling there is sparse, so the assumption
+is weakly tested by this data --- which is a caution as much as a defence.
+
+For $n=3$ the gain is larger than for $n=2$. The frame is an element of $\SO(n)$, of
+dimension $n(n-1)/2$; fixing a \emph{direction} rather than one scalar condition
+supplies $n-1$ of those. So \eqref{eq:frameanchor2} fixes the frame completely for
+$n=2$ and fixes two of three conditions for $n=3$, leaving only the rotation about the
+diagonal axis --- to be fixed from an observable, and left open here rather than
+assumed away.
+
+\paragraph{Position.} Two components, fixed differently. Perpendicular to $(1,1)$ the
+offset of the early ray from the origin \emph{is} the early colour, a template
+function of $\shape$; being a property of the template it costs no per-supernova
+parameter. Parallel to $(1,1)$ the template is normalised so that $\magg = 0$ at its
+own $g$-maximum, so that the per-supernova offset $\dm$ of \eqref{eq:forward} is
+exactly the peak $g$ magnitude. That normalisation is a deterministic function of
+$\shape$, not a parameter.
+
+The normalisation is also \emph{necessary}, not cosmetic. On a straight segment,
+translating the arclength origin displaces the curve \emph{along} the ray, i.e. along
+$(1,1)$ --- which is precisely what $\dm$ does. Left unfixed, the arclength origin and
+$\dm$ span an exactly flat direction of the likelihood. Anchoring $\arc = 0$ at the end
+of the segment, as in \eqref{eq:straight}, removes it.
+
+\paragraph{The $g$-maximum, and the sign of $\curv$.} Because the frame is now fixed at
+the early end, the $g$-maximum is no longer at $\arc = 0$ but is located on the
+template as the first root
+\begin{equation}
+  \deriv{\magg}{\arc}\bigg|_{\arc = \arc_{g}(\shape)} = 0 ,
+  \label{eq:frameanchor}
+\end{equation}
+a $\shape$-dependent root differentiable through the implicit function theorem.
+Writing $\tang = (\cos\phi,\sin\phi)$ so that $\int \curv\,\dd\arc = \Delta\phi$
+exactly, \eqref{eq:frameanchor2} sets $\phi = 225^{\circ}$ on the segment and
+\eqref{eq:asymptotes} sets $\phi \to 405^{\circ}$ or $45^{\circ}$; the $g$-maximum is
+where $\cos\phi = 0$. With monotone turning:
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+Turning & $\phi$ traverses & $\int_{-\infty}^{\arc_{g}}\!\curv\,\dd\arc$
+        & $\int_{\arc_{g}}^{\infty}\!\curv\,\dd\arc$ & Implied ordering \\
+\midrule
+$\curv > 0$ & $225^{\circ} \to 405^{\circ}$ & $+\pi/4$  & $+3\pi/4$ & $g$-max, then $r$-max \\
+$\curv < 0$ & $225^{\circ} \to 45^{\circ}$  & $-3\pi/4$ & $-\pi/4$  & $r$-max, then $g$-max \\
+\bottomrule
+\end{tabular}
+\end{center}
+Three consequences.
+
+\emph{The frame sign is a prediction.} Arclength increases with time and a brightening
+band moves toward smaller magnitude, so $\tang(\arc_{g}) = (0,-1)$ says $r$ is still
+brightening at $g$-maximum and $(0,+1)$ says it is already fading: the sign records
+which band peaks first. Under \eqref{eq:frameanchor2} that sign is $\sign(\curv)$, an
+\emph{output} of the trained network rather than a configured input. The
+model-independent measurement --- fit a low-order polynomial to each band near its own
+peak and record the order of the two maxima --- therefore becomes a check on the model
+instead of an ingredient of it. Since the frame is global and no per-supernova rotation
+is fitted (Section~\ref{sec:rotation}), a sample heterogeneous in the ordering would be
+evidence against that design; report the minority fraction and the distribution of
+maximum-to-maximum separation.
+
+\emph{The turning split is a diagnostic, and is branch-dependent.} The pre-maximum
+integral is \textbf{not} a branch-independent constant, so $\pi/4$ may be quoted only
+together with the branch it belongs to. This is also why it must not be imposed:
+requiring $\int_{-\infty}^{\arc_{g}} \curv\,\dd\arc = \pi/4$ for every $\shape$ would
+\emph{assert} the peak ordering, so no supernova could come out with the minority
+ordering and the diagnostic of the previous paragraph would return nothing by
+construction. Both halves --- and \eqref{eq:sumrule} itself, whose late half lies
+beyond the observed window --- are reported as validation numbers, stratified by the
+predicted $\sign(\curv)$, never imposed as hard constraints.
+
+\emph{The maxima must not coincide.} If all bands are stationary at the same epoch then
+$\norm{\dd\curve/\dd\phase} = 0$, hence $\dd\arc/\dd t = 0$, the positivity requirement
+of \eqref{eq:reparam} is violated, and the unit-speed parameterisation fails: the curve
+has a stationary rather than a regular point. Non-coincident band maxima is thus a
+regularity condition on the data, distinct from the vanishing-$\curv$ degeneracy of
+Section~\ref{sec:curve} --- which concerns turning, not speed, and leaves a straight
+segment perfectly regular --- with the same separation distribution as its diagnostic.
+
+\subsection{The traversal}
+\label{sec:traversal}
+
+Photometry is recorded in observer-frame MJD while the curve is a rest-frame object,
+so observer-frame intervals are divided by $1+\zred$ before anything else happens.
+Since $\zred$ is measured for every object this is a \emph{known} kinematic rescaling,
+divided out deterministically rather than fitted --- the same logic applied to
+\texttt{mwebv} in Section~\ref{sec:samples}: known effects are removed, not absorbed
+into free parameters. It keeps $\tscale$ a genuine rest-frame stretch rather than a
+repackaging of time dilation.
+
+Timing is then a monotone map from observer time to arclength. Write
+$u = \phase/\tscale$ with $\tscale$ in rest-frame days, let $u_{\mathrm{expl}} < 0$ be
+the template's explosion phase, and set
+\begin{equation}
+  \arc(t) = \arc_{g}(\shape)
+            + u\left[1 + \warpone u + \warptwo u^{2}\right]
+            + A\ln x ,
+  \qquad
+  x = \frac{u - u_{\mathrm{expl}}}{-u_{\mathrm{expl}}},
+  \qquad
+  u = \frac{t - \tmax}{\tscale\,(1+\zred)},
+  \label{eq:reparam}
+\end{equation}
+with $\deriv{\arc}{t} > 0$ required on the fit window. At $t = \tmax$ one has $u = 0$
+and $x = 1$, so $\arc = \arc_{g}(\shape)$: the fitted $\tmax$ lands on the template's
+$g$-maximum \eqref{eq:frameanchor}, and since $\dd\arc/\dd t > 0$ implies
+$\dd\magg/\dd t = 0 \iff \dd\magg/\dd\arc = 0$, the fitted $\tmax$ \emph{is} the
+observer-frame epoch of $g$-band maximum. Nothing is added to enforce that reading;
+it is enforced by the construction. As before, $\tmax$ is free for every supernova and
+is never taken from the archive's \salt\ $t_{0}$.
+
+Setting $\warpone = \warptwo = A = 0$ recovers the affine map, the direct analogue of
+classical stretch \citep{Phillips1993}; the quadratic and cubic terms permit asymmetric
+warping between rise and decline. The positivity requirement is definitional, not
+regulatory --- $\arc$ is arclength, so $\dd\arc/\dd t = \norm{\dot{\curve}}$ is
+strictly positive wherever the supernova is moving --- but with $A > 0$ it is no longer
+automatic away from $t_{\mathrm{expl}}$ and must be checked over the sampled
+$(\warpone, \warptwo)$.
+
+\paragraph{Why the map is singular, and what it predicts.} The logarithmic term is
+forced by \eqref{eq:unitspeed}: exactly zero predicted flux requires
+$\arc \to -\infty$, which a polynomial reaches only at $t = -\infty$. Without it, a
+model that predicts $f = 0$ before explosion and template flux after would be
+\emph{discontinuous} at the explosion epoch. In \eqref{eq:reparam} instead
+$x \to 0^{+}$ and $\arc \to -\infty$ as
+\begin{equation}
+  t \longrightarrow t_{\mathrm{expl}}^{+},
+  \qquad
+  t_{\mathrm{expl}} = \tmax + \tscale\,u_{\mathrm{expl}}\,(1+\zred),
+  \label{eq:texpl}
+\end{equation}
+so predicted flux falls continuously to zero and stays there. Note what is
+\emph{not} added: $t_{\mathrm{expl}}$ is \emph{derived} from parameters the model
+already has, because $u_{\mathrm{expl}}$ is a template constant, so the per-supernova
+count is unchanged. That is the same move already made for $\tmax$ and for $1+\zred$.
+The assumption it carries is that the dark-phase duration scales with $\tscale$, i.e.
+that rise time is a stretch property; it is falsifiable, and a free per-supernova
+$t_{\mathrm{expl}}$ is a candidate rung to be scored like any other.
+
+The straight segment and the singular map together predict a power law. On the ray,
+$m_{X} = c_{X} - \arc/\sqrt{2}$ by \eqref{eq:frameanchor2}, and near
+$t_{\mathrm{expl}}$ the $\ln x$ term dominates \eqref{eq:reparam}, so
+\begin{equation}
+  f_{X} \propto \bigl(t - t_{\mathrm{expl}}\bigr)^{\alpha},
+  \qquad
+  \alpha = \frac{0.4\ln 10}{\sqrt{2}}\,A \simeq 0.651\,A ,
+  \label{eq:powerlaw}
+\end{equation}
+identical in both bands. This is the standard early rise, with its index set by the
+coefficient of the logarithm: a fireball $\alpha = 2$ corresponds to $A \simeq 3.07$.
+So \eqref{eq:straight} is not an architectural device but a statement with an
+observational counterpart, and $A$, like $u_{\mathrm{expl}}$ and the window below, is a
+template hyperparameter held in configuration so its sensitivity can be tested. That
+both bands share $\alpha$ is exactly the constant-early-colour assumption of
+Section~\ref{sec:place}, now in a testable form.
+
+\paragraph{The anchor band is $g$, not $B$.} Phase zero is conventionally set at
+rest-frame $B$ maximum, but locating $B$ maximum requires K-correcting into a filter
+that was not observed, hence an SED, which a two-band model does not have. The anchor
+here is the maximum of observed \ztf\ $g$. Since $g$ and $B$ are different filters,
+$\tmax$ and a $B$-maximum epoch need not coincide, and the offset is not predictable
+from effective wavelength: peak epoch is not monotonic in wavelength from UV to NIR.
+When \salt\ is used as an external benchmark the distribution of $\tmax - t_{0}$ must
+be \emph{measured} --- neither its centre nor its sign assumed --- and its scatter, not
+its mean, is the check on timing recovery.
+
+\subsection{From curve to observables}
+\label{sec:likelihood}
+
+Given latents, the predicted magnitude in band $X$ at observer-frame epoch $t$ is,
+with $\arc(t)$ from \eqref{eq:reparam} and $\curve$ from \eqref{eq:frenet},
+\begin{equation}
+  m_{X}^{\mathrm{pred}}(t)
+    = \curve_{X}\bigl(\arc(t)\bigr) + \dm
+      + \colr\,\dustdir_{X}\bigl(\arc(t)\bigr) ,
+  \label{eq:forward}
+\end{equation}
+and where host reddening displaces the curve by
+\begin{equation}
+  \curve(\arc) \longmapsto \curve(\arc) + \colr\,\dustdir(\arc),
+  \qquad
+  \dustdir(\arc) \ \text{a fixed vector-valued function of arclength, not a constant,}
+  \label{eq:dustcurve}
+\end{equation}
+with $\dustdir$ precomputed once from an extinction law and a template SED and its
+amplitude $\colr$ free per supernova. That $\dustdir$ \emph{must} depend on $\arc$, and
+what follows from it, is Section~\ref{sec:phasedust}; here it is enough that being
+phase-dependent it cannot be folded into $\dm$ after the fact. The term appears only in
+rung L2c; below that rung $\colr = 0$ and reddening is left to the shape latents, which
+is the failure the rung tests for.
+
+Equation~\eqref{eq:forward} is converted to flux on the instrumental system,
+\begin{equation}
+  f_{X}^{\mathrm{pred}}(t)
+    = 10^{-0.4\left(m_{X}^{\mathrm{pred}}(t) - \zp_{X}(t)\right)} .
+  \label{eq:tofluxdef}
+\end{equation}
+This map, and not the window, is what absorbs the divergence of
+\eqref{eq:unitspeed}: $m \to +\infty$ is not a point of $\Rn$, but
+\eqref{eq:tofluxdef} extends continuously to the closure with
+\begin{equation}
+  m_{X}^{\mathrm{pred}} \to +\infty
+  \ \Longrightarrow\
+  f_{X}^{\mathrm{pred}} \to 0 ,
+  \label{eq:closure}
+\end{equation}
+so the composite model is defined where the curve is not, and the pre-explosion
+prediction is an ordinary value of the forward model rather than a special case.
+Equation~\eqref{eq:closure} is a second, independent reason for the split of spaces
+declared in Section~\ref{sec:magspace}: the first is about which effects are
+translations, this one about which boundary values are representable at all.
+
+\paragraph{Likelihood.} Errors are Gaussian in flux, so the comparison is made there.
+For band $X$ let $\mathbf{r}_{X}$ stack the residuals
+$f^{\mathrm{obs}}_{X,k} - \Phi_{X} - f_{X}^{\mathrm{pred}}(t_{k})$ over epochs $k$,
+where $\Phi_{X}$ is the reported difference-imaging zero level. Then
+\begin{equation}
+  -2\ln\mathcal{L} = \sum_{X}
+    \mathbf{r}_{X}^{\!\top} C_{X}^{-1} \mathbf{r}_{X},
+  \qquad
+  C_{X} = \mathrm{diag}\bigl(\sigma_{X,k}^{2}\bigr)
+          + \varsigma_{X}^{2}\,\mathbf{1}\mathbf{1}^{\!\top},
+  \label{eq:chi2}
+\end{equation}
+with $\sigma_{X,k}$ the reported flux error of epoch $k$ and $\varsigma_{X}$ the
+uncertainty on $\Phi_{X}$. Here $\sigma$ denotes measurement error throughout and
+never the timing scale, which is $\tscale$.
+
+The rank-one term is not decoration. $\Phi_{X}$ is estimated once per light curve, so
+its error is \emph{common} to every epoch of that band: negligible beside a bright
+detection, dominant across a run of epochs whose expected flux is zero. Treating
+$C_{X}$ as diagonal there would make the joint constraint appear to tighten as
+$N^{-1/2}$ when the true floor is $\varsigma_{X}$ and does not shrink, overstating the
+information by a factor growing with the number of such epochs and biasing
+$t_{\mathrm{expl}}$ in the sign of $\Phi_{X}$. Since $\Phi_{X}$ and $\varsigma_{X}$ are
+both reported, the correct treatment adds no parameter: subtract $\Phi_{X}$ and invert
+$C_{X}$ in closed form by Sherman--Morrison. The same rule as for $1+\zred$ and
+\texttt{mwebv}.
+
+\paragraph{Three windows, not one.} The rest-frame window must be distinguished into
+three objects that are easily conflated.
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Object & Extent \\
+\midrule
+Model support        & $\arc \in (-\infty, \arc_{\mathrm{end}}]$, extending before $-15$~d \\
+Likelihood epochs    & in-window detections \emph{and} epochs before $t_{\mathrm{expl}}$ \\
+Selection window     & $\phase \in [-15,+40]$~d, as in Section~\ref{sec:samples} \\
+\bottomrule
+\end{tabular}
+\end{center}
+The selection window is unchanged, and pre-explosion epochs do not count toward the
+epoch requirements of Section~\ref{sec:samples}: their predicted flux is zero for
+every value of every parameter, so they carry no information about the geometry, and
+counting them would admit objects with no shape constraint at all. What they do
+constrain is $t_{\mathrm{expl}}$, hence through \eqref{eq:texpl} the timing
+parameters. For the same reason they must be selected on provenance and error alone
+and never on measured flux: a signal-to-noise threshold applied where the expected
+signal is zero keeps only upward noise excursions and biases $t_{\mathrm{expl}}$
+early.
+
+Since $\tmax$ is free, the selection window is a function of the fitted parameters: it
+spans $57.75$~d of observer time at $\zred = 0.05$ against $55$~d at $\zred = 0$, and
+slides as $\tmax$ moves.
+
+\subsection{Per-supernova parameters}
+
+Seven per supernova, each belonging to one layer above:
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Layer & Symbol & Role & Geometric character \\
+\midrule
+Curve (\ref{sec:curve})       & $\shapeone, \shapetwo$ & shape & condition $\curv$ \\
+Placement (\ref{sec:place})   & \emph{none}            & ---   & fixed by the boundary \\
+Traversal (\ref{sec:traversal}) & $\tscale$            & timing scale (rest-frame d) & reparameterisation \\
+                              & $\warpone, \warptwo$   & timing warp & reparameterisation \\
+Observables (\ref{sec:likelihood}) & $\tmax$           & epoch of $g$-maximum (observer MJD) & reparameterisation \\
+                              & $\dm$                  & peak $g$ magnitude & translation $\parallel (1,1)$ \\
+\midrule
+Rung L2c only                 & $\colr$                & reddening amplitude & deformation \\
+\bottomrule
+\end{tabular}
+\end{center}
+That placement costs nothing is worth stating outright: orientation and position come
+from \eqref{eq:frameanchor2} and the normalisation of Section~\ref{sec:place}, both
+template properties. $\tmax$ enters the traversal mechanically through
+\eqref{eq:reparam} but is interpreted as an observable. $\colr$ is not a motion of the
+ambient space at all: it scales $\dustdir(\arc)$, which moves different points of the
+curve by different amounts (Section~\ref{sec:phasedust}).
+
+For comparison \salt\ uses four, $(x_{0}, x_{1}, \colr, t_{0})$. The excess is
+deliberate and is the object of study rather than a free choice: the parameters are
+introduced one at a time along a ladder from a rigid template (L0: $\dm, \tscale,
+\tmax$) to the full model, each rung scored on held-out Hubble residual scatter under
+cross-validation and never on in-sample fit, with \salt\ fitted independently on the
+same objects as an external benchmark. The ladder, which is also the training
+schedule, is specified in the project's engineering record rather than here.
+
+\subsection{Gauge, assumption, prediction}
+\label{sec:gauge}
+
+Three kinds of condition appear above and must not be confused. A \emph{gauge}
+condition removes a mathematical redundancy: predictions are identical before and
+after, so it costs nothing, cannot be wrong, and is not testable. An \emph{identifying
+assumption} is a statement about the world that pins down a split the data leave open;
+it is substantive and may be false. A \emph{prediction} is neither, and is checked.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Condition & Kind & Fixed by \\
+\midrule
+Arclength origin $\arc = 0$      & gauge      & end of the straight segment, \eqref{eq:straight} \\
+Metric $\mathrm{diag}(1,1)$      & gauge      & convention (Section~\ref{sec:magspace}) \\
+Latent mean, covariance, sign    & gauge      & zero mean, unit diagonal covariance; $\shapeone$ \\
+                                 &            & positively correlated with light-curve width \\
+Position $\parallel (1,1)$       & gauge      & $\magg = 0$ at the template $g$-maximum \\
+Frame orientation                & \textbf{assumption} & early ray \eqref{eq:frameanchor2}: constant early colour \\
+Explosion epoch                  & \textbf{assumption} & \eqref{eq:texpl}: rise time scales with $\tscale$ \\
+Dust against shape               & \textbf{assumption} & \eqref{eq:idcond} \\
+Which band peaks first           & prediction & $\sign(\curv)$; measured independently \\
+Terminal colour                  & prediction & asymptotic ray separation, \eqref{eq:sumrule} \\
+Early power-law index            & prediction & \eqref{eq:powerlaw} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Note what moved. Under an anchor at the $g$-maximum the frame would be gauge, since a
+condition of the form $\dd\magg/\dd\arc = 0$ only labels a point of the template. Under
+\eqref{eq:frameanchor2} it is not: the diagonal direction is physically distinguished
+in magnitude space, so requiring the ray to lie along it is a claim about early colour
+evolution. That is the price of the choice, and it is paid for two returns --- the
+frame sign becomes a prediction rather than an input, and two of three frame conditions
+are fixed for $n=3$ instead of one.
+
+\paragraph{Timing warp against shape.} The remaining substantive degeneracy of the
+timing layer. A reparameterisation cannot change the curve in principle, but over a
+finite window with noisy sampling a warp in \eqref{eq:reparam} and a change in $\curv$
+can mimic one another. Regularise $\warpone, \warptwo$ toward zero and report the
+fitted correlation between them and $\shape$. If it is large, the shape--timing
+separation that motivates the model is not being realised, and that is a negative
+result to report rather than absorb.
+
+\section{Why the curve lives in magnitude space}
 \label{sec:magspace}
 
-The case for magnitude space is a physical one. Several of the quantities that
-stand between an observed \snia\ and its intrinsic behaviour are, in magnitudes,
-simply \emph{added} to the photometry --- and curvature does not respond to an
-added constant. Adding a constant slides the curve bodily through the plane
-without bending it, and $\curv$ measures only bending.
+The case is physical. Several of the quantities standing between an observed \snia\
+and its intrinsic behaviour are, in magnitudes, simply \emph{added} to the
+photometry --- and curvature does not respond to an added constant, since adding one
+slides the curve bodily through the plane without bending it.
 
 \begin{center}
 \begin{tabular}{lll}
 \toprule
 Physical effect & Acts on the curve as & Removed? \\
 \midrule
-Luminosity distance        & rigid displacement, all bands alike & exactly \\
-Absolute luminosity        & rigid displacement, all bands alike & exactly \\
-Peculiar velocity          & rigid displacement, all bands alike & exactly \\
-Per-band calibration error & rigid displacement, per band        & exactly \\
-Time dilation, stretch     & reparameterisation, no displacement & exactly \\
+Luminosity distance        & rigid displacement $\parallel (1,1)$ & exactly \\
+Absolute luminosity        & rigid displacement $\parallel (1,1)$ & exactly \\
+Peculiar velocity          & rigid displacement $\parallel (1,1)$ & exactly \\
+Per-band calibration error & rigid displacement, per band         & exactly \\
+Time dilation, stretch     & reparameterisation, no displacement  & exactly \\
 \midrule
-Host and Galactic dust     & deformation: rigid part $+$ drift   & rigid part only \\
-Intrinsic diversity \emph{(signal)} & deformation                & no, and must not be \\
+Host and Galactic dust     & deformation: rigid part $+$ drift    & rigid part only \\
+Intrinsic diversity \emph{(signal)} & deformation                 & no, and must not be \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-The horizontal rule in that table is the content of this section. Above it sit
-effects the geometry disposes of for nothing; below it sit effects it cannot touch,
-one of which is the signal.
+The horizontal rule is the content of this section. Above it sit effects the geometry
+disposes of for nothing; below it sit effects it cannot touch, one of which is the
+signal.
 
-\paragraph{The first variation of $\curv$ makes the rule precise.} Let the curve be
-displaced by a vector field, decomposed in the Frenet frame,
-\begin{equation}
-  \curve(\arc) \mapsto \curve(\arc) + \delta\curve(\arc),
-  \qquad
-  \delta\curve = \varphi\,\tang + \psi\,\norml .
-  \label{eq:pertdecomp}
-\end{equation}
-For a plane curve the induced change in the signed curvature is, to first order,
+\paragraph{The first variation of $\curv$ makes the rule precise.} Displace the curve
+by a vector field decomposed in the Frenet frame,
+$\curve \mapsto \curve + \varphi\,\tang + \psi\,\norml$. For a plane curve the induced
+change in the signed curvature is, to first order,
 \begin{equation}
   \Delta\curv = \psi'' + \curv^{2}\psi + \curv'\varphi ,
   \label{eq:firstvar}
 \end{equation}
-where $'$ denotes $\dd/\dd\arc$. Now let the displacement be a \emph{constant} vector
-$\mathbf{v}$, so that $\varphi = \tang\cdot\mathbf{v}$ and
-$\psi = \norml\cdot\mathbf{v}$. Then $\psi' = \norml'\cdot\mathbf{v} = -\curv\varphi$
-and $\varphi' = \tang'\cdot\mathbf{v} = \curv\psi$ by \eqref{eq:frenet2d}, so
+where $'$ denotes $\dd/\dd\arc$. Let the displacement be a \emph{constant} vector
+$\mathbf{v}$, so $\varphi = \tang\cdot\mathbf{v}$ and $\psi = \norml\cdot\mathbf{v}$.
+Then $\psi' = -\curv\varphi$ and $\varphi' = \curv\psi$ by \eqref{eq:frenet2d}, so
 $\psi'' = -\curv'\varphi - \curv^{2}\psi$ and
 \begin{equation}
   \Delta\curv = \bigl(-\curv'\varphi - \curv^{2}\psi\bigr) + \curv^{2}\psi
                 + \curv'\varphi = 0
   \label{eq:transinv}
 \end{equation}
-identically, for every curve and every constant $\mathbf{v}$. This is the row group
-above the rule, and \eqref{eq:transinv} is the whole of its content: what matters is
-that $\mathbf{v}$ be independent of $\arc$, not that it be achromatic. A zeropoint
-error differs in every band, is strongly chromatic, and is still annihilated by
-\eqref{eq:firstvar}.
+identically, for every curve and every constant $\mathbf{v}$. That is the row group
+above the rule, and its whole content: what matters is that $\mathbf{v}$ be
+independent of $\arc$, not that it be achromatic. A zeropoint error differs in every
+band, is strongly chromatic, and is still annihilated.
 
-Conversely, nothing in \eqref{eq:firstvar} vanishes when $\delta\curve$ depends on
+Conversely nothing in \eqref{eq:firstvar} vanishes when the displacement depends on
 $\arc$. Dust is such a displacement, because the absorption a broad filter delivers
 depends on the spectrum inside it and that spectrum evolves
 (Section~\ref{sec:phasedust}); so is intrinsic diversity, which is the signal
-$\curv(\arc;\shape)$ exists to describe. Dust and signal therefore enter $\curv$
-through the same channel, and no choice of ambient space or of invariant separates
-them --- separation can come only from population-level assumptions, stated as such
-in Sections~\ref{sec:phasedust} and~\ref{sec:gauge}. What magnitude space buys is
+$\curv(\arc;\shape)$ exists to describe. Dust and signal enter $\curv$ through the
+same channel, and no choice of ambient space or invariant separates them --- separation
+can come only from population-level assumptions, stated as such in
+Sections~\ref{sec:phasedust} and~\ref{sec:gauge}. What magnitude space buys is
 narrower and still decisive: by \eqref{eq:transinv} the quantity being inferred is
 \emph{exactly} orthogonal to shape, which is why $\dm$ may be free per supernova and
-absorb peculiar velocity exactly (Section~\ref{sec:likelihood}). Being the same type
-as the signal is not being the same size; Section~\ref{sec:phasedust} bounds the size
-using \eqref{eq:firstvar} itself.
+absorb peculiar velocity exactly. Being the same type as the signal is not being the
+same size; Section~\ref{sec:phasedust} bounds the size using \eqref{eq:firstvar}
+itself.
 
-Equation~\eqref{eq:transinv} also bounds what the geometry can deliver: $\curv$
-is insensitive to every constant offset, so it carries no information about
-absolute magnitude or absolute colour, only about their evolution. These must be
-supplied separately --- by $\dm$, by the globally fixed initial point $\curve(0)$,
-and by $\colr$ in rung L2c.
+Equation~\eqref{eq:transinv} also bounds what the geometry delivers: $\curv$ is
+insensitive to every constant offset, so it carries no information about absolute
+magnitude or absolute colour, only about their evolution. Those are supplied
+separately, by $\dm$, by the boundary conditions of Section~\ref{sec:place}, and by
+$\colr$ in rung L2c.
 
-\subsubsection*{Distance and dust in flux space}
-
-In flux the same effects are multiplicative, and multiplication does not preserve
-shape. Distance is an isotropic dilation $f \mapsto af$, giving $\arc \mapsto a\arc$
-and $\curv \mapsto \curv/a$: a photographic enlargement, so shape survives but
-$\curv$ does not, and the damage is repairable in principle by a scale-invariant
-combination such as $\arclen\,\curv(\arc/\arclen)$. Dust is an \emph{anisotropic}
-dilation,
+\paragraph{In flux the same effects are multiplicative.} Distance is an isotropic
+dilation $f \mapsto af$, giving $\arc \mapsto a\arc$ and $\curv \mapsto \curv/a$: a
+photographic enlargement, so shape survives but $\curv$ does not, and the damage is
+repairable in principle by a scale-invariant combination such as
+$\arclen\,\curv(\arc/\arclen)$. Dust is an \emph{anisotropic} dilation,
 \begin{equation}
   (\fluxg, \fluxr) \mapsto
   \bigl(\fluxg\,10^{-0.4 A_{g}},\ \fluxr\,10^{-0.4 A_{r}}\bigr),
   \qquad A_{g} \neq A_{r},
 \end{equation}
-which takes a circle to an ellipse and constant curvature to non-constant. No
-rescaling or reparameterisation recovers it. Dust, not distance, settles the choice
-of space.
+which takes a circle to an ellipse and constant curvature to non-constant; no
+rescaling or reparameterisation recovers it. Dust, not distance, settles the choice of
+space. The likelihood is nevertheless evaluated in native flux
+(Section~\ref{sec:likelihood}), for two reasons independent of geometry: \ztf\
+difference-imaging errors are approximately Gaussian in flux and negative fluxes are
+meaningful, and by \eqref{eq:closure} the model's own boundary value is representable
+there and not in $\Rn$. \textbf{No data are ever converted to magnitudes; only the
+model is expressed there.}
 
-The curve is therefore defined in magnitude space --- independently of the space in
-which the likelihood is evaluated, which is native flux
-(Section~\ref{sec:likelihood}), for reasons of measurement error that have nothing
-to do with geometry.
+\paragraph{No physical effect acts as a rotation.}
+\label{sec:rotation}
+Every entry in the table above is a
+translation, a phase-dependent displacement, or a reparameterisation; none is a
+rotation. A per-supernova rotation would be a degree of freedom with no physical
+referent, and none is fitted at any rung. A supernova-dependent $R_{V}$ is not a
+counterexample: it changes the \emph{direction} of the reddening displacement,
+selecting a different $\dustdir(\arc)$ in \eqref{eq:dustcurve}, but does not rotate the
+curve. That rotation is unphysical does not by itself determine the template frame,
+which is why Section~\ref{sec:place} must supply it.
 
-\subsubsection*{Remark: the invariance in precise terms}
-\label{sec:magspacemath}
-
-The two constant displacements singled out by the astrophysics are
+\paragraph{The metric is a convention.} Curvature has dimensions of inverse length and
+so presupposes a metric on magnitude space, of which none is physically preferred:
+nothing dictates how one magnitude of $g$ compares in length to one magnitude of $r$.
+Calling $(1,1)/\sqrt{2}$ and $(1,-1)/\sqrt{2}$ orthogonal unit vectors presumes
+$\mathrm{diag}(1,1)$. The arguments of this section are untouched by the choice, since
+translations are isometries of every translation-invariant metric; the numerical values
+of $\curv$ are not, since rescaling $\magr \mapsto 2\magr$ alters every curvature while
+altering nothing physical. Two further facts sharpen \eqref{eq:transinv}: among maps of
+the ambient space, isometries are the \emph{only} curvature-preserving ones, which is
+what makes the flux comparison a derivation rather than a preference; and the signed
+curvature of \eqref{eq:frenet2d} picks up $\det Q$ under an isometry of linear part
+$Q$, so the invariance group is $\SE(n)$ and only $\abs{\curv}$ is
+reflection-invariant. Normalisation convention: $\dm$ is the offset added to
+\emph{each} band, as in \eqref{eq:forward}, so the displacements
 \begin{align}
   \text{distance, luminosity, peculiar velocity:} \quad
     &\curve \mapsto \curve + \dm\,(1,1), \label{eq:transdist}\\
   \text{reddening (idealised as constant):} \quad
     &\curve \mapsto \curve + \colr\,(1,-1), \label{eq:transcol}
 \end{align}
-the first achromatic and the second pure colour, and both annihilated by
-\eqref{eq:transinv}. The normalisation is such that $\dm$ is the offset added to
-\emph{each} band, as in the forward model \eqref{eq:forward}; the unit directions are
-$(1,1)/\sqrt{2}$ and $(1,-1)/\sqrt{2}$ and the displacement lengths $\dm\sqrt{2}$,
-$\colr\sqrt{2}$. Nothing depends on the convention, but a stray $\sqrt{2}$ between
-length and per-band offset would propagate into the absolute-magnitude offset of
+have lengths $\dm\sqrt{2}$ and $\colr\sqrt{2}$. Nothing depends on the convention, but
+a stray $\sqrt{2}$ would propagate into the absolute-magnitude offset of
 \eqref{eq:tripp}.
 
-Two facts sharpen \eqref{eq:transinv} beyond first order. Translations are
-isometries, $\curv$ is invariant under isometries of the ambient space, and --- among
-maps of that space --- under nothing else, a rigidity theorem: a diffeomorphism
-preserving the curvature of every curve is necessarily an isometry. This converse is
-what makes the flux-space comparison a derivation rather than a preference. Two
-qualifications: the signed curvature of \eqref{eq:frenet2d} picks up $\det Q$ under
-an isometry of linear part $Q$, so the invariance group is $\SE(n)$ and only
-$\abs{\curv}$ is reflection-invariant; and the converse concerns maps of the ambient
-space only, so reparameterisation --- which leaves $\curv(\arc)$ unchanged without
-moving the image at all --- is no counterexample.
-
-Finally, curvature has dimensions of inverse length and so presupposes a metric on
-magnitude space, of which none is physically preferred: nothing dictates how one
-magnitude of $g$ compares in length to one magnitude of $r$. Normalising the
-directions of \eqref{eq:transdist} and \eqref{eq:transcol} by $\sqrt{2}$, and
-calling them orthogonal, presumes the Euclidean form $\mathrm{diag}(1,1)$. The argument of this
-section is untouched by the choice, because translations are isometries of every
-translation-invariant metric; the numerical values of $\curv$ are not, since
-rescaling $\magr \mapsto 2\magr$ alters every curvature while altering nothing
-physical. The metric is therefore a gauge convention, recorded with the others in
-Section~\ref{sec:gauge}.
-
-\subsection{Dust extinction is phase-dependent, so \eqref{eq:transcol} is only
-approximate}
+\section[Dust extinction is phase-dependent]{Dust extinction is phase-dependent, so
+\eqref{eq:transcol} is only approximate}
 \label{sec:phasedust}
 
 Equation~\eqref{eq:transcol} treats reddening as a fixed vector. It is not.
@@ -253,18 +694,13 @@ filter,
   \label{eq:bandext}
 \end{equation}
 and the weights are the supernova's own spectral energy distribution
-$F(\lambda,\phase)$, which evolves strongly over the event
-\citep{Nugent2002}. As the \snia\ reddens intrinsically, the flux-weighted
-effective wavelength within each filter shifts, so the extinction suffered per
-unit reddening drifts with phase. Both the magnitude and the direction of the
-displacement change. Dust therefore acts not as a translation but as a
-\emph{phase-dependent displacement},
-\begin{equation}
-  \curve(\arc) \mapsto \curve(\arc) + \colr\,\dustdir(\arc),
-  \qquad \dustdir(\arc) \ \text{a fixed vector-valued function, not a constant},
-  \label{eq:dustcurve}
-\end{equation}
-which is not an isometry and does change both $\curv$ and arclength.
+$F(\lambda,\phase)$, which evolves strongly over the event \citep{Nugent2002}. As the
+\snia\ reddens intrinsically the flux-weighted effective wavelength within each filter
+shifts, so the extinction suffered per unit reddening drifts with phase: both the
+magnitude and the direction of the displacement change. This is why
+\eqref{eq:dustcurve} is written with an $\arc$-dependent $\dustdir$: dust acts not as a
+translation but as a \emph{phase-dependent displacement}, which is not an isometry and
+does change both $\curv$ and arclength.
 
 \paragraph{Order counting: the shape contamination is second order.} Split the
 displacement into its phase-average and the variation about it,
@@ -277,8 +713,8 @@ displacement into its phase-average and the variation about it,
   \quad \langle \delta\dustdir \rangle = 0 .
   \label{eq:dustsplit}
 \end{equation}
-Substituting \eqref{eq:dustsplit} into \eqref{eq:firstvar} and using
-\eqref{eq:transinv} on the constant part, the induced curvature change is
+Substituting into \eqref{eq:firstvar} and using \eqref{eq:transinv} on the constant
+part, the induced curvature change is
 \begin{equation}
   \Delta\curv(\arc) = \colr\Bigl[
       \bigl(\norml\cdot\delta\dustdir\bigr)''
@@ -288,8 +724,7 @@ Substituting \eqref{eq:dustsplit} into \eqref{eq:firstvar} and using
 \end{equation}
 in which $\bar{\dustdir}$ does not appear at all. Writing
 $\varepsilon = \norm{\delta\dustdir}/\norm{\bar{\dustdir}}$ for the fractional phase
-variation of the reddening displacement and $\ell$ for the arclength scale over which
-it varies, \eqref{eq:dkappa} gives
+variation and $\ell$ for the arclength scale over which it varies,
 \begin{equation}
   \abs{\Delta\curv} = \mathcal{O}\!\left(
     \colr\,\varepsilon\,\norm{\bar{\dustdir}}\,
@@ -298,7 +733,7 @@ it varies, \eqref{eq:dkappa} gives
 \end{equation}
 so the contamination of shape is small twice over: once in the reddening amplitude
 $\colr$, and once in $\varepsilon$, which is small because $A_{X}$ in
-\eqref{eq:bandext} responds only weakly to SED evolution inside a broad filter: the
+\eqref{eq:bandext} responds only weakly to SED evolution inside a broad filter --- the
 flux-weighted effective wavelength shifts by a small fraction of the filter width.
 Intrinsic diversity, by contrast, enters $\curv$ at first order, being what
 $\curv(\arc;\shape)$ parameterises. The expectation is thus a \textbf{hierarchy} ---
@@ -306,25 +741,45 @@ the phase-dependent variance the geometry sees should be dominated by intrinsic
 supernova dispersion --- and it is an expectation to be measured, not assumed.
 
 Two limits on the argument. It is amplitude-dependent through the $\colr$ in
-\eqref{eq:dkappa}, so it degrades for the reddest objects and every diagnostic below
-is reported \emph{stratified by} fitted $\colr$ rather than sample-averaged. And it
-covers the \emph{shape} channel only: in the colour channel $\colr\,\bar{\dustdir}$
-and a per-supernova intrinsic colour offset are the same displacement, so they mix at
-first order, exactly as \salt's $\colr$ does. That degeneracy is not resolved here.
+\eqref{eq:dkappa}, so it degrades for the reddest objects and every diagnostic below is
+reported \emph{stratified by} fitted $\colr$ rather than sample-averaged. And it covers
+the \emph{shape} channel only: in the colour channel $\colr\,\bar{\dustdir}$ and a
+per-supernova intrinsic colour offset are the same displacement, so they mix at first
+order, exactly as \salt's $\colr$ does. That degeneracy is not resolved here.
 
-Rung L2c accordingly fits $\colr$ as the amplitude of the fixed function
-$\dustdir(\arc)$ of \eqref{eq:dustcurve} --- precomputed once from an extinction law
-and a template SED --- rather than of a constant vector, which by
-\eqref{eq:dustsplit} would remove $\colr\,\bar{\dustdir}$ and leave
-$\colr\,\delta\dustdir$ free to be absorbed by $\shape$. The parameter count is
-unchanged.
+This is why L2c fits the amplitude of $\dustdir(\arc)$ rather than of a constant
+vector: by \eqref{eq:dustsplit} a constant would remove $\colr\,\bar{\dustdir}$ and
+leave $\colr\,\delta\dustdir$ free to be absorbed by $\shape$, which is the
+contamination the rung exists to prevent, and the parameter count is the same either
+way. Below that rung the only
+ambient motion is $\dm$, so the template must predict each supernova's absolute colour
+from its shape alone and host dust, having nothing else to occupy, is forced into
+$\shapeone, \shapetwo$; whether shape can absorb reddening or needs its own direction
+is a result either way.
+
+\paragraph{Dust against shape, and the identifying assumption.} $\colr$ is degenerate
+against $\shape$ to the extent that $\delta\dustdir$ lies in
+$\mathrm{span}\{\partial\curve/\partial\shape\}$ at the observed epochs. This is not a
+redundancy that can be gauged away but a genuine ambiguity of physical cause. The
+identifying assumption is
+\begin{equation}
+  \mathrm{Corr}(\colr, \shape) = 0
+  \quad\text{over the population,}
+  \label{eq:idcond}
+\end{equation}
+justified by the physical independence of line-of-sight dust from explosion physics and
+known to be only approximate --- the host mass step couples \snia\ properties to host
+environment, and dust column is environmental. By \eqref{eq:orders} it is expected to
+function as a \emph{check} rather than to carry weight, so it is imposed \emph{and} its
+unimposed value reported. It constrains only the interpretation of the split, so L2c's
+held-out Hubble score is meaningful either way.
 
 \paragraph{Diagnostics.} Three numbers, in increasing directness.
 
 \begin{enumerate}
   \item $\mathrm{Corr}(\colr, \shape)$ over the population, computed both with and
-        without the identifying condition of Section~\ref{sec:gauge} imposed. A large
-        unconstrained value falsifies \eqref{eq:orders}.
+        without \eqref{eq:idcond} imposed. A large unconstrained value falsifies
+        \eqref{eq:orders}.
   \item The error-weighted overlap of the dust direction with the shape directions at
         the epochs actually observed. Let $\mathbf{d}$ stack
         $\partial f_{X}/\partial\colr$ over observed epochs, $J$ have columns
@@ -337,195 +792,37 @@ unchanged.
           \label{eq:overlap}
         \end{equation}
         is the fraction of the dust signal this cadence and these error bars cannot
-        distinguish from shape. Two details decide whether it is meaningful.
-        It is built in \emph{flux}, where the errors are Gaussian, so
+        distinguish from shape. Two details decide whether it is meaningful. It is
+        built in \emph{flux}, where the errors are Gaussian, so
         $\partial f_{X}/\partial\shape = -0.4\ln\!10\,f_{X}\,
         \partial m_{X}/\partial\shape$; and $\mathbf{d}$ is formed from
         $\delta\dustdir$, not $\dustdir$, since by \eqref{eq:transinv} the mean part
         cannot be confused with shape and including it would inflate $\rho^{2}$.
   \item $\Delta\curv$ from \eqref{eq:dkappa}, with $\dustdir$ built by evaluating
         \eqref{eq:bandext} on a grid of $E(B-V)$ and $R_{V}$, against the range of
-        $\curv$ the network spans over fitted $\shape$. This tests
-        \eqref{eq:orders} directly. Small at every $\colr$ licenses the
-        interpretation of $\shape$; order unity at any $\colr$ means the shape
-        latents are substantially measuring dust there --- a negative result for
-        interpretation, to be reported as one, and not an obstacle to the
-        Hubble-diagram result, for which the causes need not be separated.
+        $\curv$ the network spans over fitted $\shape$. This tests \eqref{eq:orders}
+        directly. Small at every $\colr$ licenses the interpretation of $\shape$; order
+        unity at any $\colr$ means the shape latents are substantially measuring dust
+        there --- a negative result for interpretation, to be reported as one, and not
+        an obstacle to the Hubble-diagram result, for which the causes need not be
+        separated.
 \end{enumerate}
 
 An external SED template is used here only to quantify a systematic, never to fit,
-initialise, or K-correct, so the independence from \salt\ of
-Section~\ref{sec:ladder} is preserved. The discussion behind several points
-compressed above --- the tolerability of the mixing for the distance indicator, the
-status of the identifying assumption, the cost of holding $\dustdir$ fixed, and why
-$\zred < 0.05$ does not help with dust --- is held in
+initialise, or K-correct, so independence from \salt\ is preserved. The discussion
+behind several points compressed above --- the tolerability of the mixing for the
+distance indicator, the status of the identifying assumption, the cost of holding
+$\dustdir$ fixed, and why $\zred < 0.05$ does not help with dust --- is held in
 \texttt{docs/model-note-backlog.md} until this note stabilises.
-
-\section{The model}
-
-\subsection{Curvature network}
-
-The curvature invariants are represented by a neural network conditioned on
-per-supernova latent parameters,
-\begin{equation}
-  \curv_{i}(\arc; \shape) = \NN_{i}\bigl(\arc, \shapeone, \shapetwo\bigr),
-  \qquad i = 1,\dots,n-1 .
-  \label{eq:kappanet}
-\end{equation}
-The network replaces the B-spline basis of \salt\ with a smooth, unconstrained
-function approximator. Conditioning is full rather than linear: $\shape$ enters
-as an input, not as coefficients multiplying fixed basis functions, so
-nonlinear interactions between shape and phase are learned rather than imposed.
-The cost of this choice is that $\shapeone$ and $\shapetwo$ do not carry an
-a~priori interpretation as ``amount of component one''; their meaning must be
-established after training by correlating them against observables.
-
-A supernova's curve is obtained by integrating \eqref{eq:frenet} from a
-\emph{globally fixed} initial point and initial frame. The only per-supernova
-\emph{motion of the ambient space} is the translation $\dm$. The optional colour
-parameter $\colr$ of Section~\ref{sec:ladder} is not a motion of the space at
-all: it scales the phase-dependent displacement $\dustdir(\arc)$ of
-\eqref{eq:dustcurve}, which moves different points of the curve by different
-amounts and therefore acts on the curve as a deformation rather than a
-translation (Section~\ref{sec:phasedust}). Fixing the frame is not an assumption about
-supernovae; it is a gauge choice, justified in
-Section~\ref{sec:rotation}, where it is also shown that no per-supernova
-rotation should be fitted because no physical effect acts as one.
-
-\subsection{Time-to-arclength map}
-\label{sec:reparam}
-
-Photometry is recorded in observer-frame MJD, whereas the model curve is a
-rest-frame object. Observer-frame time intervals must therefore be divided by
-$1+\zred$ before anything else happens. Rest-frame phase is
-\begin{equation}
-  \phase = \frac{t - \tmax}{1 + \zred},
-  \label{eq:phase}
-\end{equation}
-with $t$ and $\tmax$ both observer-frame MJD. Since $\zred$ is measured for
-every object, the $1+\zred$ factor is a \emph{known} kinematic rescaling and is
-divided out deterministically rather than fitted. This keeps $\tscale$ below a
-genuine rest-frame stretch instead of a repackaging of time dilation, and it is
-the same logic applied to \texttt{mwebv} in Section~\ref{sec:samples}: known
-effects are removed, not absorbed into free parameters.
-
-Timing is then a monotone map from rest-frame phase to arclength. Writing
-$u = \phase/\tscale$ with $\tscale$ in rest-frame days,
-\begin{equation}
-  \arc(t) = u\left[1 + \warpone u + \warptwo u^{2}\right],
-  \qquad
-  u = \frac{t - \tmax}{\tscale\,(1+\zred)},
-  \qquad \deriv{\arc}{t} > 0 \ \text{on the fit window}.
-  \label{eq:reparam}
-\end{equation}
-Setting $\warpone = \warptwo = 0$ recovers the affine map $\arc = \phase/\tscale$,
-which is the direct analogue of classical stretch \citep{Phillips1993}. The
-quadratic and cubic terms permit asymmetric warping between rise and decline.
-The positivity constraint is definitional, not regulatory: $\arc$ is arclength,
-so $\dd \arc/\dd t = \norm{\dot{\curve}}$ is strictly positive wherever the
-supernova is moving.
-
-\paragraph{$\tmax$ is free, and the gauge makes it the $g$-maximum.} The date of
-maximum is a fitted parameter for every supernova; it is never taken from the
-archive's \salt\ $t_{0}$, which would violate the requirement that \salt\ stay
-strictly downstream. Nothing needs to be added to enforce its interpretation.
-By construction $\arc(\tmax) = 0$, and the initial condition of
-Section~\ref{sec:rotation} places the template's $g$-band maximum at $\arc = 0$
-for every value of $\shape$. Because $\dd\arc/\dd t > 0$,
-\begin{equation}
-  \deriv{\magg}{t} = \deriv{\magg}{\arc}\,\deriv{\arc}{t}
-  \qquad\Longrightarrow\qquad
-  \deriv{\magg}{t} = 0 \iff \deriv{\magg}{\arc} = 0 ,
-\end{equation}
-so the fitted $\tmax$ \emph{is} the observer-frame epoch of $g$-band maximum.
-The identification is enforced by the gauge choice rather than imposed as a
-penalty or recovered after the fit.
-
-\paragraph{The anchor band is $g$, not $B$.} Phase zero is conventionally set at
-rest-frame $B$-band maximum, but locating $B$ maximum requires K-correcting into
-a filter that was not observed, hence an SED, which a two-band model does not
-have (Section~\ref{sec:limitations}). The anchor here is the maximum of
-observed \ztf\ $g$, a band actually in hand. Since $g$ and $B$ are different
-filters, $\tmax$ and a $B$-maximum epoch need not coincide, and the offset
-between them is not predictable from effective wavelength: peak epoch is not a
-monotonic function of wavelength across UV to NIR. When \salt\ is used as an
-external benchmark, the distribution of $\tmax - t_{0}$ must therefore be
-\emph{measured} and reported --- neither its centre nor its sign assumed --- and
-its scatter, not its mean, is the check on timing recovery.
-
-\subsection{Per-supernova parameters}
-
-The baseline model assigns seven parameters to each supernova:
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-Symbol & Role & Geometric character \\
-\midrule
-$\dm$        & normalization & translation along $(1,1)/\sqrt{2}$ \\
-$\shapeone$  & shape         & conditions $\curv$ \\
-$\shapetwo$  & shape         & conditions $\curv$ \\
-$\tscale$    & timing scale (rest-frame d) & reparameterisation \\
-$\tmax$      & time origin (observer MJD)  & reparameterisation \\
-$\warpone$   & timing warp   & reparameterisation \\
-$\warptwo$   & timing warp   & reparameterisation \\
-\bottomrule
-\end{tabular}
-\end{center}
-For comparison, \salt\ uses four: $(x_{0}, x_{1}, \colr, t_{0})$. The excess is
-deliberate and is the subject of the model ladder in
-Section~\ref{sec:ladder}; it is not a claim that seven parameters are needed.
-
-\subsection{Forward model and likelihood}
-\label{sec:likelihood}
-
-Given latents, the predicted magnitude in band $X$ at observer-frame epoch $t$
-is, with $\arc(t)$ from \eqref{eq:reparam},
-\begin{equation}
-  m_{X}^{\mathrm{pred}}(t)
-    = \curve_{X}\bigl(\arc(t)\bigr) + \dm
-      + \colr\,\dustdir_{X}\bigl(\arc(t)\bigr) ,
-  \label{eq:forward}
-\end{equation}
-with $\curve$ obtained by numerical integration of \eqref{eq:frenet}. The final term
-appears only in rung L2c; below it $\colr = 0$ and reddening is left to the shape
-latents, which is the failure that rung tests for. Being phase-dependent, it cannot
-be folded into $\dm$ after the fact. Equation~\eqref{eq:forward} is converted to flux
-on the instrumental system,
-\begin{equation}
-  f_{X}^{\mathrm{pred}}(t) = 10^{-0.4\left(m_{X}^{\mathrm{pred}}(t) - \zp_{X}(t)\right)},
-\end{equation}
-and compared to the observed forced-photometry flux,
-\begin{equation}
-  -2\ln\mathcal{L} = \sum_{X}\sum_{k}
-    \frac{\left[f_{X,k}^{\mathrm{obs}} - f_{X}^{\mathrm{pred}}(t_{k})\right]^{2}}
-         {\sigma_{X,k}^{2}} ,
-  \label{eq:chi2}
-\end{equation}
-where $\sigma_{X,k}$ is the reported flux error of epoch $k$; $\sigma$ denotes
-measurement error throughout and never the timing scale, which is $\tscale$.
-
-Evaluating in flux is essential: \ztf\ difference-imaging photometry has
-approximately Gaussian flux errors and retains negative fluxes at faint phases, both
-destroyed by conversion to magnitudes. \textbf{No data are ever converted to
-magnitudes; only the model is expressed there.} The sum runs over observer-frame
-epochs as recorded in MJD, the rest-frame transformation happening once inside
-\eqref{eq:reparam}.
-
-The curve is defined on a fixed rest-frame window, nominally
-$\phase \in [-15,+40]\,\mathrm{d}$, held in configuration so sensitivity to it can be
-tested. Since $\tmax$ is free the window is a function of the fitted parameters: it
-spans $57.75$~d of observer time at $\zred = 0.05$ against $55$~d at $\zred = 0$, and
-slides as $\tmax$ moves. Peculiar velocities need no treatment here --- they shift
-the normalization only, and $\dm$ absorbs them exactly.
 
 \section{Samples}
 \label{sec:samples}
 
-Coverage was measured directly from the \ztf\ SN~Ia DR2 archive. Starting from
-the 3628 catalogued objects, we require $\zred < 0.05$ and both the
-\texttt{lccoverage} and \texttt{fitquality} flags, leaving 669 supernovae, of
-which 654 have a light-curve file present in the release. Epochs are counted
-inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and
+Coverage was measured directly from the \ztf\ SN~Ia DR2 archive
+\citep{Rigault2025}. Starting from the 3628 catalogued objects, we require
+$\zred < 0.05$ and both the \texttt{lccoverage} and \texttt{fitquality} flags, leaving
+669 supernovae, of which 654 have a light-curve file present in the release. Epochs are
+counted inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and
 with none of the quality bits $\{1,2,4,8,16\}$ set.
 
 \begin{center}
@@ -540,42 +837,46 @@ $\geq 10$ & 490 & 537 &  82 & 465 &  80 \\
 \end{tabular}
 \end{center}
 
-Two samples follow. The \textbf{primary sample} is the 599 supernovae with at
-least five good $g$ and $r$ epochs; here $n=2$ and there is a single invariant.
-The \textbf{torsion subsample} is the 177 that additionally have at least five
-good $i$-band epochs; here $n=3$ and $\tors(\arc)$ exists as a genuine second
-invariant. The latter is small, but it is the only configuration in which the
-original motivation for a second shape parameter --- that torsion describes the
-evolution of inter-band magnitude differences --- can actually be tested. It
-should be treated as a distinct analysis, not as an afterthought.
+Two samples follow. The \textbf{primary sample} is the 599 supernovae with at least
+five good $g$ and $r$ epochs; here $n=2$ and there is a single invariant. The
+\textbf{torsion subsample} is the 177 that additionally have at least five good
+$i$-band epochs; here $n=3$ and $\tors(\arc)$ exists as a genuine second invariant.
+The latter is small, but it is the only configuration in which the original motivation
+for a second shape parameter --- that torsion describes the evolution of inter-band
+magnitude differences --- can be tested, so it is a distinct analysis rather than an
+afterthought. Section~\ref{sec:curve} records two respects in which it is not yet
+settled.
+
+The counts above are unaffected by the pre-explosion epochs of
+Section~\ref{sec:likelihood}, which cannot satisfy a signal-to-noise threshold and are
+gathered separately. Requiring pre-explosion coverage would define a further subsample
+whose size must be measured from the archive.
 
 \paragraph{A caveat on the window used for counting.} Counting epochs inside
-$[-15,+40]$~d requires a date of maximum, but $\tmax$ is precisely what the model
-fits (Section~\ref{sec:reparam}); the numbers above were obtained using the
-archive's \salt\ $t_{0}$ to place the window. This is \salt\ entering upstream of
-\emph{selection}, which is far weaker than \salt\ entering the fit --- no
-photometry is transformed, initialised, or K-corrected by it, and the fitted
-$\tmax$ remains free and independent. It is nonetheless an exception to the rule
-that \salt\ stays strictly downstream, and is recorded here rather than left
-implicit. The check that settles it is to recount using an SED-free anchor, for
-instance a window placed on the brightest good $g$ epoch, and confirm the sample
-sizes move negligibly. The 36 objects with NaN $t_{0}$ must in any case be
-selected by such an estimator or excluded explicitly.
+$[-15,+40]$~d requires a date of maximum, but $\tmax$ is precisely what the model fits
+(Section~\ref{sec:traversal}); the numbers above were obtained using the archive's
+\salt\ $t_{0}$ to place the window. This is \salt\ entering upstream of
+\emph{selection}, far weaker than \salt\ entering the fit --- no photometry is
+transformed, initialised, or K-corrected by it, and the fitted $\tmax$ remains free and
+independent. It is nonetheless an exception to the rule that \salt\ stays strictly
+downstream, and is recorded here rather than left implicit. The check that settles it is
+to recount using an SED-free anchor, for instance a window placed on the brightest good
+$g$ epoch, and confirm the sample sizes move negligibly. The 36 objects with NaN
+$t_{0}$ must in any case be selected by such an estimator or excluded explicitly.
 
 \paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
 \texttt{mwebv}, so its \emph{amplitude} is known and is removed deterministically
 before fitting rather than being fitted. Only host-galaxy reddening remains a free
 quantity, and only in rung L2c. Note that what is known is $E(B-V)$, not
-$A_{g}(\phase)$ and $A_{r}(\phase)$; by Section~\ref{sec:phasedust} the conversion
-is phase-dependent and needs an SED, so removing a constant offset is an
-approximation here as well. It is a milder one, since Galactic columns at the
-high latitudes of this sample are low, but it is the same approximation and is
-not exact.
+$A_{g}(\phase)$ and $A_{r}(\phase)$; by Section~\ref{sec:phasedust} the conversion is
+phase-dependent and needs an SED, so removing a constant offset is an approximation
+here as well --- milder, since Galactic columns at the high latitudes of this sample
+are low, but the same approximation and not exact.
 
-\section{Relation to \salt}
+\section{Relation to \salt, and distance}
 
-The two models can be placed side by side once the geometric quantities are
-mapped onto their photometric counterparts.
+The two models can be placed side by side once the geometric quantities are mapped
+onto their photometric counterparts.
 
 \begin{center}
 \begin{tabular}{lll}
@@ -588,336 +889,47 @@ Shape freedom     & $x_{1}$, linear coefficient & $\shapeone,\shapetwo$ conditio
 Timing freedom    & $t_{0}$ only                & $\tmax, \tscale, \warpone, \warptwo$ \\
 Normalization     & $x_{0}$                     & $\dm$ \\
 Colour            & $\colr$ with law $\mathrm{CL}(\lambda)$ & $\colr\,\dustdir(\arc)$, or absorbed into $\curv$ \\
+Early rise        & from the SED surface        & \eqref{eq:powerlaw}, a prediction \\
 K-corrections     & built in via the SED        & suppressed by $\zred < 0.05$, not removed \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-The decisive structural difference is the treatment of timing. \salt\ has a
-single time parameter and forces all remaining temporal variation into the
-shape components; the geometric model gives timing its own map and can
-therefore ask whether shape variation is real or merely mis-assigned timing.
+The decisive structural difference is the treatment of timing. \salt\ has a single time
+parameter and forces all remaining temporal variation into the shape components; the
+geometric model gives timing its own map and can therefore ask whether shape variation
+is real or merely mis-assigned timing.
 
-On colour the comparison runs the other way, and the point is worth conceding
-plainly. \salt's colour law $\mathrm{CL}(\lambda)$ is phase-independent, but \salt\
-carries an SED surface from which \eqref{eq:bandext} is evaluated at each phase, so
-the phase dependence emerges automatically; having no SED, this model must import
-$\dustdir(\arc)$ from an external template. \salt\ is structurally better placed
-here. What the two share is the mixing itself: \salt's $\colr$ conflates dust with
-intrinsic colour, which is why $\beta$ is fitted rather than predicted.
+On colour the comparison runs the other way, and the point is worth conceding plainly.
+\salt's colour law $\mathrm{CL}(\lambda)$ is phase-independent, but \salt\ carries an
+SED surface from which \eqref{eq:bandext} is evaluated at each phase, so the phase
+dependence emerges automatically; having no SED, this model must import
+$\dustdir(\arc)$ from an external template. \salt\ is structurally better placed here.
+What the two share is the mixing itself: \salt's $\colr$ conflates dust with intrinsic
+colour, which is why $\beta$ is fitted rather than predicted.
 
-Distance is not delivered directly by the geometry. Since $\dm$ is free per
-supernova, the geometry supplies standardization \emph{variables}, and distance
-follows from a Tripp-style relation \citep{Tripp1998},
+Two further costs. Having no SED, the redshift cut suppresses only the K-correction
+branch of the missing-SED problem \citep{Nugent2002}: the phase dependence of
+\eqref{eq:bandext} is a rest-frame effect, identical at $\zred = 0$, so
+Section~\ref{sec:phasedust} is a mitigation and not a solution. And full conditioning
+in \eqref{eq:kappanet} means the latents are not linear coefficients, so ablation is
+less clean than in \salt\ and the gauge fixing of Section~\ref{sec:gauge} is a partial
+remedy only.
+
+Distance is not delivered directly by the geometry. Since $\dm$ is free per supernova,
+the geometry supplies standardization \emph{variables}, and distance follows from a
+Tripp-style relation \citep{Tripp1998},
 \begin{equation}
   \dm_{\mathrm{corr}} = \dm - \alpha\,\shapeone - \beta\,\shapetwo + \mathcal{M},
   \label{eq:tripp}
 \end{equation}
-with $\alpha$, $\beta$ and $\mathcal{M}$ fitted globally. This is the same
-logical structure as \salt\ cosmology and makes the comparison direct.
-
-\section{Orientation, boundary conditions, and a curvature sum rule}
-\label{sec:rotation}
-
-Integrating \eqref{eq:frenet} requires an initial frame. Two questions are easily
-conflated and are answered separately below: whether rotation is a physical degree
-of freedom, and whether the template frame is determined.
-
-\subsection{No physical effect acts as a rotation}
-
-Enumerating the per-supernova nuisances in magnitude space:
-
-\begin{center}
-\begin{tabular}{ll}
-\toprule
-Effect & Action on $\curve$ \\
-\midrule
-Distance and absolute luminosity & translation $\parallel (1,1)$; exact \\
-Host dust and intrinsic colour   & displacement along the reddening direction,
-                                   phase-dependent \\
-Per-band zeropoint error         & translation $(\delta_{g}, \delta_{r})$; exact \\
-Time dilation and stretch        & reparameterisation; does not move $\curve$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Every entry is a translation, a phase-dependent displacement, or a
-reparameterisation; none is a rotation. A per-supernova rotation would therefore be
-a degree of freedom with no physical referent and appears in no rung of the ladder.
-A supernova-dependent $R_{V}$ is not a counterexample: it changes the
-\emph{direction} of the reddening displacement, selecting a different
-$\dustdir(\arc)$ in \eqref{eq:dustcurve}, but does not rotate the curve.
-
-\subsection{The frame is fixed by the $g$-maximum}
-
-That rotation is unphysical does not determine the template frame. It is fixed
-instead by the same anchor that fixes the arclength origin. At a $g$-band maximum,
-\begin{equation}
-  \deriv{\magg}{\arc}\bigg|_{\arc=0} = 0
-  \qquad\Longrightarrow\qquad
-  \tang(0) = (0, \pm 1).
-  \label{eq:frameanchor}
-\end{equation}
-Imposing this \emph{is} the statement that $\arc = 0$ lies at the $g$-maximum, so
-one condition fixes both gauges. It costs no generality and, unlike the asymptotic
-constraint of Section~\ref{sec:sumrule}, it is observable inside the phase window.
-
-\subsubsection*{The residual sign is empirical, not a gauge choice}
-\label{sec:framesign}
-
-Arclength increases with time and a brightening band moves toward \emph{smaller}
-magnitude, so $\dd m_{X}/\dd \arc < 0$ while band $X$ rises. The two branches of
-\eqref{eq:frameanchor} are therefore distinct physical statements about the epoch of
-$g$-maximum:
-\begin{equation}
-  \tang(0) = (0,-1) \iff \dd\magr/\dd\arc < 0 \iff \text{$r$ still brightening},
-  \qquad
-  \tang(0) = (0,+1) \iff \text{$r$ already fading}.
-  \label{eq:framesign}
-\end{equation}
-Equivalently, the sign records \emph{which band reaches maximum first} --- a
-measurable property of the photometry, not a convention. It cannot be inferred from
-effective wavelength, since peak epoch is not a monotonic function of wavelength
-across UV to NIR. Nor do the asymptotics of Section~\ref{sec:sumrule} supply an
-independent handle, because the \emph{sense} of turning is itself equivalent to the
-ordering: writing $\tang = (\cos\phi, \sin\phi)$, the tangent runs from
-$-(1,1)/\sqrt{2}$ to $+(1,1)/\sqrt{2}$ and with monotone turning may do so either
-way,
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-Turning & $\phi$ traverses & Implied ordering \\
-\midrule
-$\curv > 0$ & $225^{\circ} \to 405^{\circ}$, crossing $270^{\circ}$ then $360^{\circ}$ & $g$-maximum, then $r$-maximum \\
-$\curv < 0$ & $225^{\circ} \to 45^{\circ}$, crossing $180^{\circ}$ then $90^{\circ}$   & $r$-maximum, then $g$-maximum \\
-\bottomrule
-\end{tabular}
-\end{center}
-The sum rule fixes the net turning but not its sense, so it restates the question
-rather than answering it. The table does supply, given monotone turning, that each
-band has exactly one maximum in the window; a second --- as in the secondary maximum
-of redder bands --- forces $\curv$ to change sign.
-
-\paragraph{Determination and its risks.} The measurement needs no model and no
-\salt: fit a low-order polynomial to each band near its own peak and record the
-order of the two maxima. The convention is the sample-majority sign, carried in
-configuration rather than hard-coded, and reported with the minority fraction. Since
-the frame is global, a sample heterogeneous in the ordering could not be represented
-by one template at all, which would be evidence against the no-rotation design
-rather than a detail to tune; the minority fraction and the distribution of
-maximum-to-maximum separation bound that risk.
-
-\paragraph{Regularity: the maxima must not coincide.} If all bands are stationary at
-the same epoch then $\norm{\dd\curve/\dd\phase} = 0$, hence $\dd\arc/\dd t = 0$, the
-positivity requirement of \eqref{eq:reparam} is violated, and the unit-speed
-parameterisation fails --- the curve has a stationary rather than a regular point.
-Non-coincident band maxima is thus a regularity condition on the data, distinct from
-the vanishing-$\curv$ degeneracy of Section~\ref{sec:limitations}, with the same
-separation distribution as its diagnostic.
-
-\paragraph{One condition suffices only for $n=2$.} The frame is an element of
-$\SO(n)$, of dimension $n(n-1)/2$, while $\dd\magg/\dd\arc = 0$ supplies one
-condition. For $n=2$ that is exactly enough, up to the sign above. For the $n=3$
-subsample it leaves $\tang(0) = (0, T_{r}, T_{i})$ with $T_{r}^{2}+T_{i}^{2} = 1$
---- a continuous family, not a discrete sign --- and $\norml(0)$ free in the plane
-orthogonal to $\tang(0)$: two further conditions are needed. They must come from
-observables inside the phase window, on the principle of \eqref{eq:frameanchor}, and
-are left open here rather than assumed away.
-
-\subsection{Asymptotic structure and a sum rule on $\curv$}
-\label{sec:sumrule}
-
-Supernova flux vanishes before explosion and tends to zero long after, so in
-every band $f \to 0$ and hence $m \to +\infty$ at both extremes. In magnitude
-space \emph{both ends of the curve escape to infinity along the diagonal}
-$(1,1)$. The curve is a hairpin, not an arc, and its two asymptotes are
-parallel rays whose separation is the terminal colour.
-
-This pins the tangent at both ends. While brightening the supernova moves
-toward smaller magnitudes, and while fading it moves toward larger ones:
-\begin{equation}
-  \tang \longrightarrow -\tfrac{1}{\sqrt{2}}(1,1) \quad (\text{early}),
-  \qquad
-  \tang \longrightarrow +\tfrac{1}{\sqrt{2}}(1,1) \quad (\text{late}).
-\end{equation}
-The tangent therefore turns through $\pi$ over the life of the supernova, and
-since $\curv$ is precisely the rate of turning of the tangent, the total
-curvature obeys the exact sum rule
-\begin{equation}
-  \int_{-\infty}^{\infty} \curv(\arc)\,\dd \arc \;=\; \pi \pmod{2\pi}.
-  \label{eq:sumrule}
-\end{equation}
-The modulus allows for complete loops; local reversals of turning, such as
-those the secondary maximum in redder bands may produce
-\citep{Deckers2025}, redistribute curvature without altering the net total. Two
-corollaries follow: $\curv \to 0$ at both extremes as the curve straightens
-onto its asymptote, and the asymptotic offset between the rays is the terminal
-colour.
-
-Equation~\eqref{eq:sumrule} is a global constraint on the shape function that
-has no counterpart in a linear component decomposition. \salt\ has no way to
-express it, because ``the total turning of the light curve'' is not a
-statement about the amplitude of an additive component.
-
-\paragraph{Use, and a cost.} The asymptotes lie far outside the fitted window
-$[-15,+40]$~d, so \eqref{eq:sumrule} constrains the \emph{extrapolation} of a
-trained $\curv$, not the fit. It is used as a validation diagnostic --- does a
-trained $\curv$ integrate to something near $\pi$ beyond the window --- and at most
-as a weak prior; it must never be imposed as a hard constraint on a fit that cannot
-see the asymptotes. The divergence of $m$ at both ends is also why the phase window
-exists at all: flux space would keep the curve bounded, beginning and ending at the
-origin, but would forfeit \eqref{eq:transinv}.
-
-\section{Degeneracies and gauge fixing}
-\label{sec:gauge}
-
-The model as stated has exact degeneracies that must be removed before the
-latents can be interpreted or compared across rungs of the ladder.
-
-Two kinds of condition appear below and should not be confused. A \emph{gauge}
-condition removes a mathematical redundancy: the model makes identical predictions
-before and after, so the condition costs nothing, cannot be wrong, and is not
-testable. An \emph{identifying assumption} is a statement about the physical world
-that pins down a split the data alone leave open; it is substantive, it is
-falsifiable, and it may be false. The arclength origin, the metric, the latent
-normalisation and the frame orientation are gauge. The two headed ``against
-shape'' are not: they are the substantive content of this section, and each can
-fail.
-
-\paragraph{Arclength origin.} The substitution $\arc \mapsto \arc + \arc_{0}$
-is absorbed by $\tmax$. Gauge is fixed by anchoring $\arc = 0$ to a
-geometrically defined point on the template curve, taken here as the $g$-band
-maximum, $\dd\magg/\dd \arc = 0$. For $n=2$, \eqref{eq:frameanchor} shows this
-simultaneously fixes the frame orientation, so the two gauges are one condition;
-for $n=3$ it does not suffice, as noted below.
-
-\paragraph{Metric on magnitude space.} Curvature presupposes a metric, and no
-metric on magnitude space is physically preferred
-(Section~\ref{sec:magspace}). The Euclidean choice $\mathrm{diag}(1,1)$ is adopted
-as a convention. It does not affect the invariance arguments, since translations
-are isometries of any translation-invariant metric, but it does set the numerical
-scale of $\curv$ and hence what the model means by shape. It must be declared
-alongside the other conventions here rather than left implicit.
-
-\paragraph{Latent scale, sign and rotation.} Nothing in \eqref{eq:kappanet}
-fixes the scale, sign, or mutual orientation of $(\shapeone, \shapetwo)$. Gauge
-is fixed by requiring the population of fitted latents to have zero mean and
-unit diagonal covariance, and by fixing the sign so that $\shapeone$ correlates
-positively with light-curve width.
-
-\paragraph{Timing warp against shape.} This is the substantive one. Although a
-reparameterisation cannot change the curve in principle, over a finite phase
-window with noisy sampling a warp in $\arc(t)$ and a change in $\curv$ can
-mimic one another. The mitigation is to regularise $\warpone, \warptwo$ toward
-zero and to report the fitted correlation between them and $\shape$ as a
-diagnostic. If that correlation is large, the shape--timing separation that
-motivates the model is not being realised in practice, and this must be
-reported as a negative result rather than absorbed.
-
-\paragraph{Dust against shape.} The second substantive one, measured by
-$\rho^{2}$ of \eqref{eq:overlap}: $\colr$ is degenerate against $\shape$ to the
-extent that $\delta\dustdir$ lies in $\mathrm{span}\{\partial\curve/\partial\shape\}$
-at the observed epochs. This is not a redundancy that can be gauged away but a
-genuine ambiguity of physical cause. The identifying assumption is
-\begin{equation}
-  \mathrm{Corr}(\colr, \shape) = 0
-  \quad\text{over the population,}
-  \label{eq:idcond}
-\end{equation}
-justified by the physical independence of line-of-sight dust from explosion physics,
-and known to be only approximate --- the host mass step couples \snia\ properties to
-host environment, and dust column is environmental. By \eqref{eq:orders} it is
-expected to function as a \emph{check} rather than to carry weight, so it is imposed
-\emph{and} its unimposed value reported. A large $\rho^{2}$ or a large unconstrained
-correlation is a negative result for the interpretation of $\shape$, not for the
-distance indicator (Section~\ref{sec:phasedust}); the two are reported separately.
-
-\paragraph{Frame orientation.} Fixed for $n=2$ by the $g$-maximum condition
-\eqref{eq:frameanchor}, which is the same anchor that fixes the arclength origin.
-The residual sign in \eqref{eq:framesign} is not gauge: it encodes which band
-peaks first and must be measured from the photometry, as
-Section~\ref{sec:rotation} sets out. For $n=3$ two further conditions are needed
-and are not yet fixed. No per-supernova rotation is fitted, because
-Section~\ref{sec:rotation} shows that no physical effect acts as one.
-
-\section{Model ladder and validation}
-\label{sec:ladder}
-
-With seven per-supernova parameters and a conditioned network, good fits are
-guaranteed and therefore carry no evidential weight. The scientific deliverable
-is not a fit but a comparison, conducted on held-out data.
-
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-Rung & Free per supernova & Question \\
-\midrule
-L0  & $\dm, \tscale, \tmax$        & is a rigid template sufficient? \\
-L1  & $+\ \shapeone$                & does one shape parameter earn its place? \\
-L2  & $+\ \shapetwo$                & does a second? \\
-L2c & L2 $+\ \colr$ amplitude of $\dustdir(\arc)$ & does dust need its own direction? \\
-L3  & $+\ \warpone, \warptwo$       & does nonlinear timing earn its place? \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Rungs are compared by scatter in held-out Hubble residuals under
-cross-validation, never by in-sample scatter. \salt\ is fitted independently on
-the same supernovae and used as an external benchmark. It is never used
-upstream of the data.
-
-Rung L2c deserves emphasis. Below it the only ambient motion is $\dm$, so the
-template must predict each supernova's absolute colour from its shape alone and
-host-galaxy dust, having nothing else to occupy, is forced into $\shapeone,
-\shapetwo$. Whether shape can absorb reddening or requires its own direction is a
-result either way. The identifying condition \eqref{eq:idcond} is part of the rung's
-definition, not an afterthought: without it the fitted split between $\colr$ and
-$\shape$ is arbitrary even where the fit improves. It constrains only the
-interpretation of that split, so L2c's held-out Hubble score is meaningful either
-way.
-
-\section{Limitations}
-\label{sec:limitations}
-
-\paragraph{Two bands admit no torsion.} In the primary sample $n=2$ and there
-is a single curvature invariant, so $\shapetwo$ is a second direction of
-variation in $\curv$ rather than the torsion originally envisaged, and should
-not be described as torsion. Torsion is available only on the 177-object
-subsample of Section~\ref{sec:samples}, where the reduced sample size is traded
-against the presence of a second genuine invariant.
-
-\paragraph{No SED, hence no K-corrections.} A two-band model cannot
-self-consistently K-correct, which requires the SED \citep{Nugent2002}; hence the
-restriction to $\zred < 0.05$, where K-corrections are small. This buys independence
-from \salt\ at the cost of sample size and of any redshift lever for cosmology.
-
-The missing SED has a second branch the redshift cut does \emph{not} touch.
-Band-integrated extinction depends on the SED inside the filter, hence on phase
-(Section~\ref{sec:phasedust}), and that is a rest-frame effect, identical at
-$\zred = 0$ and $\zred = 0.05$. It also forces $\dustdir(\arc)$ to be imported from an
-external template rather than generated internally as \salt\ can. Rung L2c and the
-diagnostics of Section~\ref{sec:phasedust} are a mitigation, not a solution.
-
-\paragraph{Dust is not separable from shape by the geometry.} No geometric argument
-divides them, so the shape latents carry some reddening (Sections~\ref{sec:phasedust}
-and~\ref{sec:gauge}). The consequences are asymmetric and must be quoted as such: for
-the distance indicator the mixture is absorbed by the fitted Tripp coefficients and
+with $\alpha$, $\beta$ and $\mathcal{M}$ fitted globally. This is the same logical
+structure as \salt\ cosmology and makes the comparison direct. It is also why the
+dust--shape mixing of Section~\ref{sec:phasedust} is asymmetric in its consequences:
+for the distance indicator the mixture is absorbed by the fitted $\alpha, \beta$ and
 costs nothing, whereas for reading $\shape$ as explosion physics it is a limitation
-whose size --- second order by \eqref{eq:orders}, but measured, and stratified by
-$\colr$ --- has to be reported. The \emph{colour} degeneracy is the more serious one
-and is untouched by the order counting: $\colr$ conflates dust with intrinsic colour
-at first order, as in \salt.
-
-\paragraph{Curvature degenerates at inflection points.} Where $\curv \to 0$ the
-Frenet frame is ill-defined in the classical construction. Light curves in the
-$(\magg, \magr)$ plane may pass near such points, particularly around the
-secondary maximum seen in redder bands \citep{Deckers2025}. The implementation
-must use a frame construction that remains well-defined through inflections,
-and must report where along $\arc$ the curvature approaches zero.
-
-\paragraph{Interpretability is traded for expressiveness.} Full conditioning
-means the latents are not linear coefficients and ablation is less clean than
-in \salt. The gauge fixing above is a partial remedy, not a complete one.
+whose size must be measured and stratified by $\colr$. The two conclusions are reported
+separately.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

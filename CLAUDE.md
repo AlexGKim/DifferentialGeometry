@@ -201,32 +201,49 @@ These were settled deliberately. Do not silently revise them.
    K-correct. The cut buys independence at the cost of sample size. Do not
    relax it to gain statistics without revisiting the whole K-correction story.
 
-4. **No per-SN rotation, and the frame is fixed by the g-maximum.** Two
-   separate claims, both needed.
+4. **No per-SN rotation, and the frame is fixed on the early zero-curvature
+   segment.** Two separate claims, both needed. *(b)* and *(c)* were **revised on
+   2026-08-21** when the anchor moved from the `g`-maximum to the early ray; *(a)*,
+   *(d)* and *(e)* are **untouched** — no rotation is still fitted, and the
+   revision must not be over-read as reopening that.
    *(a)* Rotation is not a physical degree of freedom: distance and zeropoint
    errors are **translations**, stretch is a **reparameterisation**, and dust is a
    **phase-dependent displacement** (see decision 1 — *not* a translation).
    Nothing acts as a rotation, so none is fitted.
-   *(b)* The template frame is fixed by the same anchor as the arclength
-   origin — at the `g`-maximum `dm_g/ds = 0`, so `T(0)` is `+/-(0,1)`, with the
-   sign empirical per *(c)* below (expected `(0,-1)`). One condition fixes both
-   gauges, costs no generality, and is observable inside
-   the phase window. **This one-condition claim holds only for `n=2`**: fixing
-   the frame means fixing an element of `SO(n)`, which has `n(n-1)/2` parameters,
-   so the `g`-max condition is enough in `R^2` but leaves two conditions unfixed
-   in the `R^3` torsion subsample. Those are an **open question**, not settled.
-   *(c)* The residual sign `T(0) = (0,-1)` vs `(0,+1)` is **empirical, not
-   gauge**. Arclength increases with time and brightening means *decreasing*
-   magnitude, so `(0,-1)` says `r` is still brightening at `g`-max and `(0,+1)`
-   says it is already fading — i.e. the sign records **which band peaks first**.
-   Determine it by direct measurement (per-band polynomial fit near each peak,
-   record the order); carry it in config, do not hard-code. Do **not** infer it
-   from effective wavelength: peak epoch is *not* monotonic in wavelength across
-   UV to NIR. The sum rule gives no independent handle — the *sense* of turning
-   (`kappa>0` vs `kappa<0`) is exactly equivalent to the peak ordering, so it
-   restates the question. Since the frame is global and no rotation is fitted, a
-   mixed-ordering sample would be evidence *against* the no-rotation design;
-   report the minority fraction and the distribution of max-to-max separation.
+   *(b)* The template frame is fixed on the built-in zero-curvature segment
+   (decision 8) by `T = -(1,1)/sqrt2`, the early asymptotic direction of decision 5.
+   **This is a substantive assumption, not a costless gauge, and the note must not
+   present it as one.** A straight segment along the diagonal means
+   `d(m_g - m_r)/ds = 0`: the model asserts *constant colour throughout the earliest
+   modelled phase*, equivalently that both bands share one early power-law index.
+   Falsifiable, and weakly tested by ZTF, whose early sampling is sparse — a caution
+   as much as a defence. The anchor it replaced (`dm_g/ds = 0` at `s=0`) genuinely
+   *was* costless, since it only labelled a point of the template; swapping a
+   costless condition for a substantive one is the content of the change.
+   Two returns pay for it. The frame sign becomes a **prediction** per *(c)*. And
+   fixing a *direction* rather than one scalar supplies `n-1` of the `n(n-1)/2`
+   parameters of `SO(n)`: complete for `n=2`, and **2 of 3** for the `R^3` torsion
+   subsample instead of 1 of 3, leaving only the rotation about the diagonal axis
+   open. That halves the recorded `R^3` open question rather than merely restating
+   it — but it does not close it, and the remaining condition must come from an
+   observable, not an assumption.
+   The `g`-maximum is now *located* rather than *imposed*: it is the first root
+   `s_g(theta)` of `dm_g/ds = 0`, a `theta`-dependent root-find differentiable
+   through the implicit function theorem. The arclength origin `s = 0` moves to the
+   **end of the segment**, and that placement is load-bearing — see the gauge bullet
+   under Known limitations.
+   *(c)* The residual sign is a **model prediction, not a config input**. Arclength
+   increases with time and brightening means *decreasing* magnitude, so
+   `T(s_g) = (0,-1)` says `r` is still brightening at `g`-max and `(0,+1)` says it is
+   already fading — the sign records **which band peaks first**. Under *(b)* that
+   sign is `sign(kappa)`, an output of the trained network. So the direct
+   measurement (per-band polynomial fit near each peak, record the order) becomes a
+   **validation target**, and the config entry that used to carry the sign
+   disappears. Do **not** infer it from effective wavelength: peak epoch is *not*
+   monotonic in wavelength across UV to NIR. Since the frame is global and no
+   rotation is fitted, a mixed-ordering sample would be evidence *against* the
+   no-rotation design; report the minority fraction and the distribution of
+   max-to-max separation.
    *(d)* **Coincident maxima break arclength.** If all bands peak at the same
    epoch then `||dgamma/dp|| = 0`, so `ds/dt = 0` and unit-speed parameterisation
    fails. Non-coincident band maxima is a regularity condition on the data.
@@ -241,16 +258,96 @@ These were settled deliberately. Do not silently revise them.
    Corollaries: `kappa -> 0` at both extremes, and the asymptotic ray
    separation is the terminal colour.
 
-   The asymptotes lie **outside** the `[-15,+40]` d window, so this constrains
-   the *extrapolation* of a trained `kappa`, not the fit. Use it as a
-   validation diagnostic, or at most a weak prior. **Never impose it as a hard
-   constraint** on a fit that cannot see the asymptotes.
+   **The tangent and the integral are now treated differently — this is a revision
+   of 2026-08-21, not a silent extension.** The early asymptotic *tangent* **is**
+   imposed, at finite `s`, as the frame anchor of decision 4(b). That is legitimate
+   because zero flux means `m = +inf`, and unit speed gives
+   `||gamma(s) - gamma(0)|| <= |s|`, so `f = 0` requires `|s| = infinity`: with the
+   zero-curvature segment of decision 8 extended to `s -> -infinity`, the early
+   asymptote lies in the **closure of the model domain** and imposing a condition
+   there is an initial condition, not a constraint on an unmodelled extrapolation.
+
+   The *integral* is not imposed, and remains diagnostic-only. It also **splits
+   branch-dependently** at the `g`-maximum, so a value may only ever be quoted with
+   its branch. Writing `T = (cos phi, sin phi)` gives `∫ kappa ds = Δphi` exactly,
+   with the early asymptote at `phi = 225 deg`:
+
+   | branch | pre-max | post-max | total |
+   |---|---|---|---|
+   | `kappa > 0` (g peaks first) | `+pi/4` | `+3pi/4` | `+pi` |
+   | `kappa < 0` (r peaks first) | `-3pi/4` | `-pi/4` | `-pi = pi (mod 2pi)` |
+
+   So `pi/4` is **not** a branch-independent constant, and imposing it for every
+   `theta` would *assert* the peak ordering — no SN could come out with the minority
+   ordering and decision 4(c)'s diagnostic would return nothing by construction.
+   Report both halves as validation numbers, stratified by the predicted
+   `sign(kappa)`. The late asymptote lies **outside** the window and stays
+   unobserved, so the total constrains *extrapolation* of a trained `kappa`, not the
+   fit: a validation diagnostic, or at most a weak prior. **Never impose the
+   integral as a hard constraint.**
 
 6. **Peculiar velocity is not in the likelihood.** `mu` is free per SN and
    absorbs it exactly. It enters only at the Hubble-diagram stage.
 
 7. **Evaluation is out-of-sample, always.** With 7 latents and a conditioned
    network, good in-sample fits are guaranteed and carry no evidential weight.
+
+8. **A built-in early zero-curvature segment, a singular traversal, and
+   pre-explosion epochs in the likelihood** (added 2026-08-21). Three pieces of one
+   decision; none works without the others.
+
+   *(a)* **The segment.** The domain is semi-infinite, `s in (-inf, s_end]`, with
+   `kappa_i(s; theta) = 0` for `s <= 0` **by construction, not learned**. This is
+   decision 5's `kappa -> 0` corollary imposed, and it is what puts the early ray
+   inside the model domain so decision 4(b)'s anchor is well posed.
+
+   *(b)* **The traversal must be singular.** By the unit-speed bound of decision 5,
+   `f = 0` needs `s = -infinity`, which a polynomial in `t` reaches only at
+   `t = -infinity`. So a naive gate (`f = 0` before `t_expl`, geometry after) makes
+   predicted flux **discontinuous** at `t_expl`. The map therefore carries a
+   logarithmic term, `s -> -infinity` as `t -> t_expl+`:
+
+   ```
+   s(t) = s_g(theta) + u[1 + a_1 u + a_2 u^2] + A ln x,
+   x = (u - u_expl)/(-u_expl),   u = (t - t_max)/(w(1+z)),   ds/dt > 0 required.
+   ```
+
+   `u_expl < 0` and `A > 0` are **template hyperparameters in config**, not per-SN
+   parameters, so the count stays at 7. `ds/dt > 0` is no longer automatic away from
+   `t_expl` and must be checked over the sampled `(a_1, a_2)`.
+
+   *(c)* **`t_expl` is derived, not fitted:**
+   `t_expl = t_max + w u_expl (1+z)`. The assumption is that dark-phase duration
+   scales with `w` — rise time is a stretch property. Falsifiable; a free per-SN
+   `t_expl` is a candidate later rung, scored on held-out residuals like anything
+   else.
+
+   *(d)* **The payoff: the early rise is a prediction.** On the ray
+   `m_X = c_X - s/sqrt2`, so near `t_expl` the log term gives
+   `f_X ~ (t - t_expl)^alpha` with `alpha = 0.4 ln10 A / sqrt2 ~= 0.651 A`, identical
+   in both bands. A fireball `alpha = 2` corresponds to `A ~= 3.07`. Equality of
+   `alpha` across bands *is* the constant-early-colour assumption of decision 4(b),
+   in testable form. So the segment is not an architectural device.
+
+   *(e)* **`n >= 3`: `tau` is undefined on the segment, not merely ill-conditioned.**
+   Where `kappa_1 = 0` there is no osculating plane, so whatever `tau(s)` the network
+   emits on the segment is **unidentifiable and must be reported as such**. The frame
+   must be carried by parallel transport (a **Bishop frame**), not by the classical
+   construction and not merely an "inflection-robust" one. For `n = 2` there is no
+   problem at all: the Frenet system is a rotation ODE, regular at `kappa = 0`,
+   because `N` is *defined* as the fixed 90-degree rotation of `T` independently of
+   `gamma''`; only `N ∝ gamma''/|gamma''|` fails. Integrating the ODE rather than
+   differentiating the curve is therefore the definition that survives `kappa = 0`.
+
+   *(f)* **Three windows, named separately.** *Model support* extends before `-15` d;
+   the *likelihood epoch set* is in-window detections **plus** pre-explosion epochs;
+   the *selection window* stays `[-15,+40]` d and is unchanged.
+   **Pre-explosion epochs carry zero Fisher information about the geometry** — their
+   predicted flux is zero for every value of every parameter — so they constrain
+   `t_expl` only, and **must not count toward ">=5 good epochs per band"**. Counting
+   them would admit SNe with no shape constraint and would invalidate the 599/177
+   counts. Requiring pre-explosion coverage would define a further subsample whose
+   size must be **measured** from the archive; do not quote a number for it.
 
 ## The deliverable is a ladder, not a fit
 
@@ -331,7 +428,17 @@ load-bearing:
   overhead with no reader. **Do not add one back** until asked.
 - **Length is a constraint, not an accident.** It was cut from 18 pages to 14 on
   2026-08-20 precisely because it had grown too long to serve its purpose. Do not let
-  it grow back. A new subsection is a cost that has to be justified.
+  it grow back. A new subsection is a cost that has to be justified. The 2026-08-21
+  restructure into six sections deleted the ladder and limitations sections and came
+  out **net-zero at 14 pages** (13 of body plus one of bibliography), missing its own
+  target of *shorter*: the new §2 material — the singular traversal, the three windows,
+  the rank-one covariance, the gauge table — spent the whole saving. Next time the
+  budget must be checked against a page count, not against deleted sections.
+- **The note is now structured as a Model section, not an article** (2026-08-21): §1
+  motivation, §2 the model (curve → placement → traversal → observables → gauge), then
+  §3–§6 as supporting material. Argument goes behind the model, never interleaved with
+  it, and the constitutive chain must read in dependency order with no forward
+  references into the supporting sections.
 - **Say each thing once.** The bloat that forced the cut was the same argument restated
   in four or five sections. Cross-reference instead; if a section needs a point already
   made, it references the equation and adds only what is new there.
@@ -366,13 +473,33 @@ and expressible as mathematics. Do not let it become a second note.
   `c*ubar` and a per-SN intrinsic colour offset are the same displacement, so `c`
   conflates the two exactly as SALT2's `c` does. The order counting does *not*
   help here. Do not let the good news about the shape channel obscure this.
-- **Curvature degenerates at inflections.** Where `kappa -> 0` the classical
-  Frenet frame is ill-defined; the `(m_g, m_r)` path may approach this near the
-  secondary maximum. Use a frame construction robust to inflections and report
-  where `kappa` approaches zero.
-- **Gauge must be fixed** before latents are interpretable: `s=0` anchored to
-  the `g`-band maximum; latents normalised to zero mean, unit variance; sign
-  fixed so `theta_1` correlates positively with light-curve width.
+- **Curvature degenerates at inflections — but the by-design case is separate.**
+  Decision 8(a) makes `kappa = 0` on a set of positive measure, for every `theta`,
+  always, and 8(e) says what that costs: nothing for `n=2`, `tau` unidentifiable for
+  `n>=3`. The *residual* limitation here is the **incidental** near-zero curvature
+  that the `(m_g, m_r)` path may approach near the secondary maximum. Only that case
+  makes "report where `kappa` approaches zero" a meaningful instruction, and it is
+  still required.
+- **Gauge, assumption and prediction must be distinguished** before latents are
+  interpretable. Three kinds, and the classification changed on 2026-08-21.
+  - *Gauge* (costless, not testable): `s = 0` at the **end of the zero-curvature
+    segment** — no longer at the `g`-maximum; the metric `diag(1,1)`; latents
+    normalised to zero mean and unit variance, with the sign fixed so `theta_1`
+    correlates positively with light-curve width; position along `(1,1)` fixed by
+    normalising the template so `m_g = 0` at its own `g`-maximum, which makes `mu`
+    *exactly* the peak `g` magnitude.
+  - *Assumption* (substantive, falsifiable): **frame orientation moved here** from
+    the gauge list — decision 4(b)'s constant early colour. Also
+    `t_expl` scaling with `w` (decision 8c) and `Corr(c, theta) = 0`.
+  - *Prediction* (checked, not chosen): which band peaks first, via `sign(kappa)`;
+    the terminal colour; the early power-law index.
+- **The `s`-origin and `mu` span an exactly flat direction unless the origin is
+  fixed.** On a straight segment, translating the arclength origin displaces the curve
+  *along* the ray, i.e. along `(1,1)` — which is precisely what `mu` does. Anchoring
+  `s = 0` at the end of the segment is what removes it. This is a genuine null
+  direction of the likelihood, not a slow direction; it must be fixed, not
+  regularised. `mu` stays an **all-band** offset — a `g`-only offset would mix the
+  distance and colour channels and would revise decision 1.
 
 ## Data details
 
@@ -408,6 +535,43 @@ Bits 32–1024 encode seeing, field, moon illumination, airmass and detection
 significance, and are informational — they are **not** excluded. Cutting on
 `flag == 0` throws away most genuine detections (it preferentially keeps faint
 baseline epochs) and silently reduces the usable sample to near zero.
+
+**Pre-explosion (null) epochs need their own handling — the detection rules do not
+transfer.** Decision 8(f) puts epochs before `t_expl` into the likelihood. Four
+consequences, and the first three rest on readings of the archive columns that are
+**inferred from the column list and NOT YET VERIFIED against `ztfcosmo`**. Verify
+before writing any of them into a document or relying on them in code; "no asserted
+values" applies to the data model as much as to results.
+
+- **"Expected flux is exactly zero" is false.** The expected pre-explosion flux is
+  `flux_offset`, and zero only after it is subtracted. Subtract it
+  deterministically — the same rule as `1+z` and `mwebv`.
+- **`offset_unc` is rank-one**, one offset per light curve common to every epoch of a
+  band, so **`chi2` is not diagonal**: `C = diag(sigma^2) + offset_unc^2 · 1·1^T`.
+  Negligible beside a bright detection, **dominant** across a run of nulls. A diagonal
+  treatment makes their joint constraint appear to tighten as `1/sqrt(N_pre)` when the
+  true floor is `offset_unc` and does not shrink — overstating the information by a
+  factor growing with `N_pre` and biasing `t_expl` in the sign of `flux_offset`.
+  Marginalise analytically by Sherman–Morrison; adds no parameter.
+- **Exclude `in_baseline` epochs.** They are the data the zero level was estimated
+  from, so their residuals are shrunk toward zero by construction; using them as
+  constraints on `f = 0` double-counts, giving an over-tight `t_expl` and an
+  understated chi-squared.
+- **Drop the `SNR > 5` cut, and `flag & 31 == 0` is the wrong cut here — a change in
+  kind, not a tightening.** Expected SNR is zero, so an SNR threshold keeps only
+  upward noise excursions: a one-sided selection on the noise realisation of the very
+  quantity being fitted, biasing `t_expl` early. Select nulls on **provenance and
+  error only, never on measured flux**. And the recorded flag warning runs the other
+  way — it protects *detections*. For a null the failure mode inverts: *depth* is
+  benign (a shallow epoch has large `sigma` and self-weights down under a correct
+  Gaussian flux likelihood, so bit 16 costs information, not correctness), while
+  *bias* is fatal, and bits 32–1024 (seeing, field, moon, airmass) are precisely the
+  bits correlated with systematic offsets. So the null epoch set needs its own cut,
+  derived for that purpose. Pin down whether `sigma` is pre- or post-`err_scale`,
+  which matters far more at zero signal than for detections.
+
+The **selection window and its `SNR > 5` criterion are untouched**, so the 599/177
+counts and the regression test asserting 599 stand.
 
 **Milky Way extinction.** `mwebv` is known per SN, so MW reddening is a
 *deterministic* translation in magnitude space and must be removed up front,

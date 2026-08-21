@@ -212,6 +212,59 @@ low.
 
 ---
 
+## Parked from the deleted ladder and limitations sections (2026-08-21)
+
+**Housekeeping, not argument.** The note was restructured as a Model section and its
+ladder and limitations sections were removed — neither is model definition. Nothing was
+lost from the durable record: the L0–L3 table lives in `CLAUDE.md`'s "The deliverable is
+a ladder", the cross-validation method in the spec, and every limitations entry in
+`CLAUDE.md`'s "Known limitations to keep in view". Two entries below were *new* content
+with no other home at the time, and are recorded here as well as in `CLAUDE.md`.
+
+**Resist re-narrating the model in prose here.** Levels 2, 3 and 5 of the hierarchy are
+now stated mathematically in the note; restating them argumentatively is the failure mode
+that forced the 18→14 page cut.
+
+### `tau` is undefined, not merely ill-conditioned, on the zero-curvature segment
+
+**Settled, and worse than the limitation it replaces.** The old wording was contingent —
+`kappa` "may pass near" zero near the secondary maximum — whereas the built-in segment
+makes `kappa = 0` on a set of positive measure, for every `theta`, always.
+
+For `n = 2` this costs **nothing**, and the recorded "curvature degenerates at
+inflections" limitation does not bite at all: the Frenet system in the plane is a
+rotation ODE, nonsingular at `kappa = 0`, because `N` is *defined* as the fixed
+90-degree rotation of `T`, globally and independently of `gamma''`. Only the classical
+definition `N ∝ gamma''/|gamma''|` fails. Integrating the ODE rather than
+differentiating the curve is therefore the definition that survives, not a numerical
+convenience.
+
+For `n >= 3` it is a genuinely new limitation. Where `kappa_1 = 0` the osculating plane
+does not exist, so `tau` is not ill-conditioned but **undefined**: whatever `tau(s)` the
+network emits on the segment is **unidentifiable** and must be reported as such. This
+requires a rotation-minimising (Bishop / parallel-transport) frame, not merely an
+"inflection-robust" one, and it compounds the open `R^3` frame question rather than
+being independent of it.
+
+### Incidental near-zero curvature remains a limitation
+
+**Open.** Distinct from the by-design segment: the `(m_g, m_r)` path may approach
+`kappa = 0` *incidentally* near the secondary maximum of redder bands. Only this case
+makes the instruction "report where along `s` curvature approaches zero" meaningful, so
+the instruction survives — but it now belongs to `CLAUDE.md` and the code, not to the
+note. Whether it actually occurs in the fitted window is an empirical question that no
+number yet answers.
+
+### Regularity is about speed, and is untouched
+
+**Settled.** Decision 4(d) — coincident band maxima give `||dgamma/dp|| = 0`, hence
+`ds/dt = 0`, and unit-speed parameterisation fails — is unaffected by any of the above.
+A straight segment is perfectly regular: it has no turning, but it has unit speed. The
+note's clause distinguishing the regularity condition from the vanishing-`kappa`
+degeneracy became *more* load-bearing under the restructure, not less, and was kept.
+
+---
+
 ## Use of an external SED template
 
 **Settled.** An external SED template (e.g. Hsiao) and a standard extinction law (e.g.
