@@ -74,28 +74,119 @@ These were settled deliberately. Do not silently revise them.
    Gaussian in flux and negative fluxes are meaningful, so the likelihood must
    use native flux. **Never convert data to magnitudes.**
 
-   **Exact for distance and zeropoint; only approximate for dust.** Band
-   extinction `A_X(p)` is a flux-weighted average of the monochromatic law over
-   the filter, weighted by the SN's own SED — which evolves with phase. So dust
-   is a *phase-dependent displacement* `gamma -> gamma + c*u(s)`, not a
-   translation, and it does change `kappa` and arclength. Three consequences:
+   **Two logical types, not one axis. Know which side an effect is on.**
+   - **Rigid displacements — removed exactly.** Distance, absolute luminosity,
+     peculiar velocity, per-band calibration error. Each is a fixed property of
+     the object or the telescope, so it applies the *same* displacement at every
+     phase: a map of the plane, hence a translation, hence invisible to `kappa`
+     with no residual. Note this is *not* about being achromatic — a zeropoint
+     error is strongly chromatic and still exactly removed.
+   - **Deformations — not removed by any geometry.** Dust *and intrinsic SN
+     diversity*, i.e. the signal itself. Both displace different parts of the
+     curve by different amounts, so both bend it. **Do not use
+     "phase-independent vs phase-dependent" as the nuisance/signal criterion**:
+     it sorts dust onto the same side as the thing `kappa(s;theta)` exists to
+     measure. Separation can only come from population-level assumptions, which
+     are substantive and falsifiable — never from the choice of ambient space.
+
+   **Same type ≠ same size. The shape contamination is second order.** Split
+   `c*u(s) = c*ubar + c*du(s)` with `ubar = <u>` and `<du> = 0`. The first term is
+   a constant vector, hence a translation, hence removed **exactly**. Only `c*du(s)`
+   bends the curve, and it is small twice over: in the reddening amplitude `c`, and
+   in the fractional phase variation `|du|/|ubar|`, which is small because a
+   band-integrated extinction responds only weakly to SED evolution inside the
+   filter. So there is a **hierarchy**: intrinsic diversity enters `kappa` at first
+   order (it *is* the signal), dust at second. **Expect the phase-dependent variance
+   the geometry sees to be dominated by intrinsic SN dispersion.** This is what
+   makes `theta` interpretable despite the shared category — but it is a
+   *quantitative* claim to be measured, not asserted, and the diagnostics below
+   exist to test it.
+
+   Two caveats. (i) Amplitude-dependent: `c` is not small for the reddest objects,
+   so **stratify every diagnostic by fitted `c`** rather than sample-averaging; the
+   hierarchy degrades at the reddened end. (ii) **Shape channel only.** In the
+   *colour* channel dust and intrinsic colour mix at **first** order — both shift
+   `ubar` — and that degeneracy is not second order, is not resolved here, and is
+   the same one SALT2 confronts through `beta`.
+
+   **So what magnitude space actually buys:** (i) distance, the quantity being
+   inferred, is made *exactly* orthogonal to shape — this is why `mu` can be free
+   per SN and absorb peculiar velocity exactly; (ii) dust is *reduced* from a
+   shape-destroying anisotropic dilation to a small deformation about a rigid
+   part. Reduced, not removed. Do not overclaim `kappa` as nuisance-free.
+
+   **Dust in detail.** Band extinction `A_X(p)` is a flux-weighted average of the
+   monochromatic law over the filter, weighted by the SN's own SED — which
+   evolves with phase. So dust is a *phase-dependent displacement*
+   `gamma -> gamma + c*u(s)`, not a translation, and it does change `kappa` and
+   arclength. Three consequences:
    - **`z < 0.05` does not help.** This is a *rest-frame* effect, identical at
      `z=0`. Low `z` suppresses the K-correction branch of the missing-SED
      problem and does nothing to the dust branch.
    - **`mwebv` removal is approximate too.** `E(B-V)` is known; `A_g(p)`,
      `A_r(p)` are not without an SED. Milder (low Galactic columns), not exact.
    - **L2c fits the amplitude `c` of a precomputed `u(s)`**, not a constant
-     vector — a constant absorbs only the mean and leaves the phase variation to
-     contaminate `theta`, which is the failure L2c exists to prevent. Same
-     parameter count. Cost: `kappa` is not intrinsic under dust; reddening
-     becomes a known deformation in the forward model, not a quotiented symmetry.
+     vector — a constant absorbs only `c*ubar` and leaves `c*du(s)` to contaminate
+     `theta`, which is the failure L2c exists to prevent. Same parameter count.
+     But by the order counting this is **cheap insurance, not a necessity**: a
+     constant would capture most of the displacement, and the refinement matters
+     only for the reddest objects. Adopted because it costs nothing. Cost:
+     `kappa` is not intrinsic under dust; reddening becomes a known deformation
+     in the forward model, not a quotiented symmetry.
 
-   **Required diagnostic before trusting `theta`:** propagate the `u(s)`
-   deformation through Frenet to get `Delta kappa(s)`, and compare to the `kappa`
-   range the network spans over fitted `theta`. Order unity ⇒ the shape latents
-   are substantially measuring dust. An external SED template (e.g. Hsiao) is
-   allowed for *quantifying this systematic only* — never to fit, initialise, or
-   K-correct.
+   **Mixing with the signal is tolerable for the distance indicator — do not
+   over-escalate it.** Since dust and intrinsic diversity are the same type,
+   `theta` will carry some reddening. That does *not* break the deliverable: for
+   held-out Hubble residual scatter, isolating physical causes is not required,
+   and the fitted Tripp `alpha, beta` absorb the mixture. SALT2 is in the same
+   position — its `c` mixes dust with intrinsic colour, which is why `beta` is
+   fitted rather than set to `R_V + 1`. The requirement is only that the mixture
+   be *stable across the sample*; `z < 0.05` gives too little redshift span for a
+   trend, so there is no route to cosmological bias **here**. Revisit before any
+   wide-redshift application. Contamination threatens *interpretation* of
+   `theta`, not the distance indicator — report the two conclusions separately.
+
+   **Identifying assumption, if `theta` is to be interpreted.** Line-of-sight dust
+   is a property of the intervening ISM with no causal link to the explosion, so
+   impose **zero sample correlation between fitted `c` and fitted `theta`**. This
+   is an *identifying assumption* — substantive, falsifiable, possibly wrong —
+   and is a different kind of thing from the latent zero-mean/unit-covariance
+   normalisation, which is a costless gauge. Known to be only approximate: the
+   host mass step couples SN properties to host environment, and dust column is
+   environmental.
+
+   Whether the assumption is load-bearing depends on the order counting. If the
+   hierarchy holds, the data fix the shape channel at first order and the condition
+   is a **check** — `Corr(c, theta)` should come out small whether or not it is
+   imposed. If the hierarchy fails, the condition holds the analysis up and
+   conclusions about `theta` rest on it. So **impose it and also report the
+   unimposed value**.
+
+   **Required diagnostics before interpreting `theta`:**
+   - `Corr(c, theta)` over the population, computed **both with and without** the
+     identifying condition imposed. A large unconstrained value falsifies the order
+     counting.
+   - **Error-weighted overlap** of `du(s)` — the *varying* part, **not** the full
+     `u(s)`; the mean part is a translation and cannot be confused with shape, so
+     using full `u` overstates the overlap — with
+     `span{dgamma/dtheta_1, dgamma/dtheta_2}`, weighted by flux errors at the
+     epochs *actually observed*. This is the honest degeneracy statement: it asks
+     whether this cadence and these error bars can tell them apart, not whether
+     they differ in principle.
+   - `Delta kappa(s)` from propagating the `du(s)` deformation through Frenet,
+     compared to the `kappa` range the network spans over fitted `theta`. **This is
+     the direct test of the order counting.** Report it **stratified by `c`**. Small
+     everywhere ⇒ picture confirmed, `theta` interpretable. Order unity at any `c`
+     ⇒ the shape latents are substantially measuring dust there: a negative result
+     for interpretation, to be reported as one.
+
+   An external SED template (e.g. Hsiao) is allowed for *quantifying these
+   systematics only* — never to fit, initialise, or K-correct.
+
+   **SALT2 is structurally better placed on dust, and that is an honest cost.**
+   SALT2's colour *law* is phase-independent by construction, but SALT2 carries an
+   SED, so `A_X(p)` comes out phase-dependent automatically. This model has no SED
+   and must import `u(s)` from an external template.
 
    **Metric is a convention.** `kappa` presupposes a metric on magnitude space
    and none is physically preferred. `diag(1,1)` is a choice; it does not affect
@@ -112,12 +203,14 @@ These were settled deliberately. Do not silently revise them.
 
 4. **No per-SN rotation, and the frame is fixed by the g-maximum.** Two
    separate claims, both needed.
-   *(a)* Rotation is not a physical degree of freedom: distance, dust, and
-   zeropoint errors are all **translations**; stretch is a
-   **reparameterisation**. Nothing acts as a rotation, so none is fitted.
+   *(a)* Rotation is not a physical degree of freedom: distance and zeropoint
+   errors are **translations**, stretch is a **reparameterisation**, and dust is a
+   **phase-dependent displacement** (see decision 1 — *not* a translation).
+   Nothing acts as a rotation, so none is fitted.
    *(b)* The template frame is fixed by the same anchor as the arclength
-   origin — at the `g`-maximum `dm_g/ds = 0`, hence `T(0) = (0,1)`. One
-   condition fixes both gauges, costs no generality, and is observable inside
+   origin — at the `g`-maximum `dm_g/ds = 0`, so `T(0)` is `+/-(0,1)`, with the
+   sign empirical per *(c)* below (expected `(0,-1)`). One condition fixes both
+   gauges, costs no generality, and is observable inside
    the phase window. **This one-condition claim holds only for `n=2`**: fixing
    the frame means fixing an element of `SO(n)`, which has `n(n-1)/2` parameters,
    so the `g`-max condition is enough in `R^2` but leaves two conditions unfixed
@@ -163,7 +256,7 @@ These were settled deliberately. Do not silently revise them.
 
 | Rung | Free per SN | Question |
 |---|---|---|
-| L0 | `mu, sigma, t_max` | is a rigid template enough? |
+| L0 | `mu, w, t_max` | is a rigid template enough? |
 | L1 | `+ theta_1` | does one shape parameter earn its place? |
 | L2 | `+ theta_2` | does a second? |
 | L2c | L2 `+ c` amplitude of `u(s)` | does dust need its own direction? |
@@ -199,17 +292,56 @@ src/dgsn/
   infer/     per-SN fits, numpyro posteriors
   eval/      ladder, cross-validation, Hubble residuals
 docs/tex/    LaTeX science docs (model-definition, salt2-distillation)
-docs/        Markdown engineering docs (plan.md)
-configs/     one YAML per ladder rung
+docs/superpowers/specs/
+             Markdown engineering design docs
 references/  source papers
 ```
+
+Planned but **not yet created**: `configs/` (one YAML per ladder rung). Everything
+under `src/dgsn/` is currently empty scaffolding — the project is at the
+design-document stage.
 
 ## Documentation convention
 
 - **Scientific content → LaTeX** in `docs/tex/`. Always `\input{macros}` so
   notation stays consistent; cite from `refs.bib` (entries sourced from NASA
   ADS via the `nasa-ads` MCP server).
-- **Engineering content → Markdown**. This file, `README.md`, `docs/plan.md`.
+- **Engineering content → Markdown**. This file, `README.md`, and the design docs
+  under `docs/superpowers/specs/`.
+- **`docs/model-note-backlog.md` is a deliberate exception** to "scientific content →
+  LaTeX". See the pair of purposes below.
+
+### The two documents and what each is for
+
+These purposes are settled and are the reason the note looks the way it does. Read
+them before editing either file.
+
+**`docs/tex/model-definition.tex` — a working note, for the author, to understand the
+model.** It is not a paper and has no external audience yet. Four consequences, all
+load-bearing:
+
+- **Prose for an astronomer, substance in mathematics.** Definitions, equations, short
+  propositions. When a point needs a paragraph of argument to land, that is the signal
+  either that it belongs in the backlog or that the claim should be restated as a
+  formula. Converting argument to mathematics is usually both shorter *and* stronger —
+  e.g. the first variation `Δκ = ψ'' + κ²ψ + κ'φ` replaced four paragraphs on rigid
+  displacements versus deformations, and does more than they did, since translations
+  drop out of it identically.
+- **No abstract, deliberately.** The note is evolving; an abstract is maintenance
+  overhead with no reader. **Do not add one back** until asked.
+- **Length is a constraint, not an accident.** It was cut from 18 pages to 14 on
+  2026-08-20 precisely because it had grown too long to serve its purpose. Do not let
+  it grow back. A new subsection is a cost that has to be justified.
+- **Say each thing once.** The bloat that forced the cut was the same argument restated
+  in four or five sections. Cross-reference instead; if a section needs a point already
+  made, it references the equation and adds only what is new there.
+
+**`docs/model-note-backlog.md` — a staging area, not a document.** Argumentative
+material raised while the note evolved, parked so the note can stay short. Each entry
+records the claim, why it was raised, and whether it is settled or open. Traffic runs
+both ways and neither direction is automatic: material moves *out* of the note when it
+turns out to be argument rather than model, and *back in* only when it is both settled
+and expressible as mathematics. Do not let it become a second note.
 
 ## Known limitations to keep in view
 
@@ -222,6 +354,18 @@ references/  source papers
   correlation between `(a_1,a_2)` and `theta` as a diagnostic. A large
   correlation means the shape/timing separation is not being realised — that is
   a negative result to report, not to absorb.
+- **Dust vs shape degeneracy.** The same structure but expected milder: dust and
+  intrinsic diversity are both deformations, so no geometric argument separates
+  them (decision 1), yet only `c*du(s)` competes with shape and that is second
+  order where intrinsic diversity is first. `c` is degenerate against `theta` to
+  the extent `du(s)` lies in `span{dgamma/dtheta}` at the observed epochs.
+  Expected weak; the `Corr(c, theta) = 0` assumption is a check on that, not the
+  thing holding it up. Consequences are **asymmetric** — harmless for the distance
+  indicator, a limitation for interpreting `theta`. Report both, stratified by `c`.
+- **Dust vs intrinsic colour is the first-order degeneracy, and is unresolved.**
+  `c*ubar` and a per-SN intrinsic colour offset are the same displacement, so `c`
+  conflates the two exactly as SALT2's `c` does. The order counting does *not*
+  help here. Do not let the good news about the shape channel obscure this.
 - **Curvature degenerates at inflections.** Where `kappa -> 0` the classical
   Frenet frame is ill-defined; the `(m_g, m_r)` path may approach this near the
   secondary maximum. Use a frame construction robust to inflections and report

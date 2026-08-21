@@ -167,16 +167,54 @@ they check the mathematics rather than the fit quality.
   numerically to solver tolerance.
 - A straight line gives `kappa = 0`.
 - **Isometry invariance:** translating `gamma` leaves `kappa` bitwise-close.
-  This is the central claim of the magnitude-space choice and must be a test.
+  This is what magnitude space buys for the *rigid* nuisances — distance,
+  absolute luminosity, peculiar velocity, per-band calibration. It does **not**
+  cover dust; see the next test for why that matters.
+- **First variation of curvature (the complement, with an exact expected value).**
+  `model-definition.tex` now states the perturbation formula rather than describing
+  the effect in words: for `delta_gamma = phi*T + psi*N`,
+
+  ```
+  Delta_kappa = psi'' + kappa^2 * psi + kappa' * phi
+  ```
+
+  so applying `gamma(s) -> gamma(s) + c*u(s)` must change `kappa` by the value this
+  predicts, not merely change it. Assert agreement with the closed form to solver
+  tolerance — this is a sharper test than "must differ", and it is the numerical
+  check on a formula the note now leans on in three places (the rigid/deformation
+  split, the `ubar`-drops-out claim, and the `Delta kappa` diagnostic).
+
+  Two corollaries to assert alongside it, both cheap:
+  - **Constant `u` gives exactly zero.** The formula annihilates translations
+    identically, which is the whole content of the magnitude-space argument. This
+    replaces the separate isometry test's role for dust.
+  - **Only `du` contributes.** For `u = ubar + du`, feeding `ubar` alone leaves
+    `kappa` unchanged and the entire change comes from `du`. A sign or normalisation
+    error in that split would silently inflate every downstream dust diagnostic.
+
+  Use a **deliberately exaggerated** `u(s)` for the amplitude, and assert
+  non-constancy of `u` in the fixture. A *realistic* `u` puts `Delta kappa` near
+  solver tolerance — the real phase variation is second order — so the test would be
+  measuring the ODE integrator rather than the geometry. Decouple the mechanism from
+  the physical amplitude; the amplitude question belongs to the `Delta kappa`
+  diagnostic below.
 - **Reparameterisation invariance:** changing `tscale, a1, a2` leaves the set
   of points `{gamma(s)}` unchanged. This is the shape/timing separation claim.
 - **Oracle agreement:** `frenet.integrate` and `direct.curve_and_invariants`
   agree on `kappa` to tolerance. Regression test against silent solver bugs.
 - `ds/dt > 0` is enforced across the fit window for sampled `(a1, a2)`.
-- **Gauge anchor:** at `s = 0` the reconstructed curve satisfies
-  `dm_g/ds = 0` and `T(0) = (0,1)`. This is the single condition fixing both
-  the arclength origin and the frame orientation, so it must be asserted
-  directly rather than assumed.
+- **Gauge anchor:** at `s = 0` the reconstructed curve satisfies `dm_g/ds = 0`
+  and `T(0) = ±(0,1)`. Two things this test must **not** assert. The sign is
+  empirical, not gauge — it records which band peaks first, is expected to be
+  `(0,-1)`, and is carried in config; assert against the configured value, never
+  a hard-coded `+1`. And "one condition fixes both gauges" holds only for `n=2`:
+  in `R^3` the frame is an element of `SO(3)` and two conditions remain unfixed,
+  so the `n=3` case must be skipped rather than asserted.
+- **Regularity — coincident maxima break arclength:** construct a synthetic curve
+  whose bands peak at the same epoch and assert `ds/dt -> 0` there, i.e. that
+  unit-speed parameterisation fails rather than silently returning garbage.
+  Non-coincident band maxima is a condition on the data, and the code should
+  detect its violation.
 - **Total turning:** for a synthetic hairpin curve with known asymptotes along
   `(1,1)`, `integrate(kappa) ds` recovers `pi` to tolerance. Validates the sum
   rule machinery on a case where the answer is known.
@@ -192,6 +230,32 @@ machinery, not the science.
 **Evaluation.** Leave-one-out is genuinely leaving one out: assert the held-out
 SN's data never enters the training loss.
 
+**Identification (rung L2c).** Two diagnostics that are part of the deliverable,
+not optional extras:
+
+- Population `Corr(c, theta)` under the identifying assumption that line-of-sight
+  dust is independent of explosion physics, computed **both with and without** the
+  condition imposed. These are *reported numbers*, not pass/fail assertions — the
+  test asserts only that both are computed and recorded. The unimposed value is the
+  interesting one: small means the data determine the split and the assumption is
+  merely a check; large means it is load-bearing.
+- Error-weighted overlap `rho^2 = (d' W P d) / (d' W d)` with
+  `P = J (J' W J)^-1 J' W`, `J` the Jacobian columns `df/dtheta_1, df/dtheta_2`,
+  `W = diag(1/sigma_i^2)`, over the epochs actually observed. Two details the
+  implementation must get right, both now stated in `model-definition.tex`: build it
+  in **flux**, where the errors are Gaussian, via
+  `df/dtheta = -0.4 ln10 * f * dm/dtheta`; and form `d` from `du`, the varying part,
+  **not** the full `u` — the mean part is a translation that cannot be confused with
+  shape, so including it inflates `rho^2`. Unit-test the overlap function on
+  constructed cases where the answer is known (orthogonal ⇒ 0, parallel ⇒ 1), since
+  the astrophysical value has no ground truth to check against.
+- `Delta kappa` from `du(s)` versus the `kappa` range spanned over fitted `theta`,
+  **stratified by fitted `c`** rather than sample-averaged. This is the direct test
+  of the second-order claim, and the stratification is the point: the hierarchy is
+  expected to degrade at the reddened end, and an average would hide exactly the
+  regime where it fails. Assert the stratification exists — a single scalar here is
+  a bug, not a result.
+
 ---
 
 ## 6. Risks
@@ -200,7 +264,8 @@ SN's data never enters the training loss.
 |---|---|
 | Timing warp degenerate with shape | Shrink `a1,a2` toward zero; report correlation with `theta` as a headline diagnostic. A large correlation is a negative result to publish, not to hide. |
 | `kappa -> 0` at inflections breaks the frame | Use an inflection-robust frame construction; report where along `s` curvature approaches zero. |
-| Dust forced into `theta` | Rung L2c exists precisely to measure this. |
+| Dust forced into `theta` | Not preventable by geometry — dust and intrinsic diversity are both deformations. But only the *varying* part `c*du(s)` competes with shape, and that is second order where the signal is first, so the expectation is that this risk is small. Rung L2c plus `Corr(c, theta)` measures it, stratified by `c` since the hierarchy weakens for red objects. Harmless for the Hubble-diagram result either way. |
+| Good news on shape obscures the colour degeneracy | Separate risk, opposite sign. `c*ubar` is indistinguishable from a per-SN intrinsic colour offset at *first* order, and no order counting helps. Do not let a clean shape-channel result be reported as though dust were solved. Quote the two channels separately. |
 | 7 latents overfit | All scoring is out-of-sample. No in-sample number is ever reported as evidence. |
 | Wrong flag cut silently guts the sample | Regression test asserting the `z<0.05` primary sample has 599 SNe at >=5 good `g` and `r` epochs. |
 | Torsion subsample too small (177) | Report it as a separate analysis with its own uncertainties; do not pool with the primary sample. |
