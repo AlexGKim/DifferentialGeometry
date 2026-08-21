@@ -174,11 +174,15 @@ The variance of $m^{*}_{B}$ includes both the intrinsic dispersion and a
 peculiar-velocity contribution taken at $300\ \mathrm{km\,s^{-1}}$.
 
 Two points transfer. The geometric model's analogue of \eqref{eq:tripp2} is
-$\dm_{\mathrm{corr}} = \dm - \alpha\shapeone - \beta\shapetwo + \mathcal{M}$,
-and $\alpha,\beta$ are gauge-dependent: they scale inversely with whatever
-normalisation is imposed on the latents, so they are comparable to \salt's
-values only after adopting the matching $\langle\shape\rangle=0$,
-$\langle\shape^{2}\rangle=1$ convention. Separately, the peculiar-velocity term
+$\dm_{\mathrm{corr}} = \dm - \alpha\shapeone - \beta\colr - \gamma\shapetwo
++ \mathcal{M}$, whose first three terms correspond one-to-one with
+\eqref{eq:tripp2} --- $\shapeone$ for $x_{1}$, $\colr$ for $\colr$ --- while
+$\gamma$ multiplies the degree of freedom \salt\ does not have and is the
+quantity the project exists to measure. The coefficients $\alpha, \gamma$ are
+gauge-dependent: they scale inversely with whatever normalisation is imposed on
+the latents, so they are comparable to \salt's values only after adopting the
+matching $\langle\shape\rangle=0$, $\langle\shape^{2}\rangle=1$ convention.
+$\beta$ is not, since $\colr$ is a physical colour in magnitudes in both models. Separately, the peculiar-velocity term
 enters only at the Hubble-diagram stage; it does not belong in the light-curve
 likelihood, where $\dm$ is free per supernova and absorbs it exactly.
 
@@ -193,15 +197,29 @@ The conversions given are
   \Delta m_{15}       &= 1.09 - 0.161x_{1} + 0.013x_{1}^{2} - 0.00130x_{1}^{3}.
 \end{align}
 
-This is the most consequential result in the paper for our purposes, and it
-cuts both ways. It is encouraging, in that a model given free rein to find
-components recovers something close to a pure time reparameterisation --- which
-is precisely the degree of freedom the geometric model promotes to a
-first-class object in $\arc(t)$. It is also a warning: if $x_{1}$ is
-substantially a stretch, then a model that separates timing from shape should
-find that $\shapeone$ is largely \emph{redundant} with $\tscale$. A strong
-fitted correlation between them would confirm the interpretation; the absence
-of one would demand explanation.
+This is the most consequential result in the paper for our purposes, and the
+mechanism matters as much as the result. \salt\ has no way to reparameterise
+time: $x_{1}$ multiplies an \emph{additive} component $M_{1}(\phase,\lambda)$,
+whereas a stretch $\phase \mapsto \phase/\stretchsym$ leaves the curve pointwise
+unchanged and alters only its traversal. The two agree only to first order,
+\begin{equation}
+  m\!\left(\phase/\stretchsym\right)
+    = m(\phase) - (\stretchsym-1)\,\phase\,m'(\phase)
+      + \mathcal{O}\!\left((\stretchsym-1)^{2}\right),
+\end{equation}
+so an additive component reproduces a stretch only in the small-stretch limit,
+with $M_{1} \propto -\phase\,\partial M_{0}/\partial\phase$. \salt\ initialises
+$M_{1}$ as precisely such a finite difference --- the sequence at
+$\stretchsym = 1.1$ minus that at $\stretchsym = 1$ --- and the cubic terms
+above are the residual nonlinearity that the linearisation leaves behind.
+
+Two consequences. The dominant mode of \snia\ diversity is the one the
+geometric model represents exactly and \salt\ linearises; that is the strongest
+structural argument available for the geometric approach. And with stretch
+removed into $\tscale$, what remains for $\shapeone$ is only shape variation no
+reparameterisation can produce, so $\shapeone$ should be \emph{small}. Fitted
+$\tscale$ should track $\stretchsym^{(\mathrm{SALT})}(x_{1})$ above, and the
+scatter about that relation measures what the linearisation misses.
 
 These conversions also supply the cleanest interpretability test available.
 Correlating fitted $(\tscale, \shapeone, \shapetwo)$ against \salt's

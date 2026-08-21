@@ -45,10 +45,29 @@ photometry is transformed or initialised by it. Recount against an SED-free
 anchor (window on the brightest good `g` epoch) to confirm the counts barely
 move, and handle the 36 NaN-`t0` rows with that estimator or exclude them.
 
-## Per-SN parameters (baseline, 7)
+## Per-SN parameters (baseline, 8)
 
-`mu` (normalization) · `theta_1`, `theta_2` (shape, condition the network) ·
-`w`, `t_max` (timing) · `a_1`, `a_2` (timing warp)
+`mu` (normalization) · `c` (colour) · `theta_1`, `theta_2` (shape, condition the
+network) · `w`, `t_max` (timing) · `a_1`, `a_2` (timing warp)
+
+**Why exactly two thetas (revised 2026-08-21).** Not because two was requested, and
+not fixed by the geometry — `n` fixes the number of invariant *functions* (`n-1`), and
+says nothing about how many latents condition them. The count comes from **SALT2
+parity plus one increment**. SALT2 describes a SN with one time-dependent shape
+coefficient `x1` and one time-independent colour `c`. Here colour is *not* a latent: it
+is a translation, and translations leave `kappa` untouched, so it conditions nothing.
+That leaves one latent for the SALT2 shape freedom and one more — the extra
+time-dependent DOF this model exists to test. `K = 2` is therefore a working value with
+a derivation, and whether the second earns its place is what the ladder answers.
+
+**`c` is a baseline parameter, not an L2c addition (revised 2026-08-21).** Previously
+the baseline had no free colour and `c` appeared only at L2c. That was wrong on its own
+terms: `eq:tripp` was standardising on `beta*theta_2`, so `theta_2` was silently doing
+SALT2's `c` job while also being billed as the new degree of freedom. Now `c` is free at
+every rung. What changes along the ladder is the *function it multiplies*: split
+`c*u(s) = c*ubar + c*du(s)`, the baseline uses the constant `ubar` (a pure translation,
+exactly SALT2's `c`), and **L2c restores the full `u(s)` at no extra parameter**. L2c
+tests whether the second-order `c*du(s)` term matters.
 
 `w` is the timing scale in **rest-frame days**; `t_max` is in **observer-frame
 MJD** and is always free per SN, never taken from the archive's SALT2 `t0`.
@@ -257,7 +276,8 @@ These were settled deliberately. Do not silently revise them.
    a **hairpin** whose two asymptotes are parallel rays along `(1,1)`. The
    tangent turns from `-(1,1)/sqrt2` to `+(1,1)/sqrt2`, a net turning of `pi`.
    Corollaries: `kappa -> 0` at both extremes, and the asymptotic ray
-   separation is the terminal colour.
+   separation is the terminal colour — predicted only *relative* to the early
+   colour, since the free `c` shifts both together.
 
    **The tangent and the integral are now treated differently — this is a revision
    of 2026-08-21, not a silent extension.** The early asymptotic *tangent* **is**
@@ -352,13 +372,43 @@ These were settled deliberately. Do not silently revise them.
 
 ## The deliverable is a ladder, not a fit
 
-| Rung | Free per SN | Question |
-|---|---|---|
-| L0 | `mu, w, t_max` | is a rigid template enough? |
-| L1 | `+ theta_1` | does one shape parameter earn its place? |
-| L2 | `+ theta_2` | does a second? |
-| L2c | L2 `+ c` amplitude of `u(s)` | does dust need its own direction? |
-| L3 | `+ a_1, a_2` | does nonlinear timing earn its place? |
+| Rung | Free per SN | # | Question |
+|---|---|---|---|
+| L0 | `mu, c, w, t_max` | 4 | **same count as SALT2** — does the mechanism alone win? |
+| L1 | `+ theta_1` | 5 | does one shape parameter earn its place? |
+| L2 | `+ theta_2` | 6 | does a second? |
+| L2c | L2, `c` upgraded to full `u(s)` | 6 | does phase-dependent dust matter? |
+| L3 | `+ a_1, a_2` | 8 | does nonlinear timing earn its place? |
+
+**L0 is a controlled experiment, not a starting point.** It carries four parameters in
+one-to-one correspondence with SALT2's `(x0, x1, c, t0)` and differs in *mechanism*
+alone: SALT2 produces stretch-like variation from an additive component, L0 from an
+exact reparameterisation. L0 versus SALT2 is therefore a like-for-like test at fixed
+parameter count, before any new freedom enters. Everything above L0 asks whether added
+freedom pays.
+
+**The mechanism difference, stated precisely.** SALT2 has *no* way to reparameterise
+time. A stretch `p -> p/s` leaves the curve pointwise unchanged and alters only its
+traversal; SALT2 instead uses the additive `x1*M1(p,lambda)`. These agree only to first
+order — `m(p/s) = m(p) - (s-1)*p*m'(p) + O((s-1)^2)`, so `M1 ∝ -p dM0/dp`. This is not
+a reconstruction after the fact: **SALT2 initialises `M1` as exactly that finite
+difference**, the sequence at `s=1.1` minus that at `s=1`. The published `x1 -> s`
+conversion needs a cubic, and that cubic *is* the residual nonlinearity the
+linearisation leaves behind.
+
+Two consequences, both load-bearing:
+- The dominant mode of SN Ia diversity is the one this model represents **exactly** and
+  SALT2 **linearises**. That is the strongest structural argument for the approach.
+- With stretch removed into `w`, what remains for `theta_1` is only shape variation no
+  reparameterisation can produce, so **`theta_1` should be small**. Concrete check:
+  fitted `w` should track `s = 0.98 + 0.091*x1 + 0.003*x1^2 - 0.00075*x1^3`, and the
+  scatter about that relation measures what the linearisation misses. Run this before
+  building the full pipeline — it is cheap and it is the sharpest early test of whether
+  separating shape from timing buys anything.
+
+Standardisation is `mu_corr = mu - alpha*theta_1 - beta*c - gamma*theta_2 + M`. The
+first three terms are SALT2's own, one-to-one. **`gamma` is the headline number** — the
+coefficient of the one DOF SALT2 lacks.
 
 Scored on **held-out Hubble residual scatter** under cross-validation
 (leave-one-out jackknife, following SALT2's own validation method).
@@ -493,7 +543,14 @@ and expressible as mathematics. Do not let it become a second note.
     the gauge list — decision 4(b)'s constant early colour. Also
     `t_expl` scaling with `w` (decision 8c) and `Corr(c, theta) = 0`.
   - *Prediction* (checked, not chosen): which band peaks first, via `sign(kappa)`;
-    the terminal colour; the early power-law index.
+    colour **evolution**; the early power-law index.
+  - *Parameter*: position perpendicular to `(1,1)` is `c`, free per SN. **Revised
+    2026-08-21** — this was previously listed as a template function of `theta` and
+    so as a prediction. With `c` free, neither early nor terminal colour is predicted
+    absolutely; only their *difference* is, since `c` displaces the whole curve and
+    cancels. The model predicts colour evolution and leaves the colour zero point
+    free — structurally the same split SALT2 makes between a fixed colour law and a
+    fitted `c`.
 - **The `s`-origin and `mu` span an exactly flat direction unless the origin is
   fixed.** On a straight segment, translating the arclength origin displaces the curve
   *along* the ray, i.e. along `(1,1)` — which is precisely what `mu` does. Anchoring

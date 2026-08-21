@@ -119,7 +119,8 @@ optax-optimised pytree.
 train(config) -> TrainState
 ```
 
-Implements the staged schedule: converge rung L0, then unfreeze latents one at
+Implements the staged schedule: converge rung L0 (`mu, c, w, t_max` — SALT2's
+parameter count), then unfreeze latents one at
 a time. Rung membership is a config field, not a code branch.
 
 ### `dgsn.infer`
@@ -324,7 +325,7 @@ not optional extras:
 | `kappa -> 0` breaks the frame | Two distinct cases. **By design** (the segment, `CLAUDE.md` decision 8a): harmless for `n=2`, since `eq:frenet2d` is a rotation ODE regular at `kappa = 0` and `N` is defined as the fixed 90-degree rotation of `T`; for `n >= 3` the osculating plane does not exist, so a **Bishop / parallel-transport** frame is required — not merely an "inflection-robust" one — and `tau` must be reported unidentifiable there. **Incidentally**, near the secondary maximum: report where along `s` curvature approaches zero. |
 | Dust forced into `theta` | Not preventable by geometry — dust and intrinsic diversity are both deformations. But only the *varying* part `c*du(s)` competes with shape, and that is second order where the signal is first, so the expectation is that this risk is small. Rung L2c plus `Corr(c, theta)` measures it, stratified by `c` since the hierarchy weakens for red objects. Harmless for the Hubble-diagram result either way. |
 | Good news on shape obscures the colour degeneracy | Separate risk, opposite sign. `c*ubar` is indistinguishable from a per-SN intrinsic colour offset at *first* order, and no order counting helps. Do not let a clean shape-channel result be reported as though dust were solved. Quote the two channels separately. |
-| 7 latents overfit | All scoring is out-of-sample. No in-sample number is ever reported as evidence. |
+| 8 per-SN parameters overfit | All scoring is out-of-sample. No in-sample number is ever reported as evidence. Note L0 carries only 4, matching SALT2's count, so the base rung is not over-parameterised at all. |
 | Wrong flag cut silently guts the sample | Regression test asserting the `z<0.05` primary sample has 599 SNe at >=5 good `g` and `r` epochs. |
 | Torsion subsample too small (177) | Report it as a separate analysis with its own uncertainties; do not pool with the primary sample. |
 | `kappa` extrapolates nonsensically outside the window | Report `integral kappa ds` against the sum-rule value `pi`. A trained `kappa` that extrapolates to something far from `pi` is unphysical even if it fits the window well. Diagnostic only — never a hard constraint, since the asymptotes are unobserved. |
