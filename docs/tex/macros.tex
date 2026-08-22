@@ -21,6 +21,8 @@
 \newcommand{\arclen}{L}                     % total arclength of the window
 
 % --- Model parameters ---------------------------------------------------
+\newcommand{\allpars}{\Theta}               % ALL per-SN parameters; \shape is the
+                                            % subset that conditions \curv
 \newcommand{\shape}{\theta}                 % shape latents
 \newcommand{\shapeone}{\theta_{1}}
 \newcommand{\shapetwo}{\theta_{2}}
@@ -38,8 +40,10 @@
                                             % displacement, u(s); NOT a constant
 
 % --- Photometry ---------------------------------------------------------
-\newcommand{\magg}{m_{g}}
+\newcommand{\magg}{m_{g}}                   % observed/predicted magnitude, band g
 \newcommand{\magr}{m_{r}}
+\newcommand{\Magg}{M_{g}}                   % TEMPLATE magnitude, band g; NOT \magg
+\newcommand{\Magr}{M_{r}}
 \newcommand{\fluxg}{f_{g}}
 \newcommand{\fluxr}{f_{r}}
 \newcommand{\zp}{\mathrm{zp}}
