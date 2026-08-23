@@ -111,7 +111,7 @@ Setting the template $g$ magnitude and colour to zero at maximum makes $\dm$ the
 $g$ magnitude and $\colr$ the colour at peak, following \salt's practice of
 normalising at maximum --- there in $B$, here in $g$.
 
-The transversal along the curve is given by the function $p(s)$.
+The connection to supernova phase is specified by the inverse of $s(p)$,  the function $p(s)$.
 
 \subsection{Per-supernova degrees of freedom}
 \label{sec:pars}
@@ -165,15 +165,13 @@ represented by neural networks,
 \begin{align}
   \bigl(\curv_{0}(\arc),\, \curv_{1}(\arc)\bigr) & = \NN_{\curv}\bigl(\arc \bigr),
     \label{eq:curvnet}\\
-  \arc(\phase) & = \NN_{\arc}\bigl(\phase \bigr). \label{eq:arcnet}
+  \phase(\arc) & = \NN_{\phase}\bigl(\arc \bigr). \label{eq:arcnet}
 \end{align}
 The curvature of an individual supernova is built from $\curv_{0}$ and $\curv_{1}$ with a
 per-supernova coefficient, introduced in Section~\ref{sec:pars}. The traversal is written
-$\arc(\phase)$, which is the direction the forward model requires: epochs are observed in
+$\phase(\arc)$, which is the direction the forward model requires: epochs are observed in
 phase, and the template is evaluated at the corresponding arclength. It must be monotone,
-$\dd\arc/\dd\phase > 0$, for the reparameterisation of Section~\ref{sec:curve} to exist.
-
-
+$\dd\phase/\dd\arc > 0$, for the reparameterisation of Section~\ref{sec:curve} to exist.
 
 \section{Samples}
 \label{sec:samples}
