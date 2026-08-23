@@ -14,9 +14,9 @@
 
 \section{Motivation}
 
-The standard empirical treatment of \snia\ light curves, exemplified by \salt,
-models the spectral energy distribution as a linear expansion about a mean
-sequence,
+The standard empirical treatment of \snia\ light curves, exemplified by \salt\
+\citep{Guy2007}, models the spectral energy distribution as a linear expansion about a
+mean sequence,
 \begin{equation}
   F(p,\lambda) = x_{0}\left[M_{0}(p,\lambda) + x_{1}M_{1}(p,\lambda) + \dots\right]
                  \exp\!\left[\colr\,\mathrm{CL}(\lambda)\right],
@@ -47,85 +47,132 @@ is blind; the metric because none is physically preferred, so one must be declar
 The likelihood, by contrast, is evaluated in native flux
 (Section~\ref{sec:likelihood}).
 
-\section{The model}
-
-\subsection{Light Curves as Curves in Magnitude Space}
-The rest-frame multi-band light-curve template as a
-function of phase $p$ for a supernova is denoted as
-\begin{equation}
-  \curve(\phase)
-    = \bigl(M_{1}(\phase), \dots, M_{n}(\phase)\bigr) \in \Rn.
-  \label{eq:curvedef}
-\end{equation}
-$\gamma$ is a parameterized curve in the $n$-dimensional magnitude space.
-The relation between phase and arclength along the curve is $\arc(\phase)$, defined by
-$\dd \arc = \norm{\dd\curve/\dd \phase}\,\dd \phase$. The curve is then reparameterised as
-$\curve(\arc)$, and is by construction unit-speed, $\norm{\curve'(\arc)} = 1$.
 The primary configuration is \ztf\ $g$ and $r$ \citep{Bellm2019}, where $n=2$ and
 $\curve = (\Magg, \Magr)$, so focus on $n=2$.
 
-A unit-speed curve in $\Rn$ admits a Frenet frame.
-For $n=2$,
+\section{The model}
+
+\subsection{Light curves as traversal over curves in magnitude space}
+\label{sec:curve}
+The rest-frame multi-band light-curve template, as a function of phase $\phase$ measured
+from $g$ maximum, is denoted as
+\begin{equation}
+  \curve(\phase)
+    = \bigl(M_{1}(\phase), M_{2}(\phase)\bigr) \in \Rn.
+  \label{eq:curvedef}
+\end{equation}
+$\curve$ is a parameterized curve in the $2$-dimensional magnitude space.
+The relation between phase and arclength along the curve is $\arc(\phase)$, defined by
+$\dd \arc = \norm{\dd\curve/\dd \phase}\,\dd \phase$ with the constant of integration
+fixed by $\arc = 0$ at $g$ maximum. Wherever $\norm{\dd\curve/\dd\phase} \neq 0$ this is
+strictly increasing and invertible, and the curve reparameterised as $\curve(\arc)$ is
+unit-speed, $\norm{\curve'(\arc)} = 1$.\footnote{The condition fails only where every band is
+simultaneously stationary, which is a non-issue as the epoch of light curve maximum is
+band-dependent.}
+A unit-speed curve in $\Rtwo$ admits a Frenet frame,
  \begin{equation}
   \curve' = \tang, \qquad
-  \tang' = \curv\,\norml, \qquad
-  \norml' = -\curv\,\tang .
+  \tang' = \curv\,\norml.
   \label{eq:frenet2d}
 \end{equation}
-where write $\tang$ the unit \emph{tangent},
+with $\tang$ the unit \emph{tangent},
 $\norml$  the principal \emph{normal}, and
-$\curv $  the \emph{curvature}. The third equation is not independent data: in the plane the
-orthogonal complement of $\tang$ is a line, so $\norml$ is the fixed $90^{\circ}$ rotation of
-$\tang$, and differentiating that relation returns $\norml' = -\curv\,\tang$. It is written
-out because it displays the plane as the $n = 2$ case of the general system, and because it
-exhibits the frame evolving by a rotation --- the property that makes $\curv = 0$ harmless
-below. Only in the plane is $\norml$ determined by $\tang$ alone; for $n \ge 3$ the complement
-of $\tang$ is a plane or larger and the frame equations must carry it.
+$\curv $  the \emph{curvature}. 
+
+
+We now map out the inverse: how a curve, specified by curvature and two boundary conditions,
+ and the traversal over that curve, specified by a function,
+defines light curves.
+
 
 Given $\curv$, $\curve(\arc)$ is determined through the above differential equations and
-initial conditions for the direction of $\tang$ and the position of $\curve$.
- Writing the unit
-tangent by its angle $\psi$,
+initial conditions for the direction of $\tang$ and the position of $\curve$. Writing the
+unit tangent by its angle $\psi$, the equations are solved with
 \begin{equation}
   \tang(\arc) = \bigl(\cos\psi(\arc),\ \sin\psi(\arc)\bigr),
   \qquad
   \norml(\arc) = \bigl(-\sin\psi(\arc),\ \cos\psi(\arc)\bigr),
   \label{eq:tangangle}
 \end{equation}
-which is the $90^{\circ}$ rotation of $\tang$ as required, and gives $\tang' = \psi'\,\norml$.
-The second equation of \eqref{eq:frenet2d} therefore reduces to the scalar $\psi' = \curv$,
-and the third, $\norml' = -\psi'\,\tang$, then holds identically. Curvature is thus the
-rate of turning of the tangent, and the curve follows by two quadratures,
+and $\psi' = \curv$. Curvature is thus the
+two quadratures solve rate of turning of the tangent, and the curve,
 \begin{align}
-  \psi(\arc)   &= \psi_{0} + \int_{\arc_{0}}^{\arc}\curv(\sigma)\,\dd\sigma ,
+  \psi(\arc)   &= \psi_{0} + \int_{{0}}^{\arc}\curv(\zeta)\,\dd\zeta ,
                   \label{eq:turning}\\
-  \curve(\arc) &= \curve_{0} + \int_{\arc_{0}}^{\arc}
-                  \bigl(\cos\psi(\sigma),\ \sin\psi(\sigma)\bigr)\,\dd\sigma .
+  \curve(\arc) &= \curve_{0} + \int_{{0}}^{\arc}
+                  \bigl(\cos\psi(\zeta),\ \sin\psi(\zeta)\bigr)\,\dd\zeta .
                   \label{eq:quadrature}
-\end{align}.
-
-To summarize, the SN~Ia light curve template, $\gamma(p)$ is expressed in terms of
-curvature $\kappa$, $\psi_0$, $\gamma_0$, and $s(p)$.
-
-
-We model the functions, curvature and transversal, using neural networks
-\begin{align}
-  \curv(\arc) & = \NN\bigl(\arc \bigr)\\
-    \arc(p) & = \NN\bigl(p \bigr).
-  \label{eq:net}
 \end{align}
+We choose $\curve_{0} = (0,0)$ and $\psi_{0} = -\pi/2$, which at $\arc = 0$ gives
+$\Magg' = 0$ and a decreasing $\Magr$. The choice of $\psi_{0}$ is born of our knowledge
+that $g$-band light curves have only one critical point (which corresponds to peak
+brightness) and that the $r$-band light curve is brightening at the $g$-band peak.
+Setting the template $g$ magnitude and colour to zero at maximum makes $\dm$ the peak
+$g$ magnitude and $\colr$ the colour at peak, following \salt's practice of
+normalising at maximum --- there in $B$, here in $g$.
 
-\subsection{Per SN Parameters}
+The transversal along the curve is given by the function $p(s)$.
+
+\subsection{Per-supernova degrees of freedom}
+\label{sec:pars}
 Parameters that are considered in traditional models.
 \begin{itemize}
-\item $\mu$: Represents a wavelength-independent flux normalization, for example due to distance.  This is a term  $\mu \mathbf{I}$ added to $\gamma$.
-\item $c$: Represents a phase-independent shift in color, for example due to dust (to first order).  This is a term $c \hat{\mathbf{e}}_{c}$ added to $\gamma$.
-\item $x_s$: Represents a wavelength-independent dilation in the light curve, which corresponds to `stretch'.  This is a term $p \rightarrow  x_sp$.
+\item $\dm$: Represents a wavelength-independent flux normalization, for example due to
+  distance.  This is a term $\dm\,\mathbf{1}$ added to $\curve$.
+\item $\colr$: Represents a phase-independent shift in color, for example due to dust (to
+  first order).  This is a term $\colr\,\dustunit$ added to $\curve$, with
+  $\dustunit = (0,-1)$, so that $\colr$ is the shift in $\Magg - \Magr$.
+\item $\xstretch$: Represents a wavelength-independent dilation in the light curve, which
+  corresponds to `stretch'.  This is a term $\phase \rightarrow \xstretch\,\phase$.
 \end{itemize}
 
-The benefit of our light-curve shape model is apparent: the curvature is independent of the above parameters.
+The above follows the  SALT2 procedure of decoupling light curve shape from dust,
+whose focus is on supernova standardization.
+An alternative and equally valid parameterization removes $\dm$ (i.e.\ distances are fixed),
+but retains $\colr$, replacing $\dustunit$  with vector $\mathbf{R}$.  This parameterization 
+shifts light curves by $(c\, R_g, c\, R_r$), notation that suggests correspondence with
+dust.  This approach is taken by Mandel, whose focus is on cosmology.
 
-To go beyond traditional light-curve models, we introduce a per-supernova parameter $x_\kappa$ and global functions $\kappa_0$ and $\kappa_1$, such that $\kappa = \kappa_0 +  x_\kappa \kappa_1$.
+
+
+The benefit of our light-curve shape model is apparent: $\dm\,\mathbf{1}$ and
+$\colr\,\dustunit$ are translations and $\xstretch$ is a reparameterisation, so the
+curvature is \emph{exactly} independent of all three. What is approximate is
+the identification of $\colr\,\dustunit$ with dust, whose effect is expected to
+have small phase-dependent variation.
+
+To go beyond traditional light-curve models, we introduce a per-supernova parameter
+$\shapekappa$ and global functions $\curv_{0}$ and $\curv_{1}$, such that
+$\curv = \curv_{0} + \shapekappa\,\curv_{1}$.  We also introduce
+a per-supernova parameter $x_p$ and a global functions  $p_{0}(s)$ and $p_{1}(s)$
+such that $p(s) = p_{0} + x_p p_{1}$
+
+
+\subsection{Dust Parameters}
+
+The direction is recovered instead from the population. Dust displaces a supernova by
+$(A_{g}, A_{r}) = A_{g}\,\mathbf{1} + E(g-r)\,\dustunit$, so reddened objects move along
+a common line in the $(\dm, \colr)$ plane of slope
+$\dd\dm/\dd\colr = R_{g} \equiv A_{g}/E(g-r)$. Fitting that slope across the sample
+determines the reddening direction, and is the two-band counterpart of \salt\ fitting
+$\beta$ rather than adopting $R_{V}$.
+
+\section{Global functions}
+\label{sec:traversal}
+
+The global functions of the model --- the curvature basis and the traversal --- are
+represented by neural networks,
+\begin{align}
+  \bigl(\curv_{0}(\arc),\, \curv_{1}(\arc)\bigr) & = \NN_{\curv}\bigl(\arc \bigr),
+    \label{eq:curvnet}\\
+  \arc(\phase) & = \NN_{\arc}\bigl(\phase \bigr). \label{eq:arcnet}
+\end{align}
+The curvature of an individual supernova is built from $\curv_{0}$ and $\curv_{1}$ with a
+per-supernova coefficient, introduced in Section~\ref{sec:pars}. The traversal is written
+$\arc(\phase)$, which is the direction the forward model requires: epochs are observed in
+phase, and the template is evaluated at the corresponding arclength. It must be monotone,
+$\dd\arc/\dd\phase > 0$, for the reparameterisation of Section~\ref{sec:curve} to exist.
+
 
 
 \section{Samples}
@@ -157,7 +204,7 @@ $i$-band epochs; here $n=3$ and $\tors(\arc)$ exists as a genuine second invaria
 The latter is small, but it is the only configuration in which the original motivation
 for a second shape parameter --- that torsion describes the evolution of inter-band
 magnitude differences --- can be tested, so it is a distinct analysis rather than an
-afterthought. Torsion is undefined wherever $\curv_{1}$ vanishes
+afterthought. Torsion is undefined wherever the curvature vanishes
 (Section~\ref{sec:curve}), so it is identified only where the track turns.
 
 \paragraph{A caveat on the window used for counting.} Counting epochs inside
@@ -181,97 +228,6 @@ phase-dependent and needs an SED, so removing a constant offset is an approximat
 here as well --- milder, since Galactic columns at the high latitudes of this sample
 are low, but the same approximation and not exact.
 
-\section{Relation to \salt, and distance}
-\label{sec:salt}
-
-The two models can be placed side by side once the geometric quantities are mapped
-onto their photometric counterparts.
-
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-Concept & \salt & This work \\
-\midrule
-Underlying object & SED surface $F(p,\lambda)$ & curve $\curve(\arc) \subset \Rn$ \\
-Basis             & B-splines in $(p,\lambda)$ & neural network in $\arc$ \\
-Stretch           & \emph{additive} $x_{1}M_{1}(p,\lambda)$ & \emph{reparameterisation} $\tscale$ \\
-Residual shape    & --- (same $x_{1}$)          & $\shapeone$ conditioning $\curv$ \\
-New freedom       & ---                         & $\shapetwo$ conditioning $\curv$ \\
-Timing origin     & $t_{0}$                     & $\tmax$; warp $\warpone, \warptwo$ \\
-Normalization     & $x_{0}$                     & $\dm$ \\
-Colour            & $\colr$ with law $\mathrm{CL}(\lambda)$ & $\colr$, translation; $\colr\,\dustdir(\arc)$ at L2c \\
-K-corrections     & built in via the SED        & suppressed by $\zred < 0.05$, not removed \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-The decisive structural difference is the treatment of timing, and it is sharper than
-``\salt\ has one time parameter''. \salt\ has \emph{no} mechanism for
-reparameterising time at all. A stretch $t \mapsto t/\stretchsym$ leaves the curve
-$\curve$ pointwise unchanged and alters only its traversal; \salt\ instead represents
-stretch-like variation by the \emph{additive} component $x_{1}M_{1}(p,\lambda)$, which
-is a different operation. The two agree only to first order,
-\begin{equation}
-  m\!\left(\phase/\stretchsym\right)
-    = m(\phase) - (\stretchsym - 1)\,\phase\, m'(\phase)
-      + \mathcal{O}\!\left((\stretchsym-1)^{2}\right),
-  \label{eq:stretchlin}
-\end{equation}
-so a linear component reproduces a stretch only in the small-stretch limit, with
-$M_{1} \propto -\phase\,\partial M_{0}/\partial \phase$. This is not a reconstruction
-after the fact: \salt\ initialises $M_{1}$ as exactly such a finite difference, the
-SED sequence at $\stretchsym = 1.1$ minus that at $\stretchsym = 1$
-\citep{Guy2007}. The component is then fitted freely and does not remain a pure
-linearised stretch, but the residual nonlinearity is visible in the published
-$x_{1} \to \stretchsym$ conversion, which requires a cubic.
-
-Two consequences. First, \salt\ reports that most of the variability $x_{1}$ captures
-\emph{is} a stretch, so the dominant mode of \snia\ diversity is precisely the one
-\eqref{eq:reparam} represents exactly and \eqref{eq:stretchlin} shows \salt\
-linearises. That is the strongest structural argument for the present model. Second,
-the same fact predicts that $\shapeone$ should be \emph{small}: with stretch removed
-into $\tscale$, what remains for the first latent is only shape variation no
-reparameterisation can produce. A concrete check follows --- fitted $\tscale$ should
-track the published conversion
-$\stretchsym = 0.98 + 0.091x_{1} + 0.003x_{1}^{2} - 0.00075x_{1}^{3}$, and the scatter
-about it measures what the linearisation misses.
-
-On colour the comparison runs the other way, and the point is worth conceding plainly.
-\salt's colour law $\mathrm{CL}(\lambda)$ is phase-independent, but \salt\ carries an
-SED surface from which \eqref{eq:bandext} is evaluated at each phase, so the phase
-dependence emerges automatically; having no SED, this model must import
-$\dustdir(\arc)$ from an external template. \salt\ is structurally better placed here.
-What the two share is the mixing itself: \salt's $\colr$ conflates dust with intrinsic
-colour, which is why $\beta$ is fitted rather than predicted, the direct analogue of the
-global reddening direction $\hat{\mathbf{e}}_{c}$ fitted here.
-
-Two further costs. Having no SED, the redshift cut suppresses only the K-correction
-branch of the missing-SED problem \citep{Nugent2002}: the phase dependence of
-\eqref{eq:bandext} is a rest-frame effect, identical at $\zred = 0$, so
-Section~\ref{sec:phasedust} is a mitigation and not a solution. And full conditioning
-in \eqref{eq:kappanet} means the latents are not linear coefficients, so ablation is
-less clean than in \salt\ and the gauge fixing of Section~\ref{sec:gauge} is a partial
-remedy only.
-
-Distance is not delivered directly by the geometry. Since $\dm$ is free per supernova,
-the geometry supplies standardization \emph{variables}, and distance follows from a
-Tripp-style relation \citep{Tripp1998},
-\begin{equation}
-  \dm_{\mathrm{corr}} = \dm - \alpha\,\shapeone - \beta\,\colr
-                        - \gamma\,\shapetwo + \mathcal{M},
-  \label{eq:tripp}
-\end{equation}
-with $\alpha$, $\beta$, $\gamma$ and $\mathcal{M}$ fitted globally. The first three
-terms are \salt's own standardisation in one-to-one correspondence --- $\shapeone$ for
-$x_{1}$, $\colr$ for $\colr$ --- so the comparison is direct. The fourth is the whole
-point: $\gamma$ is the coefficient of the one degree of freedom \salt\ does not have,
-and whether it is nonzero, and whether it reduces held-out scatter, is the headline
-result the project is built to produce. It is also why the
-dust--shape mixing of Section~\ref{sec:phasedust} is asymmetric in its consequences:
-for the distance indicator the mixture is absorbed by the fitted $\alpha, \beta$ and
-costs nothing, whereas for reading $\shape$ as explosion physics it is a limitation
-whose size must be measured and stratified by $\colr$. The two conclusions are reported
-separately.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

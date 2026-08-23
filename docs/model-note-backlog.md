@@ -221,6 +221,11 @@ a ladder", the cross-validation method in the spec, and every limitations entry 
 `CLAUDE.md`'s "Known limitations to keep in view". Two entries below were *new* content
 with no other home at the time, and are recorded here as well as in `CLAUDE.md`.
 
+*Superseded 2026-08-23.* `CLAUDE.md` no longer holds either section — it was pruned of
+modelling choices, and both moved **here**, to "Moved out of `CLAUDE.md`" at the end of
+this file. The cross-references in the paragraph above are stale and are kept only to
+show where the material used to sit.
+
 **Resist re-narrating the model in prose here.** Levels 2, 3 and 5 of the hierarchy are
 now stated mathematically in the note; restating them argumentatively is the failure mode
 that forced the 18→14 page cut.
@@ -391,8 +396,42 @@ earlier the same day; the same afternoon showed that below L2c there is nothing 
 With `mu` free per SN along `(1,1)` and `c` free per SN along `e_c`, the two span `R^2` for
 any `e_c` not parallel to `(1,1)`. So changing `e_c` is undone **exactly** by an invertible
 relabelling of `(mu, c)`: a flat likelihood direction, not a slow one. At L0–L2, `e_c` is
-therefore **gauge** — fix it at `(1,-1)/sqrt2` and do not fit it; a round-trip that appears
+therefore **gauge** — fix it by fiat and do not fit it; a round-trip that appears
 to recover it is a bug.
+
+*Amended 2026-08-23.* Which value it is fixed at is **not** recorded here or in `CLAUDE.md`,
+and the former instruction to fix it at `(1,-1)/sqrt2` is withdrawn. The choice is exactly
+gauge for the fit but **not** for the meaning of `mu` and `c`: with `gamma(0) = 0` the
+predicted peak magnitudes are `m_g(0) = mu + c e_g`, `m_r(0) = mu + c e_r`, so "`mu` is the
+peak `g` magnitude" holds only when `e_g = 0` and "`c` is the peak colour" only when
+`e_g - e_r = 1`, i.e. both only at `e_c = (0,-1)`; while `(1,-1)/sqrt2` instead makes `mu`
+the peak *mean* magnitude and the colour shift `c*sqrt2`. Because the value and the prose
+interpreting it must agree, both now live together in the note. Pinning the value in two
+files is how the two drifted apart.
+
+*Amended again 2026-08-23.* "Gains content only at L2c" is **too narrow** — it is a
+statement about the per-SN light-curve likelihood alone. There are two channels, and only
+the first is flat.
+
+- **Per-SN light-curve fit.** Exactly flat in the direction, as above. Nothing to fit, at
+  any rung.
+- **Population standardisation.** Dust moves every reddened object along a *common* line in
+  the `(mu, c)` plane: `(A_g, A_r) = A_g*1 + E(g-r)*e_c`, giving slope
+  `dmu/dc = R_g = A_g/E(g-r)`. One supernova cannot determine that slope; the sample can.
+  This is the two-band counterpart of SALT2 fitting `beta` rather than adopting `R_V`, and
+  it works at **every rung, L0 included**, with no phase dependence required.
+
+So the reddening direction is a fitted quantity throughout — fitted at the Hubble-diagram
+stage, not per SN. The `du(s)` route of L2c is the harder channel and is no longer the only
+one; what L2c adds is sensitivity to the *phase variation* of the displacement, not the
+existence of a determinable direction.
+
+Two things this does not change. The **basis** used to parameterise per-SN placement stays
+gauge — `(1,1)` with `(0,-1)` is a naming convention, and the withdrawal of the instruction
+to fix `e_c` at `(1,-1)/sqrt2` stands. And what the fitted slope measures is the
+**effective** mixture of dust and intrinsic colour, exactly as SALT2's `beta` does, not
+`R_g` for dust alone — the first-order dust/intrinsic-colour degeneracy is untouched by any
+of this.
 
 It gains content only at **L2c**, through the phase-varying `du(s)`, which is not a
 translation and so cannot be absorbed by any relabelling of two amplitudes. There it is a
@@ -403,3 +442,149 @@ The general lesson is worth stating once, because it recurs: **a direction is on
 identifiable if something in the model varies along it in a way the free amplitudes cannot
 mimic.** Two free per-SN amplitudes spanning the plane make every phase-*independent*
 direction question vacuous.
+
+---
+
+## Moved out of `CLAUDE.md` (2026-08-23)
+
+**Housekeeping.** `CLAUDE.md` was pruned of modelling choices. It now carries only what is
+durable and operational — data handling, sample definitions, stack, layout, documentation
+convention, working agreements, and a short list of standing methodological commitments —
+because the model itself is a work in progress and the note is where it is being worked
+out. Two files asserting the model is how they drift apart; `e_c` above is the worked
+example.
+
+**Everything in this section is OPEN, not settled.** Section 2 of the note is mid-draft
+and parts of it already disagree with what follows. Most conspicuously, the note currently
+carries **one** shape coefficient `x_kappa` in a linear expansion `kappa = kappa_0 +
+x_kappa*kappa_1`, not the two conditioning latents `theta_1, theta_2` the ladder below is
+built on. Do not treat any of this as a specification until it has been reconciled with the
+note.
+
+### The ladder
+
+| Rung | Free per SN | # | Question |
+|---|---|---|---|
+| L0 | `mu, c, w, t_max` | 4 | **same count as SALT2** — does the mechanism alone win? |
+| L1 | `+ theta_1` | 5 | does one shape parameter earn its place? |
+| L2 | `+ theta_2` | 6 | does a second? |
+| L2c | L2, `c` upgraded to full `u(s)` | 6 | does phase-dependent dust matter? |
+| L3 | `+ a_1, a_2` | 8 | does nonlinear timing earn its place? |
+
+**L0 is a controlled experiment, not a starting point.** It carries four parameters in
+one-to-one correspondence with SALT2's `(x0, x1, c, t0)` and differs in *mechanism* alone:
+SALT2 produces stretch-like variation from an additive component, L0 from an exact
+reparameterisation. L0 versus SALT2 is a like-for-like test at fixed parameter count,
+before any new freedom enters. Everything above L0 asks whether added freedom pays.
+
+Standardisation is `mu_corr = mu - alpha*theta_1 - beta*c - gamma*theta_2 + M`; the first
+three terms are SALT2's own, one-to-one, and **`gamma` is the headline number** — the
+coefficient of the one DOF SALT2 lacks. Scored on **held-out Hubble residual scatter**
+under leave-one-out cross-validation, following SALT2's own validation method. The ladder
+is also the **training schedule**: fit L0 to convergence, then introduce latents one at a
+time, as SALT2 stages its components.
+
+### The mechanism difference, and the `w` versus `x1` check
+
+SALT2 has *no* way to reparameterise time. A stretch `p -> p/s` leaves the curve pointwise
+unchanged and alters only its traversal; SALT2 instead uses the additive `x1*M1(p,lambda)`.
+These agree only to first order — `m(p/s) = m(p) - (s-1)*p*m'(p) + O((s-1)^2)`, so
+`M1 ∝ -p dM0/dp`. This is not a reconstruction after the fact: **SALT2 initialises `M1` as
+exactly that finite difference**, the sequence at `s=1.1` minus that at `s=1`. The published
+`x1 -> s` conversion needs a cubic, and that cubic *is* the residual nonlinearity the
+linearisation leaves behind.
+
+Two consequences:
+
+- The dominant mode of SN Ia diversity is the one this model represents **exactly** and
+  SALT2 **linearises**. That is the strongest structural argument for the approach.
+- With stretch removed into `w`, what remains for the first shape latent is only variation
+  no reparameterisation can produce, so **it should be small**. Concrete check: fitted `w`
+  should track `s = 0.98 + 0.091*x1 + 0.003*x1^2 - 0.00075*x1^3`, and the scatter about that
+  relation measures what the linearisation misses. Cheap, and the sharpest early test of
+  whether separating shape from timing buys anything — worth running before the full
+  pipeline exists.
+
+### Per-SN parameters and timing conventions
+
+Baseline eight: `mu` (normalization) · `c` (colour) · `theta_1, theta_2` (shape, condition
+the network) · `w, t_max` (timing) · `a_1, a_2` (timing warp). SALT2 uses four; the excess
+is the object of study.
+
+Conventions that should survive whatever the parameter count becomes: `w` is a timing scale
+in **rest-frame days**; `t_max` is **observer-frame MJD**, always free per SN and never
+taken from the archive's SALT2 `t0`; `sigma` is reserved for flux measurement errors and
+must not be used for the timing scale; time dilation is deterministic, `p = (t - t_max)/(1+z)`
+divided out up front like `mwebv`, so `w` is a genuine rest-frame stretch and not a
+repackaging of `(1+z)`. The traversal is the cubic `s(t) = u[1 + a_1 u + a_2 u^2]` with
+`u = (t-t_max)/(w(1+z))`, on a bounded arclength domain held in config.
+
+### Curvature sum rule — qualitative only, never imposed
+
+Flux vanishes before explosion and after, so `m -> +inf` in every band at both ends: the
+curve is a **hairpin**, both ends escaping to infinity, the tangent reversing between them
+and turning through **approximately `pi`**. Corollaries independent of the escape direction:
+`kappa -> 0` at both extremes, and the asymptotic ray separation is the terminal colour —
+predicted only *relative* to the early colour, since a free `c` shifts both together.
+
+Both asymptotes lie outside the bounded model domain and neither is ever observed, so
+**nothing here is imposed at all**: the hairpin, `kappa -> 0` at the extremes,
+`∫ kappa ds ≈ pi` and the terminal colour are qualitative validation statements about a
+trained `kappa`'s *extrapolation*. **Never impose any of them as a constraint.** By unit
+speed, `f = 0` requires `|s| = infinity` — the dark phase is a single ideal point in the
+closure, never a point of the domain. The earlier exact forms — `∫ kappa ds = pi (mod 2pi)`,
+exact `(1,1)` asymptote directions, and a branch table splitting the integral at the
+`g`-maximum — are deleted, the branch table because peak ordering is not a quantity of
+interest.
+
+### No per-SN rotation
+
+No **per-SN** rotation is a physical degree of freedom: distance and zeropoint errors are
+**translations**, stretch is a **reparameterisation**, and dust is a **phase-dependent
+displacement** — not a translation. None acts as a per-SN rotation, so none is fitted per
+SN. This is also why a per-SN reddening *direction* is not fitted: it would be a per-SN
+rotation of the colour axis with no physical referent.
+
+The anchor is `g`-maximum, **not** `B`-maximum, since locating `B` max needs an SED. So
+`t_max` is not comparable to SALT2's `t0`; measure the offset distribution and assume
+neither its centre nor its sign.
+
+### Gauge, assumption, prediction, parameter
+
+The four-way classification, as it stood when it left `CLAUDE.md`. Note that the note's
+current `psi_0` paragraph has already moved band ordering out of *gauge* and into stated
+physical knowledge, which this list does not yet reflect.
+
+- *Gauge* (costless, not testable): the arclength origin at the principal `g`-maximum; the
+  frame orientation for `n = 2`, by the same condition; the metric `diag(1,1)`; latents
+  normalised to zero mean and unit variance with the sign fixed so the first correlates
+  positively with light-curve width; position fixed by `gamma(0) = 0`; and `e_c` below L2c.
+- *Assumption* (substantive, falsifiable): `Corr(c, theta) = 0`.
+- *Prediction* (checked, not chosen): colour **evolution**; the hairpin, `∫ kappa ds ≈ pi`
+  and the terminal colour, as qualitative statements about extrapolation outside the domain.
+  **Not** "which band peaks first" while that is an input rather than an output.
+- *Parameter*: `c`, the amplitude along `e_c`, free per SN; `e_c` itself **at L2c only**, one
+  global unit vector for the sample, not per-SN; and for `n >= 3` the `n(n-1)/2 - 1` global
+  orientation numbers, one fewer than `SO(n)` by the orientation/origin redundancy.
+
+With `c` free, neither early nor terminal colour is predicted absolutely; only their
+*difference* is, since `c` displaces the whole curve and cancels. The model predicts colour
+evolution and leaves the colour zero point free — structurally the split SALT2 makes between
+a fixed colour law and a fitted `c`.
+
+### Degeneracies to report
+
+- **Two bands admit no torsion.** In the primary `g,r` analysis a second shape latent is a
+  second direction of variation in `kappa`, *not* torsion. Do not call it torsion in
+  writing. Torsion is meaningful only on the 177-SN `g,r,i` subsample.
+- **Timing warp versus shape.** Over a finite, noisy window a warp in `s(t)` and a change in
+  `kappa` can mimic each other. Report the fitted correlation between `(a_1, a_2)` and the
+  shape latents. A large correlation means the shape/timing separation is not being
+  realised — a negative result to report, not to absorb.
+- **Dust versus shape.** Same structure, expected milder, for the reasons in the order-counting
+  entry above. Report stratified by fitted `c`; consequences are asymmetric — harmless for the
+  distance indicator, a limitation for interpreting the shape latents.
+- **Dust versus intrinsic colour** is the first-order degeneracy and is unresolved; `c`
+  conflates the two exactly as SALT2's `c` does. The order counting does not help here.
+- **Peculiar velocity** is not in the likelihood: `mu` is free per SN and absorbs it exactly,
+  entering only at the Hubble-diagram stage.
