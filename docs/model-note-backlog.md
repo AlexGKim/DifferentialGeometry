@@ -274,9 +274,16 @@ degeneracy became *more* load-bearing under the restructure, not less, and was k
 
 ## Why the latent count is `K = 2`
 
-**Settled as a working value; the empirical question is what the ladder answers.** Moved
-out of the note on 2026-08-21 — it is a justification of a modelling choice, i.e. argument,
-not model definition.
+**Superseded 2026-08-23 — there is one shape latent, not two.** The note carries a single
+`x_kappa`, and that is correct. The argument below is kept because its *structure* survives
+and was reused: SALT2 parity plus a single increment. What changed is where the second
+increment went. It is not a second shape latent but `x_p` in the traversal, so the model
+still carries two degrees of freedom beyond SALT2 parity while `kappa` is conditioned by
+one parameter alone. Read what follows as the reasoning that led there, not as the count.
+
+*Original entry follows.* **Settled as a working value; the empirical question is what the
+ladder answers.** Moved out of the note on 2026-08-21 — it is a justification of a
+modelling choice, i.e. argument, not model definition.
 
 The latent count is not fixed by the geometry: `n` fixes the number of curvature functions,
 `n-1`, and says nothing about how many parameters condition them. So `K` is a modelling
@@ -454,12 +461,23 @@ because the model itself is a work in progress and the note is where it is being
 out. Two files asserting the model is how they drift apart; `e_c` above is the worked
 example.
 
-**Everything in this section is OPEN, not settled.** Section 2 of the note is mid-draft
-and parts of it already disagree with what follows. Most conspicuously, the note currently
-carries **one** shape coefficient `x_kappa` in a linear expansion `kappa = kappa_0 +
-x_kappa*kappa_1`, not the two conditioning latents `theta_1, theta_2` the ladder below is
-built on. Do not treat any of this as a specification until it has been reconciled with the
-note.
+**Everything in this section is OPEN, not settled**, and one conflict has since been
+resolved against it.
+
+*Resolved 2026-08-23: there is one shape coefficient, not two.* The note carries a single
+`x_kappa` in a linear expansion `kappa = kappa_0 + x_kappa*kappa_1`, and that is correct;
+the two conditioning latents `theta_1, theta_2` are withdrawn, along with the `K = 2`
+derivation recorded earlier in this file. What the model gained instead is a second *new*
+per-SN parameter of a different kind — `x_p`, in the traversal
+`p(s; x_s, x_p) = x_s(p_0 + x_p p_1)` — so the count of new degrees of freedom beyond
+SALT2 parity is unchanged at two, but one of them acts on shape and the other on timing,
+where previously both acted on shape.
+
+The ladder below has not been rewritten to match, and **L1/L2 as stated no longer have
+referents**. The obvious reading is L0 = `(mu, c, x_s, t_max)`, still SALT2 parity, then
+one rung per new parameter, `+x_kappa` and `+x_p`, in whichever order is to be argued.
+That reading is *not* adopted here — it is a modelling decision for the note. Treat the
+table as history until it is made.
 
 ### The ladder
 
