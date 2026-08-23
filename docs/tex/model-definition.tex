@@ -58,7 +58,7 @@ The rest-frame multi-band light-curve template, as a function of phase $\phase$ 
 from $g$ maximum, is denoted as
 \begin{equation}
   \curve(\phase)
-    = \bigl(M_{1}(\phase), M_{2}(\phase)\bigr) \in \Rn.
+    = \bigl(\Magg(\phase), \Magr(\phase)\bigr) \in \Rtwo.
   \label{eq:curvedef}
 \end{equation}
 $\curve$ is a parameterized curve in the $2$-dimensional magnitude space.
@@ -75,14 +75,14 @@ A unit-speed curve in $\Rtwo$ admits a Frenet frame,
   \tang' = \curv\,\norml.
   \label{eq:frenet2d}
 \end{equation}
-with $\tang$ the unit \emph{tangent},
-$\norml$  the principal \emph{normal}, and
-$\curv $  the \emph{curvature}. 
+with $\tang$ the unit \emph{tangent} and $\norml$ the principal \emph{normal}, defined as
+the $90^{\circ}$ rotation of $\tang$ rather than by $\curve''$. The \emph{curvature}
+$\curv$ is therefore \emph{signed}, and the frame stays defined wherever $\curv = 0$.
 
 
 We now map out the inverse: how a curve, specified by curvature and two boundary conditions,
  and the traversal over that curve, specified by a function,
-defines light curves.
+define light curves.
 
 
 Given $\curv$, $\curve(\arc)$ is determined through the above differential equations and
@@ -94,8 +94,8 @@ unit tangent by its angle $\psi$, the equations are solved with
   \norml(\arc) = \bigl(-\sin\psi(\arc),\ \cos\psi(\arc)\bigr),
   \label{eq:tangangle}
 \end{equation}
-and $\psi' = \curv$. Curvature is thus the
-two quadratures solve rate of turning of the tangent, and the curve,
+and $\psi' = \curv$. Curvature is thus the rate of turning of the tangent, and two
+quadratures give $\psi$ and the curve,
 \begin{align}
   \psi(\arc)   &= \psi_{0} + \int_{{0}}^{\arc}\curv(\zeta)\,\dd\zeta ,
                   \label{eq:turning}\\
@@ -121,19 +121,21 @@ Parameters considered in traditional models are
 \begin{itemize}
 \item $\dm$: A wavelength-independent flux normalization, for example due to
   distance.  This is a term $\dm\,\mathbf{1}$ added to $\curve$.
-\item $\colr$: A phase-independent shift in color, for example due to dust (to
-  first order).  This is a term $\colr\,\dustunit$ added to $\curve$, with
-  $\dustunit = (0,-1)$, so that $\colr$ is the shift in $\Magg - \Magr$.
+\item $\colr$: A phase-independent shift in color.  This is a term
+  $\colr\,\dustunit$ added to $\curve$, with $\dustunit = (0,-1)$, so that $\colr$ is the
+  shift in $\Magg - \Magr$.
 \item $\xstretch$: A wavelength-independent dilation in the light curve, which
   corresponds to `stretch'.  This is a term $\phase \rightarrow \xstretch\,\phase$.
 \end{itemize}
 
 The above follows the  SALT2 procedure of decoupling light curve shape from dust,
 whose focus is on supernova standardization.
-An alternative and equally valid parameterization removes $\dm$ (i.e.\ distances are fixed),
-but retains $\colr$, replacing $\dustunit$  with vector $\mathbf{R}$.  This parameterization 
-shifts light curves by $(c\, R_g, c\, R_r$), notation that suggests correspondence with
-dust.  This approach is taken by Mandel, whose focus is on cosmology.
+An alternative and equally valid parameterization retains $\colr$ but replaces the fixed
+$\dustunit$ with a vector $\mathbf{R}$ drawn from an extinction law, shifting light curves
+by $(\colr\,R_{g}, \colr\,R_{r})$, notation that asserts correspondence with dust. This is
+the approach of \citet{Mandel2022}, whose focus is on cosmology: the shape of $\mathbf{R}$
+is not adopted but fitted globally, through a host dust law with
+$R_{V} = 2.9 \pm 0.2$, alongside per-supernova dust amplitudes and intrinsic components.
 
 The benefit of our light-curve shape model is apparent: $\dm\,\mathbf{1}$ and
 $\colr\,\dustunit$ are translations and $\xstretch$ is a reparameterisation, so the
@@ -142,9 +144,30 @@ curvature is independent of all three.
 To go beyond traditional light-curve models, we explore two new per-supernova parameters,
 \begin{itemize}
 \item $x_p$: Variation in time evolution beyond that described by $s$, with
-$p(s) = p_0(s) + x_p p_1(s)$, where  $p_0(s)$ and $p_1(s)$ are functions.
-\item $\shapekappa$: First-order deviations in curvature, with 
+$p(s) = p_0(s) + x_p p_1(s)$, where  $p_0(s)$ and $p_1(s)$ are functions obeying
+$p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$ at $g$ maximum for every supernova.
+\item $\shapekappa$: First-order deviations in curvature, with
 $\curv(s) = \curv_{0}(s) + \shapekappa\,\curv_{1}(s)$, where  $\curv_0(s)$ and $\curv_1(s)$ are functions.
+\end{itemize}
+
+\subsection{Degeneracies}
+\label{sec:degeneracies}
+
+\emph{Placeholder.} Each entry names a direction along which the model above is degenerate,
+and is to be paired with the gauge fixing or nondegeneracy condition that removes it.
+\begin{itemize}
+\item $\xstretch$ against $x_p$. Both act only on $\phase(\arc)$: applying
+  $\phase \rightarrow \xstretch\,\phase$ to $p_{0} + x_p p_{1}$ gives
+  $\xstretch^{-1}p_{0} + (x_p/\xstretch)\,p_{1}$, a two-coefficient family in
+  $\mathrm{span}\{p_{0}, p_{1}\}$, and the two parameters are exactly degenerate if
+  $p_{1} \propto p_{0}$.
+\item $\dustunit$ against $(\dm, \colr)$. Since $\mathbf{1}$ and $\dustunit$ span $\Rtwo$,
+  replacing $\dustunit$ by $\alpha\mathbf{1} + \beta\dustunit$ is undone exactly by
+  $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$, so the direction is not
+  identifiable from a single supernova.
+\item Traversal against curvature. Over a finite, noisy window a change in $\phase(\arc)$
+  and a change in $\curv(\arc)$ can mimic one another; this is the degeneracy that limits
+  the shape/timing separation in practice.
 \end{itemize}
 
 \section{Global functions}
