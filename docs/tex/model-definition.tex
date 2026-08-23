@@ -37,7 +37,7 @@ the arclength map, since a reparameterisation of time changes how fast a superno
 moves along its curve but does not change the curve.
 
 That separation is exact as a statement about curves and is not thereby a guarantee
-about fits; Section~\ref{sec:gauge} gives the degeneracy that limits it in practice.
+about fits; Section~\ref{sec:degeneracies} gives the degeneracy that limits it in practice.
 
 
 We work in magnitude space, with the Euclidean metric
@@ -154,20 +154,49 @@ $\curv(s) = \curv_{0}(s) + \shapekappa\,\curv_{1}(s)$, where  $\curv_0(s)$ and $
 \label{sec:degeneracies}
 
 \emph{Placeholder.} Each entry names a direction along which the model above is degenerate,
-and is to be paired with the gauge fixing or nondegeneracy condition that removes it.
+paired with the condition that removes it. The first four are \emph{exact}: the likelihood
+is constant along them, so they must be fixed by convention and cannot be fitted. The last
+two are limits on what the data determine, to be measured and reported.
+
 \begin{itemize}
-\item $\xstretch$ against $x_p$. Both act only on $\phase(\arc)$: applying
-  $\phase \rightarrow \xstretch\,\phase$ to $p_{0} + x_p p_{1}$ gives
-  $\xstretch^{-1}p_{0} + (x_p/\xstretch)\,p_{1}$, a two-coefficient family in
-  $\mathrm{span}\{p_{0}, p_{1}\}$, and the two parameters are exactly degenerate if
-  $p_{1} \propto p_{0}$.
-\item $\dustunit$ against $(\dm, \colr)$. Since $\mathbf{1}$ and $\dustunit$ span $\Rtwo$,
-  replacing $\dustunit$ by $\alpha\mathbf{1} + \beta\dustunit$ is undone exactly by
-  $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$, so the direction is not
-  identifiable from a single supernova.
-\item Traversal against curvature. Over a finite, noisy window a change in $\phase(\arc)$
-  and a change in $\curv(\arc)$ can mimic one another; this is the degeneracy that limits
-  the shape/timing separation in practice.
+\item \textbf{Basis of the curvature expansion.} For any $a$ and $\lambda \neq 0$,
+  \begin{equation*}
+    \bigl(\curv_{0},\ \curv_{1},\ \shapekappa\bigr) \longmapsto
+    \bigl(\curv_{0} + a\,\curv_{1},\ \lambda\,\curv_{1},\ (\shapekappa - a)/\lambda\bigr)
+  \end{equation*}
+  leaves $\curv$ unchanged for every supernova. Fixed by normalising the population,
+  $\langle \shapekappa \rangle = 0$ and $\mathrm{Var}(\shapekappa) = 1$, with a sign
+  convention to remove $\lambda < 0$.
+\item \textbf{Basis of the traversal.} Here the redundancy is larger, because $\xstretch$
+  makes \emph{both} coefficients free: $\phase \rightarrow \xstretch\,\phase$ applied to
+  $p_{0} + x_p p_{1}$ gives $a\,p_{0} + b\,p_{1}$ with $a = 1/\xstretch > 0$ and
+  $b = x_p/\xstretch$. The model therefore depends only on
+  $\mathrm{span}\{p_{0}, p_{1}\}$, not on the basis, and the whole change of basis in
+  $\mathrm{GL}(2,\Real)$ is absorbed. Consequently $\xstretch$ and $x_p$ are not separately
+  meaningful until a basis convention is declared, and are exactly degenerate in the
+  singular limit $p_{1} \propto p_{0}$.
+\item \textbf{Reddening direction against placement.} Since $\mathbf{1}$ and $\dustunit$
+  span $\Rtwo$, replacing $\dustunit$ by $\alpha\mathbf{1} + \beta\dustunit$ is undone
+  exactly by $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$. The direction is not
+  identifiable from one supernova; it is determined across the population, as the slope of
+  the reddening line in the $(\dm, \colr)$ plane.
+\item \textbf{Arclength origin against frame orientation.} Integrating $\curv(\cdot + a)$
+  from $\psi_{0} + \int_{0}^{a}\curv$ reproduces the same curve, so origin and orientation
+  carry one joint redundancy. Fixing $\psi_{0} = -\pi/2$ removes it, and the anchor is
+  self-enforcing: $\psi(0) = -\pi/2$ forces $\Magg'(0) = 0$. One \emph{discrete} ambiguity
+  survives --- $\arc = 0$ is a $g$ maximum only if $\curv(0) > 0$, and a minimum otherwise
+  --- which is checked after fitting rather than imposed.
+\item \textbf{Phase origin against the traversal.} Once an epoch of maximum is fitted, a
+  per-supernova shift in $\phase$ would be absorbed by the traversal were $p(0)$ free. The
+  condition $p_{0}(0) = p_{1}(0) = 0$ is what keeps the two separate.
+\item \textbf{Traversal against curvature.} Over a finite, noisy window a change in
+  $\phase(\arc)$ and a change in $\curv(\arc)$ can mimic one another. This is not exact and
+  cannot be gauged away; it is the degeneracy that limits the shape/timing separation in
+  practice, and its size is an empirical question.
+\item \textbf{Curvature outside the observed arc.} The epochs of a given supernova cover a
+  finite range of $\arc$, and $\curv$ beyond it is constrained only by whatever the global
+  functions extrapolate. Statements about the curve outside that range are predictions, not
+  measurements.
 \end{itemize}
 
 \section{Global functions}
