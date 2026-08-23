@@ -113,16 +113,18 @@ normalising at maximum --- there in $B$, here in $g$.
 
 The connection to supernova phase is specified by the inverse of $s(p)$,  the function $p(s)$.
 
-\subsection{Per-supernova degrees of freedom}
+\subsection{Parameterization of Light Curves}
 \label{sec:pars}
-Parameters that are considered in traditional models.
+
+We construct a parameterized light curve model that accommodates supernova heterogeneity.
+Parameters considered in traditional models are
 \begin{itemize}
-\item $\dm$: Represents a wavelength-independent flux normalization, for example due to
+\item $\dm$: A wavelength-independent flux normalization, for example due to
   distance.  This is a term $\dm\,\mathbf{1}$ added to $\curve$.
-\item $\colr$: Represents a phase-independent shift in color, for example due to dust (to
+\item $\colr$: A phase-independent shift in color, for example due to dust (to
   first order).  This is a term $\colr\,\dustunit$ added to $\curve$, with
   $\dustunit = (0,-1)$, so that $\colr$ is the shift in $\Magg - \Magr$.
-\item $\xstretch$: Represents a wavelength-independent dilation in the light curve, which
+\item $\xstretch$: A wavelength-independent dilation in the light curve, which
   corresponds to `stretch'.  This is a term $\phase \rightarrow \xstretch\,\phase$.
 \end{itemize}
 
@@ -133,29 +135,17 @@ but retains $\colr$, replacing $\dustunit$  with vector $\mathbf{R}$.  This para
 shifts light curves by $(c\, R_g, c\, R_r$), notation that suggests correspondence with
 dust.  This approach is taken by Mandel, whose focus is on cosmology.
 
-
-
 The benefit of our light-curve shape model is apparent: $\dm\,\mathbf{1}$ and
 $\colr\,\dustunit$ are translations and $\xstretch$ is a reparameterisation, so the
-curvature is \emph{exactly} independent of all three. What is approximate is
-the identification of $\colr\,\dustunit$ with dust, whose effect is expected to
-have small phase-dependent variation.
+curvature is independent of all three.
 
-To go beyond traditional light-curve models, we introduce a per-supernova parameter
-$\shapekappa$ and global functions $\curv_{0}$ and $\curv_{1}$, such that
-$\curv = \curv_{0} + \shapekappa\,\curv_{1}$.  We also introduce
-a per-supernova parameter $x_p$ and a global functions  $p_{0}(s)$ and $p_{1}(s)$
-such that $p(s) = p_{0} + x_p p_{1}$
-
-
-\subsection{Dust Parameters}
-
-The direction is recovered instead from the population. Dust displaces a supernova by
-$(A_{g}, A_{r}) = A_{g}\,\mathbf{1} + E(g-r)\,\dustunit$, so reddened objects move along
-a common line in the $(\dm, \colr)$ plane of slope
-$\dd\dm/\dd\colr = R_{g} \equiv A_{g}/E(g-r)$. Fitting that slope across the sample
-determines the reddening direction, and is the two-band counterpart of \salt\ fitting
-$\beta$ rather than adopting $R_{V}$.
+To go beyond traditional light-curve models, we explore two new per-supernova parameters,
+\begin{itemize}
+\item $x_p$: Variation in time evolution beyond that described by $s$, with
+$p(s) = p_0(s) + x_p p_1(s)$, where  $p_0(s)$ and $p_1(s)$ are functions.
+\item $\shapekappa$: First-order deviations in curvature, with 
+$\curv(s) = \curv_{0}(s) + \shapekappa\,\curv_{1}(s)$, where  $\curv_0(s)$ and $\curv_1(s)$ are functions.
+\end{itemize}
 
 \section{Global functions}
 \label{sec:traversal}
