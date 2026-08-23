@@ -169,9 +169,10 @@ represented by neural networks,
 \end{align}
 The curvature of an individual supernova is built from $\curv_{0}$ and $\curv_{1}$ with a
 per-supernova coefficient, introduced in Section~\ref{sec:pars}. The traversal is written
-$\phase(\arc)$, which is the direction the forward model requires: epochs are observed in
-phase, and the template is evaluated at the corresponding arclength. It must be monotone,
-$\dd\phase/\dd\arc > 0$, for the reparameterisation of Section~\ref{sec:curve} to exist.
+$\phase(\arc)$, which is the direction the forward model evaluates: the template is
+generated on a grid in arclength, and $\phase(\arc)$ places each of its points in time.
+No inversion is required. The traversal must be monotone, $\dd\phase/\dd\arc > 0$, for
+the reparameterisation of Section~\ref{sec:curve} to exist.
 
 \section{Samples}
 \label{sec:samples}
