@@ -36,8 +36,10 @@ of arclength. Shape then lives entirely in those invariants and timing entirely 
 the arclength map, since a reparameterisation of time changes how fast a supernova
 moves along its curve but does not change the curve.
 
-That separation is exact as a statement about curves and is not thereby a guarantee
-about fits; Section~\ref{sec:degeneracies} gives the degeneracy that limits it in practice.
+That separation is exact as a statement about curves, and is not thereby a guarantee about
+fits: over a finite, noisy window a change in the traversal and a change in curvature can
+mimic one another. Unlike the exact redundancies of Section~\ref{sec:degeneracies}, which
+are removed by convention, how far the two can be told apart is an empirical question.
 
 
 We work in magnitude space, with the Euclidean metric
@@ -144,20 +146,22 @@ curvature is independent of all three.
 To go beyond traditional light-curve models, we explore two new per-supernova parameters,
 \begin{itemize}
 \item $x_p$: Variation in time evolution beyond that described by $s$, with
-$p(s) = p_0(s) + x_p p_1(s)$, where  $p_0(s)$ and $p_1(s)$ are functions obeying
-$p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$ at $g$ maximum for every supernova.
+$p(\arc; \xstretch, x_p) = \xstretch\bigl(p_0(\arc) + x_p\,p_1(\arc)\bigr)$, where $p_0$
+and $p_1$ are functions obeying $p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$ at $g$
+maximum for every supernova. The fiducial traversal is $x_p = 0$, $\xstretch = 1$.
 \item $\shapekappa$: First-order deviations in curvature, with
-$\curv(s) = \curv_{0}(s) + \shapekappa\,\curv_{1}(s)$, where  $\curv_0(s)$ and $\curv_1(s)$ are functions.
+$\curv(s; \shapekappa) = \curv_{0}(s) + \shapekappa\,\curv_{1}(s)$, where  $\curv_0(s)$ and $\curv_1(s)$ are functions.
 \end{itemize}
 
 \subsection{Degeneracies}
 \label{sec:degeneracies}
 
-\emph{Placeholder.} Each entry names a direction along which the model above is degenerate,
-paired with the condition that removes it. The first four are \emph{exact}: the likelihood
-is constant along them, so they must be fixed by convention and cannot be fitted. The last
-two are limits on what the data determine, to be measured and reported.
+\emph{Placeholder.} Directions along which the likelihood is \emph{exactly} constant. Along
+each, a change in one quantity is undone by a compensating change in others, so no data can
+determine it and none may be fitted: each is removed by declaring a convention. Those still
+open are flat directions in the model as specified above.
 
+\paragraph{Open.}
 \begin{itemize}
 \item \textbf{Basis of the curvature expansion.} For any $a$ and $\lambda \neq 0$,
   \begin{equation*}
@@ -168,35 +172,36 @@ two are limits on what the data determine, to be measured and reported.
   $\langle \shapekappa \rangle = 0$ and $\mathrm{Var}(\shapekappa) = 1$, with a sign
   convention to remove $\lambda < 0$.
 \item \textbf{Basis of the traversal.} Here the redundancy is larger, because $\xstretch$
-  makes \emph{both} coefficients free: $\phase \rightarrow \xstretch\,\phase$ applied to
-  $p_{0} + x_p p_{1}$ gives $a\,p_{0} + b\,p_{1}$ with $a = 1/\xstretch > 0$ and
-  $b = x_p/\xstretch$. The model therefore depends only on
-  $\mathrm{span}\{p_{0}, p_{1}\}$, not on the basis, and the whole change of basis in
-  $\mathrm{GL}(2,\Real)$ is absorbed. Consequently $\xstretch$ and $x_p$ are not separately
-  meaningful until a basis convention is declared, and are exactly degenerate in the
-  singular limit $p_{1} \propto p_{0}$.
+  makes \emph{both} coefficients free: $\xstretch(p_{0} + x_p p_{1}) = a\,p_{0} + b\,p_{1}$
+  with $a = \xstretch$ and $b = \xstretch\,x_p$. The model therefore depends only on
+  $\mathrm{span}\{p_{0}, p_{1}\}$, not on the basis, and a change of basis in
+  $\mathrm{GL}(2,\Real)$ is absorbed. Declaring the fiducial traversal to be $x_p = 0$,
+  $\xstretch = 1$ removes $p_{0} \mapsto p_{0} + a\,p_{1}$ and $p_{0} \mapsto \nu p_{0}$.
+  Two directions survive it: $p_{1} \mapsto \lambda p_{1}$, absorbed by
+  $x_p \mapsto x_p/\lambda$ and fixed by $\mathrm{Var}(x_p) = 1$; and
+  $p_{1} \mapsto p_{1} + \rho\,p_{0}$, absorbed exactly by
+  $\xstretch \mapsto \xstretch(1 + \rho x_p)$ and $x_p \mapsto x_p/(1 + \rho x_p)$, which
+  is removed only by requiring $p_{1}$ to carry no component along $p_{0}$. In the singular
+  limit $p_{1} \propto p_{0}$ the two parameters coincide outright.
+\end{itemize}
+
+\paragraph{Closed.} Recorded because the redundancy is what makes each convention free,
+and because a convention mistaken for a measurement is the error these entries exist to
+prevent.
+\begin{itemize}
 \item \textbf{Reddening direction against placement.} Since $\mathbf{1}$ and $\dustunit$
   span $\Rtwo$, replacing $\dustunit$ by $\alpha\mathbf{1} + \beta\dustunit$ is undone
-  exactly by $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$. The direction is not
-  identifiable from one supernova; it is determined across the population, as the slope of
-  the reddening line in the $(\dm, \colr)$ plane.
+  exactly by $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$. Any direction not
+  parallel to $\mathbf{1}$ therefore gives the same model, and $\dustunit = (0,-1)$ is
+  declared rather than fitted.
 \item \textbf{Arclength origin against frame orientation.} Integrating $\curv(\cdot + a)$
   from $\psi_{0} + \int_{0}^{a}\curv$ reproduces the same curve, so origin and orientation
-  carry one joint redundancy. Fixing $\psi_{0} = -\pi/2$ removes it, and the anchor is
-  self-enforcing: $\psi(0) = -\pi/2$ forces $\Magg'(0) = 0$. One \emph{discrete} ambiguity
-  survives --- $\arc = 0$ is a $g$ maximum only if $\curv(0) > 0$, and a minimum otherwise
-  --- which is checked after fitting rather than imposed.
-\item \textbf{Phase origin against the traversal.} Once an epoch of maximum is fitted, a
-  per-supernova shift in $\phase$ would be absorbed by the traversal were $p(0)$ free. The
-  condition $p_{0}(0) = p_{1}(0) = 0$ is what keeps the two separate.
-\item \textbf{Traversal against curvature.} Over a finite, noisy window a change in
-  $\phase(\arc)$ and a change in $\curv(\arc)$ can mimic one another. This is not exact and
-  cannot be gauged away; it is the degeneracy that limits the shape/timing separation in
-  practice, and its size is an empirical question.
-\item \textbf{Curvature outside the observed arc.} The epochs of a given supernova cover a
-  finite range of $\arc$, and $\curv$ beyond it is constrained only by whatever the global
-  functions extrapolate. Statements about the curve outside that range are predictions, not
-  measurements.
+  carry one joint redundancy. Fixing $\psi_{0} = -\pi/2$ removes it: a shift now requires
+  $\int_{0}^{a}\curv = 0$, so generically $a = 0$. The anchor is self-enforcing, since
+  $\psi(0) = -\pi/2$ forces $\Magg'(0) = 0$.
+\item \textbf{Phase origin against the traversal.} A per-supernova shift in $\phase$ would
+  be absorbed by the traversal were $p(0)$ free, leaving any fitted epoch of maximum
+  undetermined. The condition $p_{0}(0) = p_{1}(0) = 0$ removes it.
 \end{itemize}
 
 \section{Global functions}
