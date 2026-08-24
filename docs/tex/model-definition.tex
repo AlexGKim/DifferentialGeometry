@@ -155,9 +155,19 @@ To go beyond traditional light-curve models, we explore two new per-supernova pa
   \label{eq:travlin}
 \end{equation}
 where $p_0$ and $p_1$ are functions obeying $p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$
-at $g$ maximum for every supernova, and $\xstretch > 0$ for monotonicity. The fiducial
-traversal is $x_p = 0$, $\xstretch = 1$. The traversal is linear in $(\xstretch, x_p)$,
-which is what the fitting uses.
+at $g$ maximum for every supernova, and $\xstretch > 0$ for monotonicity. The traversal is
+linear in $(\xstretch, x_p)$, which is what the fitting uses.
+
+\new{The basis $\{p_{0}, p_{1}\}$ is not determined by $\phase$ alone, and is fixed by
+normalising the population,
+\begin{equation}
+  \langle \xstretch \rangle = 1, \qquad \langle x_p \rangle = 0, \qquad
+  \mathrm{Var}(x_p) = 1, \qquad \mathrm{Cov}(\xstretch, x_p) = 0 ,
+  \label{eq:travgauge}
+\end{equation}
+which Section~\ref{sec:degeneracies} shows to be exactly the four conditions required. The
+first two make $p_{0}$ the mean traversal, so the fiducial $x_p = 0$, $\xstretch = 1$ is
+the population mean rather than a separate stipulation.}
 
 \new{Writing it this way rather than as $\xstretch(p_{0} + x_p p_{1})$ changes what
 $\xstretch$ means, and the change is worth stating. Along $x_p = 0$ the traversal is
@@ -169,7 +179,17 @@ linearity: the model is linear in both per-supernova parameters, and the conditi
 Section~\ref{sec:degeneracies} can be imposed on them directly.}
 \item \new{$\shapekappa$: First-order deviations in curvature, with
 $\curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc)$, where
-$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions.}
+$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions. The basis
+$\{\curv_{0}, \curv_{1}\}$ is fixed in the same way,
+\begin{equation}
+  \langle \shapekappa \rangle = 0, \qquad \mathrm{Var}(\shapekappa) = 1,
+  \qquad \mathrm{Cov}(\xstretch, \shapekappa) > 0 ,
+  \label{eq:curvgauge}
+\end{equation}
+the first making $\curv_{0}$ the mean curvature and the last choosing the sign of
+$\curv_{1}$, there being no other way to distinguish $\curv_{1}$ from $-\curv_{1}$. Two
+conditions suffice here where the traversal needed four, for the reason given in
+Section~\ref{sec:degeneracies}: the coefficient of $\curv_{0}$ is pinned at unity.}
 \end{itemize}
 
 \subsection{Degeneracies}
@@ -177,8 +197,10 @@ $\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions.}
 
 \emph{Placeholder.} Directions along which the likelihood is \emph{exactly} constant. Along
 each, a change in one quantity is undone by a compensating change in others, so no data can
-determine it and none may be fitted: each is removed by declaring a convention. Those still
-open are flat directions in the model as specified above.
+determine it and none may be fitted: each is removed by declaring a convention.
+\new{Every convention named below is adopted in the model above; this section records what
+each is for, and that together they are neither too few to leave a flat direction nor too
+many to be imposed at once.}
 
 \paragraph{Basis of a linear expansion.} \new{The model contains three rank-two linear
 expansions in global functions with per-supernova coefficients. In each it sees only the
@@ -190,11 +212,13 @@ pinning a coefficient forbids the $n$ transformations that would change it.
 \begin{center}
 \begin{tabular}{llccl}
 \toprule
-Expansion & Basis & Coefficients & Flat directions & Status \\
+Expansion & Basis & Coefficients & Flat directions & Fixed by \\
 \midrule
-Placement & $\{\mathbf{1}, \dustunit\}$ & $(\dm, \colr)$ & 4 & closed \\
-Traversal \eqref{eq:travlin} & $\{p_{0}, p_{1}\}$ & $(\xstretch, x_p)$ & 4 & open \\
-Curvature & $\{\curv_{0}, \curv_{1}\}$ & $(1, \shapekappa)$ & 2 & open \\
+Placement & $\{\mathbf{1}, \dustunit\}$ & $(\dm, \colr)$ & 4 & declared basis \\
+Traversal \eqref{eq:travlin} & $\{p_{0}, p_{1}\}$ & $(\xstretch, x_p)$ & 4
+  & \eqref{eq:travgauge} \\
+Curvature & $\{\curv_{0}, \curv_{1}\}$ & $(1, \shapekappa)$ & 2
+  & \eqref{eq:curvgauge} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -208,13 +232,13 @@ normalise --- it carries the cosmology. Stretch and curvature deviation have no 
 scale, so normalising them costs nothing.}
 
 \begin{itemize}
-\item \textbf{Placement (closed).} Since $\mathbf{1}$ and $\dustunit$
+\item \textbf{Placement.} Since $\mathbf{1}$ and $\dustunit$
   span $\Rtwo$, replacing $\dustunit$ by $\alpha\mathbf{1} + \beta\dustunit$ is undone
   exactly by $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$. Any direction not
   parallel to $\mathbf{1}$ therefore gives the same model, and $\dustunit = (0,-1)$ is
   declared rather than fitted. \new{Both basis vectors being declared is four conditions,
   which is the whole redundancy.}
-\item \textbf{Curvature (open).} For any $\eta$ and $\lambda \neq 0$,
+\item \textbf{Curvature.} For any $\eta$ and $\lambda \neq 0$,
   \begin{equation*}
     \bigl(\curv_{0},\ \curv_{1},\ \shapekappa\bigr) \longmapsto
     \bigl(\curv_{0} + \eta\,\curv_{1},\ \lambda\,\curv_{1},\
@@ -223,10 +247,10 @@ scale, so normalising them costs nothing.}
   leaves $\curv$ unchanged for every supernova. \new{Only these two directions arise,
   because the coefficient of $\curv_{0}$ is pinned at unity: rescaling $\curv_{0}$, or
   adding $\curv_{0}$ to $\curv_{1}$, would move it off unity and so is not available.}
-  Fixed by normalising the population,
-  $\langle \shapekappa \rangle = 0$ and $\mathrm{Var}(\shapekappa) = 1$, with a sign
-  convention to remove $\lambda < 0$.
-\item \textbf{Traversal (open).} \new{Here the redundancy is the full four, because
+  Removed by \eqref{eq:curvgauge}: $\langle \shapekappa \rangle = 0$ fixes $\eta$,
+  $\mathrm{Var}(\shapekappa) = 1$ fixes $|\lambda|$, and the sign condition removes
+  $\lambda < 0$.
+\item \textbf{Traversal.} \new{Here the redundancy is the full four, because
   \emph{both} coefficients of \eqref{eq:travlin} are free per supernova. The four
   directions act linearly,
   \begin{equation*}
@@ -237,15 +261,9 @@ scale, so normalising them costs nothing.}
         & p_{1} \mapsto p_{1} + \rho\,p_{0}, & \xstretch \mapsto \xstretch - \rho\,x_p,
     \end{array}
   \end{equation*}
-  and are removed by four conditions on the population,
-  \begin{equation}
-    \langle \xstretch \rangle = 1, \qquad \langle x_p \rangle = 0, \qquad
-    \mathrm{Var}(x_p) = 1, \qquad \mathrm{Cov}(\xstretch,x_p) = 0,
-    \label{eq:travgauge}
-  \end{equation}
-  each fixing exactly one of $\nu, \eta, \lambda, \rho$, the last by
-  $\rho = \mathrm{Cov}(\xstretch,x_p)/\mathrm{Var}(x_p)$. The first two make the fiducial
-  traversal of Section~\ref{sec:pars} the population mean. In the singular limit
+  and are removed by \eqref{eq:travgauge}, whose four conditions fix exactly one each of
+  $\nu, \eta, \lambda, \rho$, the last by
+  $\rho = \mathrm{Cov}(\xstretch,x_p)/\mathrm{Var}(x_p)$. In the singular limit
   $p_{1} \propto p_{0}$ the family collapses to one dimension and no convention helps.
 
   The last condition carries a choice. $\mathrm{Cov}(\xstretch,x_p) = 0$ decorrelates the
