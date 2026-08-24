@@ -4,7 +4,13 @@
 \usepackage{booktabs}
 \usepackage{natbib}
 \usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
 \input{macros}
+
+% Temporary review markup: \new{...} colours text added or changed in the current
+% revision. Remove the wrapper (or redefine \new as identity) once reviewed.
+% (a colour switch inside a group, not \textcolor, so it may span paragraphs)
+\newcommand{\new}[1]{{\color{blue}#1}}
 
 \title{A Differential-Geometric Model for \\ Type Ia Supernova Multi-Band Light Curves}
 \date{\today}
@@ -149,6 +155,19 @@ To go beyond traditional light-curve models, we explore two new per-supernova pa
 $p(\arc; \xstretch, x_p) = \xstretch\bigl(p_0(\arc) + x_p\,p_1(\arc)\bigr)$, where $p_0$
 and $p_1$ are functions obeying $p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$ at $g$
 maximum for every supernova. The fiducial traversal is $x_p = 0$, $\xstretch = 1$.
+\new{The same family is linear in the coefficients
+\begin{equation}
+  (a, b) = (\xstretch,\ \xstretch\,x_p),
+  \qquad
+  \phase(\arc) = a\,p_{0}(\arc) + b\,p_{1}(\arc),
+  \label{eq:travlin}
+\end{equation}
+with inverse $(\xstretch, x_p) = (a,\ b/a)$ and Jacobian
+$\partial(\xstretch,x_p)/\partial(a,b) = 1/a$; monotonicity requires $a > 0$. Both
+coordinates are used. Fitting uses $(a,b)$, in which the traversal is linear and the
+redundancies of Section~\ref{sec:degeneracies} act linearly;
+interpretation and the population model use $(\xstretch, x_p)$, $\xstretch$ being the
+classical stretch and $x_p$ a deviation from the fiducial.}
 \item $\shapekappa$: First-order deviations in curvature, with
 $\curv(s; \shapekappa) = \curv_{0}(s) + \shapekappa\,\curv_{1}(s)$, where  $\curv_0(s)$ and $\curv_1(s)$ are functions.
 \end{itemize}
@@ -171,18 +190,37 @@ open are flat directions in the model as specified above.
   leaves $\curv$ unchanged for every supernova. Fixed by normalising the population,
   $\langle \shapekappa \rangle = 0$ and $\mathrm{Var}(\shapekappa) = 1$, with a sign
   convention to remove $\lambda < 0$.
-\item \textbf{Basis of the traversal.} Here the redundancy is larger, because $\xstretch$
-  makes \emph{both} coefficients free: $\xstretch(p_{0} + x_p p_{1}) = a\,p_{0} + b\,p_{1}$
-  with $a = \xstretch$ and $b = \xstretch\,x_p$. The model therefore depends only on
-  $\mathrm{span}\{p_{0}, p_{1}\}$, not on the basis, and a change of basis in
-  $\mathrm{GL}(2,\Real)$ is absorbed. Declaring the fiducial traversal to be $x_p = 0$,
-  $\xstretch = 1$ removes $p_{0} \mapsto p_{0} + a\,p_{1}$ and $p_{0} \mapsto \nu p_{0}$.
-  Two directions survive it: $p_{1} \mapsto \lambda p_{1}$, absorbed by
-  $x_p \mapsto x_p/\lambda$ and fixed by $\mathrm{Var}(x_p) = 1$; and
-  $p_{1} \mapsto p_{1} + \rho\,p_{0}$, absorbed exactly by
-  $\xstretch \mapsto \xstretch(1 + \rho x_p)$ and $x_p \mapsto x_p/(1 + \rho x_p)$, which
-  is removed only by requiring $p_{1}$ to carry no component along $p_{0}$. In the singular
-  limit $p_{1} \propto p_{0}$ the two parameters coincide outright.
+\item \textbf{Basis of the traversal.} \new{Here the redundancy is larger, because
+  $\xstretch$ makes \emph{both} coefficients of \eqref{eq:travlin} free. The model then
+  depends only on $\mathrm{span}\{p_{0}, p_{1}\}$ and not on the basis, so the whole of
+  $\mathrm{GL}(2,\Real)$ is absorbed. In these coordinates the four directions act
+  linearly,
+  \begin{equation*}
+    \begin{array}{ll@{\qquad}ll}
+      p_{0} \mapsto \nu\,p_{0}, & a \mapsto a/\nu,
+        & p_{1} \mapsto \lambda\,p_{1}, & b \mapsto b/\lambda,\\[2pt]
+      p_{0} \mapsto p_{0} + \sigma\,p_{1}, & b \mapsto b - \sigma a,
+        & p_{1} \mapsto p_{1} + \rho\,p_{0}, & a \mapsto a - \rho\,b,
+    \end{array}
+  \end{equation*}
+  and are removed by four conditions on the population,
+  \begin{equation}
+    \langle a \rangle = 1, \qquad \langle b \rangle = 0, \qquad
+    \mathrm{Var}(b) = 1, \qquad \mathrm{Cov}(a,b) = 0,
+    \label{eq:travgauge}
+  \end{equation}
+  each fixing exactly one of $\nu, \sigma, \lambda, \rho$, the last by
+  $\rho = \mathrm{Cov}(a,b)/\mathrm{Var}(b)$. The first two make the fiducial traversal of
+  Section~\ref{sec:pars} the population mean. In the singular limit $p_{1} \propto p_{0}$
+  the family collapses to one dimension and no convention helps.
+
+  The last condition carries a choice. $\mathrm{Cov}(a,b) = 0$ decorrelates the fitted
+  coefficients \emph{across the sample}, which is what makes $x_p$ interpretable as timing
+  variation not already carried by stretch. It is not the same as requiring $p_{1}$ to be
+  orthogonal to $p_{0}$ under the Fisher weight, which would instead decorrelate the
+  \emph{estimates} of $a$ and $b$ within one supernova. The two fix $\rho$ to different
+  values and cannot both hold; the latter is a matter of conditioning, to be handled by the
+  basis used for fitting rather than by the gauge.}
 \end{itemize}
 
 \paragraph{Closed.} Recorded because the redundancy is what makes each convention free,
