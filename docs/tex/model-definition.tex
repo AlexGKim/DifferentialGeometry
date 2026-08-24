@@ -141,9 +141,7 @@ whose focus is on supernova standardization.
 An alternative and equally valid parameterization retains $\colr$ but replaces the fixed
 $\dustunit$ with a vector $\mathbf{R}$ drawn from an extinction law, shifting light curves
 by $(\colr\,R_{g}, \colr\,R_{r})$, notation that asserts correspondence with dust. This is
-the approach of \citet{Mandel2022}, whose focus is on cosmology: the shape of $\mathbf{R}$
-is not adopted but fitted globally, through a host dust law with
-$R_{V} = 2.9 \pm 0.2$, alongside per-supernova dust amplitudes and intrinsic components.
+the approach of \citet{Mandel2022}, whose focus is on cosmology.
 
 The benefit of our light-curve shape model is apparent: $\dm\,\mathbf{1}$ and
 $\colr\,\dustunit$ are translations and $\xstretch$ is a reparameterisation, so the
@@ -152,24 +150,23 @@ curvature is independent of all three.
 To go beyond traditional light-curve models, we explore two new per-supernova parameters,
 \begin{itemize}
 \item $x_p$: Variation in time evolution beyond that described by $s$, with
-$p(\arc; \xstretch, x_p) = \xstretch\bigl(p_0(\arc) + x_p\,p_1(\arc)\bigr)$, where $p_0$
-and $p_1$ are functions obeying $p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$ at $g$
-maximum for every supernova. The fiducial traversal is $x_p = 0$, $\xstretch = 1$.
-\new{The same family is linear in the coefficients
 \begin{equation}
-  (a, b) = (\xstretch,\ \xstretch\,x_p),
-  \qquad
-  \phase(\arc) = a\,p_{0}(\arc) + b\,p_{1}(\arc),
+  \phase(\arc; \xstretch, x_p) = \xstretch\,p_{0}(\arc) + x_p\,p_{1}(\arc),
   \label{eq:travlin}
 \end{equation}
-with inverse $(\xstretch, x_p) = (a,\ b/a)$ and Jacobian
-$\partial(\xstretch,x_p)/\partial(a,b) = 1/a$; monotonicity requires $a > 0$. Both
-coordinates are used. Fitting uses $(a,b)$, in which the traversal is linear and the
-redundancies of Section~\ref{sec:degeneracies} act linearly;
-interpretation and the population model use $(\xstretch, x_p)$, $\xstretch$ being the
-classical stretch and $x_p$ a deviation from the fiducial.}
-\item $\shapekappa$: First-order deviations in curvature, with
-$\curv(s; \shapekappa) = \curv_{0}(s) + \shapekappa\,\curv_{1}(s)$, where  $\curv_0(s)$ and $\curv_1(s)$ are functions.
+where $p_0$ and $p_1$ are functions obeying $p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$
+at $g$ maximum for every supernova, and $\xstretch > 0$ for monotonicity. The fiducial
+traversal is $x_p = 0$, $\xstretch = 1$. The traversal is linear in $(\xstretch, x_p)$,
+which is what the fitting uses.
+
+\new{Writing it this way rather than as $\xstretch(p_{0} + x_p p_{1})$ changes what
+$\xstretch$ means, and the change is worth stating. Along $x_p = 0$ the traversal is
+$\xstretch\,p_{0}$, the dilation $\phase \rightarrow \xstretch\,\phase$ of the fiducial,
+so $\xstretch$ is the classical stretch \emph{there and only there}. Away from that line
+$\xstretch$ scales the $p_{0}$ component alone, and is the coefficient of the fiducial
+traversal rather than the factor by which a supernova's clock runs fast. What is bought is
+linearity: the model is linear in both per-supernova parameters, and the conditions of
+Section~\ref{sec:degeneracies} can be imposed on them directly.}
 \end{itemize}
 
 \subsection{Degeneracies}
@@ -182,45 +179,45 @@ open are flat directions in the model as specified above.
 
 \paragraph{Open.}
 \begin{itemize}
-\item \textbf{Basis of the curvature expansion.} For any $a$ and $\lambda \neq 0$,
+\item \textbf{Basis of the curvature expansion.} For any $\eta$ and $\lambda \neq 0$,
   \begin{equation*}
     \bigl(\curv_{0},\ \curv_{1},\ \shapekappa\bigr) \longmapsto
-    \bigl(\curv_{0} + a\,\curv_{1},\ \lambda\,\curv_{1},\ (\shapekappa - a)/\lambda\bigr)
+    \bigl(\curv_{0} + \eta\,\curv_{1},\ \lambda\,\curv_{1},\
+          (\shapekappa - \eta)/\lambda\bigr)
   \end{equation*}
   leaves $\curv$ unchanged for every supernova. Fixed by normalising the population,
   $\langle \shapekappa \rangle = 0$ and $\mathrm{Var}(\shapekappa) = 1$, with a sign
   convention to remove $\lambda < 0$.
 \item \textbf{Basis of the traversal.} \new{Here the redundancy is larger, because
-  $\xstretch$ makes \emph{both} coefficients of \eqref{eq:travlin} free. The model then
+  \emph{both} coefficients of \eqref{eq:travlin} are free per supernova. The model then
   depends only on $\mathrm{span}\{p_{0}, p_{1}\}$ and not on the basis, so the whole of
-  $\mathrm{GL}(2,\Real)$ is absorbed. In these coordinates the four directions act
-  linearly,
+  $\mathrm{GL}(2,\Real)$ is absorbed. The four directions act linearly,
   \begin{equation*}
     \begin{array}{ll@{\qquad}ll}
-      p_{0} \mapsto \nu\,p_{0}, & a \mapsto a/\nu,
-        & p_{1} \mapsto \lambda\,p_{1}, & b \mapsto b/\lambda,\\[2pt]
-      p_{0} \mapsto p_{0} + \sigma\,p_{1}, & b \mapsto b - \sigma a,
-        & p_{1} \mapsto p_{1} + \rho\,p_{0}, & a \mapsto a - \rho\,b,
+      p_{0} \mapsto \nu\,p_{0}, & \xstretch \mapsto \xstretch/\nu,
+        & p_{1} \mapsto \lambda\,p_{1}, & x_p \mapsto x_p/\lambda,\\[2pt]
+      p_{0} \mapsto p_{0} + \eta\,p_{1}, & x_p \mapsto x_p - \eta\,\xstretch,
+        & p_{1} \mapsto p_{1} + \rho\,p_{0}, & \xstretch \mapsto \xstretch - \rho\,x_p,
     \end{array}
   \end{equation*}
   and are removed by four conditions on the population,
   \begin{equation}
-    \langle a \rangle = 1, \qquad \langle b \rangle = 0, \qquad
-    \mathrm{Var}(b) = 1, \qquad \mathrm{Cov}(a,b) = 0,
+    \langle \xstretch \rangle = 1, \qquad \langle x_p \rangle = 0, \qquad
+    \mathrm{Var}(x_p) = 1, \qquad \mathrm{Cov}(\xstretch,x_p) = 0,
     \label{eq:travgauge}
   \end{equation}
-  each fixing exactly one of $\nu, \sigma, \lambda, \rho$, the last by
-  $\rho = \mathrm{Cov}(a,b)/\mathrm{Var}(b)$. The first two make the fiducial traversal of
-  Section~\ref{sec:pars} the population mean. In the singular limit $p_{1} \propto p_{0}$
-  the family collapses to one dimension and no convention helps.
+  each fixing exactly one of $\nu, \eta, \lambda, \rho$, the last by
+  $\rho = \mathrm{Cov}(\xstretch,x_p)/\mathrm{Var}(x_p)$. The first two make the fiducial
+  traversal of Section~\ref{sec:pars} the population mean. In the singular limit
+  $p_{1} \propto p_{0}$ the family collapses to one dimension and no convention helps.
 
-  The last condition carries a choice. $\mathrm{Cov}(a,b) = 0$ decorrelates the fitted
-  coefficients \emph{across the sample}, which is what makes $x_p$ interpretable as timing
-  variation not already carried by stretch. It is not the same as requiring $p_{1}$ to be
-  orthogonal to $p_{0}$ under the Fisher weight, which would instead decorrelate the
-  \emph{estimates} of $a$ and $b$ within one supernova. The two fix $\rho$ to different
-  values and cannot both hold; the latter is a matter of conditioning, to be handled by the
-  basis used for fitting rather than by the gauge.}
+  The last condition carries a choice. $\mathrm{Cov}(\xstretch,x_p) = 0$ decorrelates the
+  fitted coefficients \emph{across the sample}, which is what makes $x_p$ interpretable as
+  timing variation not already carried by stretch. It is not the same as requiring $p_{1}$
+  to be orthogonal to $p_{0}$ under the Fisher weight, which would instead decorrelate the
+  \emph{estimates} of $\xstretch$ and $x_p$ within one supernova. The two fix $\rho$ to
+  different values and cannot both hold; the latter is a matter of conditioning, to be
+  handled by the basis used for fitting rather than by the gauge.}
 \end{itemize}
 
 \paragraph{Closed.} Recorded because the redundancy is what makes each convention free,
