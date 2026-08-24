@@ -167,6 +167,9 @@ $\xstretch$ scales the $p_{0}$ component alone, and is the coefficient of the fi
 traversal rather than the factor by which a supernova's clock runs fast. What is bought is
 linearity: the model is linear in both per-supernova parameters, and the conditions of
 Section~\ref{sec:degeneracies} can be imposed on them directly.}
+\item \new{$\shapekappa$: First-order deviations in curvature, with
+$\curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc)$, where
+$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions.}
 \end{itemize}
 
 \subsection{Degeneracies}
@@ -177,21 +180,55 @@ each, a change in one quantity is undone by a compensating change in others, so 
 determine it and none may be fitted: each is removed by declaring a convention. Those still
 open are flat directions in the model as specified above.
 
-\paragraph{Open.}
+\paragraph{Basis of a linear expansion.} \new{The model contains three rank-two linear
+expansions in global functions with per-supernova coefficients. In each it sees only the
+span and never the basis, so a change of basis is undone by a compensating change of
+coefficients. An expansion of rank $n$ with $k$ coefficients pinned carries $n^{2} - kn$
+flat directions: with nothing pinned the whole of $\mathrm{GL}(n,\Real)$ is absorbed, and
+pinning a coefficient forbids the $n$ transformations that would change it.
+
+\begin{center}
+\begin{tabular}{llccl}
+\toprule
+Expansion & Basis & Coefficients & Flat directions & Status \\
+\midrule
+Placement & $\{\mathbf{1}, \dustunit\}$ & $(\dm, \colr)$ & 4 & closed \\
+Traversal \eqref{eq:travlin} & $\{p_{0}, p_{1}\}$ & $(\xstretch, x_p)$ & 4 & open \\
+Curvature & $\{\curv_{0}, \curv_{1}\}$ & $(1, \shapekappa)$ & 2 & open \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The $n^{2} - kn$ conditions are supplied in one of two ways, and which is available is
+forced rather than chosen. The basis may be \emph{declared outright}, possible only when
+its elements are known a priori; otherwise the \emph{population of coefficients} is
+normalised, which is the only route when the basis functions are learned. Placement takes
+the first route and cannot take the second, because $\langle \dm \rangle$ is not free to
+normalise --- it carries the cosmology. Stretch and curvature deviation have no absolute
+scale, so normalising them costs nothing.}
+
 \begin{itemize}
-\item \textbf{Basis of the curvature expansion.} For any $\eta$ and $\lambda \neq 0$,
+\item \textbf{Placement (closed).} Since $\mathbf{1}$ and $\dustunit$
+  span $\Rtwo$, replacing $\dustunit$ by $\alpha\mathbf{1} + \beta\dustunit$ is undone
+  exactly by $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$. Any direction not
+  parallel to $\mathbf{1}$ therefore gives the same model, and $\dustunit = (0,-1)$ is
+  declared rather than fitted. \new{Both basis vectors being declared is four conditions,
+  which is the whole redundancy.}
+\item \textbf{Curvature (open).} For any $\eta$ and $\lambda \neq 0$,
   \begin{equation*}
     \bigl(\curv_{0},\ \curv_{1},\ \shapekappa\bigr) \longmapsto
     \bigl(\curv_{0} + \eta\,\curv_{1},\ \lambda\,\curv_{1},\
           (\shapekappa - \eta)/\lambda\bigr)
   \end{equation*}
-  leaves $\curv$ unchanged for every supernova. Fixed by normalising the population,
+  leaves $\curv$ unchanged for every supernova. \new{Only these two directions arise,
+  because the coefficient of $\curv_{0}$ is pinned at unity: rescaling $\curv_{0}$, or
+  adding $\curv_{0}$ to $\curv_{1}$, would move it off unity and so is not available.}
+  Fixed by normalising the population,
   $\langle \shapekappa \rangle = 0$ and $\mathrm{Var}(\shapekappa) = 1$, with a sign
   convention to remove $\lambda < 0$.
-\item \textbf{Basis of the traversal.} \new{Here the redundancy is larger, because
-  \emph{both} coefficients of \eqref{eq:travlin} are free per supernova. The model then
-  depends only on $\mathrm{span}\{p_{0}, p_{1}\}$ and not on the basis, so the whole of
-  $\mathrm{GL}(2,\Real)$ is absorbed. The four directions act linearly,
+\item \textbf{Traversal (open).} \new{Here the redundancy is the full four, because
+  \emph{both} coefficients of \eqref{eq:travlin} are free per supernova. The four
+  directions act linearly,
   \begin{equation*}
     \begin{array}{ll@{\qquad}ll}
       p_{0} \mapsto \nu\,p_{0}, & \xstretch \mapsto \xstretch/\nu,
@@ -220,15 +257,11 @@ open are flat directions in the model as specified above.
   handled by the basis used for fitting rather than by the gauge.}
 \end{itemize}
 
-\paragraph{Closed.} Recorded because the redundancy is what makes each convention free,
-and because a convention mistaken for a measurement is the error these entries exist to
-prevent.
+\paragraph{Anchoring.} \new{Not basis redundancies: these concern where the parameters
+$\arc$ and $\phase$ are pinned. Both are closed, recorded because the redundancy is what
+makes each convention free, and because a convention mistaken for a measurement is the
+error these entries exist to prevent.}
 \begin{itemize}
-\item \textbf{Reddening direction against placement.} Since $\mathbf{1}$ and $\dustunit$
-  span $\Rtwo$, replacing $\dustunit$ by $\alpha\mathbf{1} + \beta\dustunit$ is undone
-  exactly by $(\dm, \colr) \mapsto (\dm + \alpha\colr,\ \beta\colr)$. Any direction not
-  parallel to $\mathbf{1}$ therefore gives the same model, and $\dustunit = (0,-1)$ is
-  declared rather than fitted.
 \item \textbf{Arclength origin against frame orientation.} Integrating $\curv(\cdot + a)$
   from $\psi_{0} + \int_{0}^{a}\curv$ reproduces the same curve, so origin and orientation
   carry one joint redundancy. Fixing $\psi_{0} = -\pi/2$ removes it: a shift now requires
@@ -236,7 +269,10 @@ prevent.
   $\psi(0) = -\pi/2$ forces $\Magg'(0) = 0$.
 \item \textbf{Phase origin against the traversal.} A per-supernova shift in $\phase$ would
   be absorbed by the traversal were $p(0)$ free, leaving any fitted epoch of maximum
-  undetermined. The condition $p_{0}(0) = p_{1}(0) = 0$ removes it.
+  undetermined. The condition $p_{0}(0) = p_{1}(0) = 0$ removes it. \new{Equivalently, it
+  keeps the constant function out of $\mathrm{span}\{p_{0}, p_{1}\}$: were the constant
+  admitted, its coefficient would be exactly such a shift. This is a statement about the
+  \emph{dimension} of the span, not about a basis within it.}
 \end{itemize}
 
 \section{Global functions}
