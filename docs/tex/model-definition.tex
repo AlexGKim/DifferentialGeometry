@@ -4,13 +4,7 @@
 \usepackage{booktabs}
 \usepackage{natbib}
 \usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
 \input{macros}
-
-% Temporary review markup: \new{...} marks text added or changed in the current revision.
-% Currently the identity, so \new prints in the body color; restore
-% {{\color{blue}#1}} to highlight a fresh round of revisions.
-\newcommand{\new}[1]{#1}
 
 \title{A Differential-Geometric Model for \\ Type Ia Supernova Multi-Band Light Curves}
 \date{\today}
@@ -49,11 +43,11 @@ are removed by convention, how far the two can be told apart is an empirical que
 
 
 We work in magnitude space, with the Euclidean metric
-$\mathrm{diag}(1,1)$. Both are choices, argued in Section~\ref{sec:magspace}: the
-space because distance and dust (to first order) act there as translations, to which curvature
-is blind; the metric because none is physically preferred, so one must be declared.
-The likelihood, by contrast, is evaluated in native flux
-(Section~\ref{sec:likelihood}).
+$\mathrm{diag}(1,1)$. Both are choices, argued at length in
+\texttt{docs/model-note-backlog.md}: the space because distance and dust (to first order)
+act there as translations, to which curvature is blind; the metric because none is
+physically preferred, so one must be declared. The likelihood, by contrast, is evaluated
+in native flux (Section~\ref{sec:samples}).
 
 The primary configuration is \ztf\ $g$ and $r$ \citep{Bellm2019}, where $n=2$ and
 $\curve = (\Magg, \Magr)$, so focus on $n=2$.
@@ -120,7 +114,21 @@ We choose $\curve_{0} = (0,0)$ and $\psi_{0} = -\pi/2$, which at $\arc = 0$ give
 $\Magg' = 0$ and a decreasing $\Magr$. The choice of $\psi_{0}$ is born of our knowledge
 that $g$-band light curves have only one critical point (which corresponds to peak
 brightness) and that the $r$-band light curve is brightening at the $g$-band peak.
-Setting the template $g$ magnitude and color to zero at maximum makes $\dm$ the peak
+That knowledge is an assumption on $\curv$, and it is worth making explicit. Since
+$\Magg' = \cos\psi$, the critical points of $\Magg$ are exactly the arclengths at which
+$\Psi(\arc) \equiv \int_{0}^{\arc}\curv \in \pi\mathbb{Z}$, and $\arc = 0$ is one of them
+for every supernova whatever its curvature. Two further conditions make it the right one
+and the only one. It is peak brightness rather than a local dimming because
+$\Magg''(0) = -\sin\psi_{0}\,\curv(0) = \curv(0)$, so a minimum of magnitude requires
+\begin{equation}
+  \curv(0) > 0 ,
+  \label{eq:peakcond}
+\end{equation}
+and it is the sole critical point provided $\Psi \notin \pi\mathbb{Z}$ elsewhere on the
+interval, for which $|\Psi| < \pi$ away from $\arc = 0$ suffices. The same condition keeps
+$\norm{\dd\curve/\dd\phase}$ from vanishing, so the footnote above and the choice of
+$\psi_{0}$ rest on one assumption, not two.
+Setting the template $g$ magnitude and color to zero at maximum makes $\peakmag$ the peak
 $g$ magnitude and $\colr$ the color at peak, following \salt's practice of
 normalizing at maximum --- there in $B$, here in $g$.
 
@@ -133,12 +141,14 @@ We seek to construct a light curve model that captures the diversity of SN~Ia
 behavior.
 Parameters considered in traditional models include
 \begin{itemize}
-\item $\dm$: A wavelength-independent flux normalization, for example due to
-  distance.  This contributes a term $\dm\,\mathbf{1}$ added to $\curve$.
+\item $\peakmag$: The apparent peak $g$ magnitude, contributing a term
+  $\peakmag\,\mathbf{1}$ added to $\curve$. It is achromatic, and absorbs the absolute
+  peak magnitude, the distance modulus and any grey offset together; separating them is
+  the downstream standardization, so the distance modulus $\dm$ is never fitted here.
 \item $\colr$: A phase-independent shift in color.  This contributes a term
   $ \colr\,\dustunit$ added to $\curve$, with $\dustunit = (0,-1)$, so that $\colr$ is the
   shift in $\Magg - \Magr$. Since $\mathbf{1}$ and $\dustunit$ span $\Rtwo$, the placement
-  $\dm\,\mathbf{1} + \colr\,\dustunit$ is an arbitrary translation and this basis is
+  $\peakmag\,\mathbf{1} + \colr\,\dustunit$ is an arbitrary translation and this basis is
   declared, not measured: a different choice would only change what $\colr$ counts.
 \item $\xstretch$: A wavelength-independent dilation of the light curve, corresponding
   to `stretch': a supernova with $\xstretch > 1$ evolves more slowly, reaching each point
@@ -146,7 +156,7 @@ Parameters considered in traditional models include
   \end{itemize}
 
 The motivation for describing light-curve shapes this way is apparent: in this
-parameterization the curvature is unchanged. The terms $\dm\,\mathbf{1}$ and
+parameterization the curvature is unchanged. The terms $\peakmag\,\mathbf{1}$ and
 $\colr\,\dustunit$ translate the curve, and $\xstretch$ only alters the rate of travel
 along it.
 
@@ -204,7 +214,23 @@ accumulated deviation over the whole arc rather than a local value.
 \curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc),
 \end{equation}
  where
-$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions.
+$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions. By \eqref{eq:peakcond} the
+coefficient is bounded below, $\curv_{0}(0) + \shapekappa\,\curv_{1}(0) > 0$, a constraint
+on $\shapekappa$ of the same kind as \eqref{eq:wedge} is on $(\xstretch, x_p)$.
+
+The expansion is linear in $\curv$ but not in magnitudes. Writing
+$K_{1}(\arc) = \int_{0}^{\arc}\curv_{1}$, the turning is linear, $\psi = \psi_{0} +
+\int_{0}^{\arc}\curv_{0} + \shapekappa K_{1}$, but the curve reaches it through
+\eqref{eq:quadrature}, and to first order is displaced by
+\begin{equation}
+  \delta\curve(\arc) = \shapekappa \int_{0}^{\arc} K_{1}(\zeta)\,\norml(\zeta)\,\dd\zeta ,
+  \label{eq:kappadisp}
+\end{equation}
+a double integral of $\curv_{1}$ carried along the normal. The displacement therefore
+accumulates with arclength: a value of $\shapekappa$ negligible near maximum need not be
+negligible at the end of the window, and the linearization holds only while
+$\abs{\shapekappa K_{1}} \ll 1$. A prior on $\shapekappa$ is a prior on turning, not on
+displacement in magnitude space.
 
 The degeneracy in the choice of basis is broken by
 \begin{equation}
@@ -222,10 +248,10 @@ at odds with the separation the model asserts.
 \end{itemize}
 
 The model for a supernova light curve, parameterized
-by $\allpars = (\dm,\, \colr,\, \xstretch,\, x_p,\, \shapekappa,\, \tmax)$, is then
+by $\allpars = (\peakmag,\, \colr,\, \xstretch,\, x_p,\, \shapekappa,\, \tmax)$, is then
 \begin{align}
   \begin{pmatrix} \magg \\ \magr \end{pmatrix}\!(\arc \mid \allpars)
-    &= \curve\bigl(\arc;\, \shapekappa\bigr) \;+\; \dm\,\mathbf{1} \;+\; \colr\,\dustunit,
+    &= \curve\bigl(\arc;\, \shapekappa\bigr) \;+\; \peakmag\,\mathbf{1} \;+\; \colr\,\dustunit,
     \label{eq:modelmag}\\
   t(\arc \mid \allpars)
     &= \tmax + (1+\zred)\,\bigl[\xstretch\,p_{0}(\arc) + x_p\,p_{1}(\arc)\bigr],
@@ -271,7 +297,11 @@ leaving 652 supernovae. Fourteen of these have no light-curve file in the releas
 are exactly the fourteen whose \salt\ $t_{0}$ is NaN, so the absence is of photometry
 rather than of shape, and 638 objects remain with light curves. Epochs are counted per
 band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
-none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default.
+none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. The
+signal-to-noise requirement defines the sample and nothing more: every epoch in the window
+enters the likelihood, non-detections and negative fluxes included. The likelihood is
+Gaussian in native flux, so a low-signal epoch weights itself down correctly, whereas
+discarding one would select on the noise realization of the very quantity being fitted.
 
 The analysis uses the 598 supernovae with at least five good epochs in \emph{each} of $g$
 and $r$; the count is 635 at three or more and 464 at ten or more. The $i$ band is not
@@ -287,22 +317,21 @@ transformed, initialized, or K-corrected by it, and the fitted $\tmax$ remains f
 independent. It is nonetheless an exception to the rule that \salt\ stays strictly
 downstream, and is recorded here rather than left implicit. The check that settles it is
 to recount using an SED-free anchor, for instance a window placed on the brightest good
-$g$ epoch, and confirm the sample sizes move negligibly. The 36 objects with NaN
-$t_{0}$ must in any case be selected by such an estimator or excluded explicitly.
+$g$ epoch, and confirm that the two samples agree in \emph{membership}: equal counts can
+hide different objects, so the symmetric difference is the quantity to report. The
+fourteen selected objects with NaN $t_{0}$ need no such estimator, having no photometry
+to place a window on.
 
 \paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
 \texttt{mwebv}, so its \emph{amplitude} is known and is removed deterministically
-before fitting rather than being fitted. Only host-galaxy reddening remains a free
-quantity, and only in rung L2c. Note that what is known is $E(B-V)$, not
-$A_{g}(\phase)$ and $A_{r}(\phase)$; by Section~\ref{sec:phasedust} the conversion is
+before fitting rather than being fitted. What remains free is $\colr$, which absorbs
+host reddening and intrinsic color together and does not separate them. Note that what is
+known is $E(B-V)$, not $A_{g}(\phase)$ and $A_{r}(\phase)$; the conversion is
 phase-dependent and needs an SED, so removing a constant offset is an approximation
 here as well. It is not uniformly mild: the sample has median \texttt{mwebv} of $0.043$,
 but $24\%$ of it exceeds $0.1$, $12\%$ exceeds $0.2$ and the largest is $1.06$, with a
 fifth of the objects at Galactic latitude $|b| < 20^{\circ}$. No latitude or reddening cut
 is imposed, so the approximation is worst for precisely the objects where it matters most.
-
-
-\section{Extra}
 
 
 \bibliographystyle{plainnat}
