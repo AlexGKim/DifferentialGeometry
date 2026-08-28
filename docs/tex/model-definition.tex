@@ -6,6 +6,9 @@
 \usepackage[hidelinks]{hyperref}
 \input{macros}
 
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+
 \title{A Differential-Geometric Model for \\ Type Ia Supernova Multi-Band Light Curves}
 \date{\today}
 
@@ -275,11 +278,61 @@ jointly with the per-supernova parameters. Each carries an explicit amplitude, f
 $p_{1} = a_{1}\,\NN_{p_{1}}(\arc)$, so that the gauge conditions act on a few scalars
 rather than on network weights.
 
-Those conditions are moments of the fitted coefficients and so cannot hold a priori. Each
-is an exact symmetry of the likelihood, so imposing one changes no predicted light curve:
-after each optimization step the latent array is rescaled and the amplitudes compensated,
-and the sign conditions are a comparison and a flip. Gauge fixing is therefore a choice of
-representative, not a constraint the fit must trade against.
+The traversal networks emit \emph{derivatives}, integrated on the arclength grid,
+\begin{equation}
+  p_{0}'(\arc) = \mathrm{softplus}\,\NN_{p_{0}}(\arc), \qquad
+  p_{1}'(\arc) = a_{1}\,\NN_{p_{1}}(\arc), \qquad
+  p_{k}(\arc) = \int_{0}^{\arc} p_{k}'(\zeta)\,\dd\zeta .
+  \label{eq:travnet}
+\end{equation}
+The anchors $p_{0}(0) = p_{1}(0) = 0$ and the positivity of $p_{0}'$ assumed in
+\eqref{eq:wedge} then hold identically rather than as conditions to be imposed. Applying
+the same device to $\dd\phase/\dd\arc$ itself would guarantee monotonicity outright, but at
+the cost of the linearity in $(\xstretch, x_p)$ on which \eqref{eq:travlin} rests, so the
+wedge is kept as a constraint instead.
+
+What remains divides in two, and the division is what makes it tractable. The gauge
+conditions \eqref{eq:travgauge} and \eqref{eq:curvgauge} are moments of the fitted
+coefficients and cannot hold a priori, but each is an \emph{exact symmetry} of the
+likelihood: imposing one changes no predicted light curve. They are therefore fixed by
+projection after each optimization step, never by a penalty, which would trade against the
+fit for nothing. For the traversal the projection is closed-form --- writing
+$m = \langle u \rangle$ and $S = \mathrm{Cov}(u)$ for $u = (\xstretch, x_p)$, the matrix
+$A \in \mathrm{GL}(2,\Real)$ carrying $u \mapsto Au$ into gauge satisfies $(Am)_{1} = 1$,
+$(Am)_{2} = 0$, $(ASA^{\top})_{22} = 1$ and $(ASA^{\top})_{12} = 0$, four equations in four
+unknowns, with the basis amplitudes taking $A^{-1}$. Its second row is
+$t\,(-m_{2}, m_{1})$ with $t$ set by the variance condition and its sign by
+$p_{1}(\arclen) > 0$; the first row then solves a $2 \times 2$ system. The curvature case
+is a shift and a scale. Gauge fixing is a choice of representative, not something the fit
+must trade against.
+
+The wedge \eqref{eq:wedge} and the peak condition \eqref{eq:peakcond} are not symmetries:
+they restrict the model, and projecting onto them changes the likelihood, as projected
+gradient descent should. Each is a small set of linear inequalities on one supernova's
+coefficients --- two half-planes for $(\xstretch, x_p)$, one half-line for $\shapekappa$
+--- so the projection is closed-form and costs nothing.
+
+The two projections do not interfere.
+
+\begin{proposition}
+Gauge fixing cannot move a supernova into or out of the region admitted by
+\eqref{eq:wedge} and \eqref{eq:peakcond}, and projection onto that region cannot break the
+gauge conditions.
+\end{proposition}
+
+\begin{proof}
+Both constraints are conditions on $\dd\phase/\dd\arc$ and on $\curv$, and both quantities
+are unchanged by a change of basis, since $\phase$ and $\curv$ are what the bases
+represent. The admissible region is therefore gauge-invariant, and projection onto it acts
+only within a gauge orbit.
+\end{proof}
+
+\noindent
+So the two are applied in either order, once per step, with no iteration between them.
+Whether either constraint is \emph{active} is worth recording: the wedge binds when a
+supernova's two traversal functions are near collinear, and \eqref{eq:peakcond} binds when
+the shape mode would invert the curvature at maximum. Either happening for more than a
+few objects is a statement about the parameterization, not a numerical nuisance.
 
 The model as it stands carries no intrinsic scatter: every departure of a supernova from
 the six-parameter family must be absorbed by photometric noise. This is a limitation
