@@ -1,6 +1,6 @@
 # Data — never committed. ZTF SN Ia DR2 is collaboration-restricted data;
 # the archive also carries its own .git with a remote to the private repo.
-data/
+/data/
 !data/.gitkeep
 
 # LaTeX build artifacts

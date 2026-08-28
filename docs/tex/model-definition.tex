@@ -77,6 +77,12 @@ strictly increasing and invertible, and the curve reparameterized as $\curve(\ar
 unit-speed, $\norm{\curve'(\arc)} = 1$.\footnote{The condition fails only where every band is
 simultaneously stationary, which is a non-issue as the epoch of light curve maximum is
 band-dependent.}
+The template is carried on a fixed arclength interval $\arc \in [\arc_{\min}, \arclen]$
+with $\arc_{\min} < 0 < \arclen$, declared once for the model rather than fitted and wide
+enough to cover the modelled phase range for every supernova. Every global function below
+is a function on this interval, and it is $\arclen$ that appears in the gauge conditions
+of Section~\ref{sec:pars}. What varies between supernovae is which phases these arclengths
+map to, not the interval itself.
 A unit-speed curve in $\Rtwo$ admits a Frenet frame,
  \begin{equation}
   \curve' = \tang, \qquad
@@ -87,7 +93,7 @@ with $\tang$ the unit \emph{tangent} and $\norml$ the \emph{normal}, the counter
 $90^{\circ}$ rotation of $\tang$; the \emph{curvature} $\curv$ is correspondingly signed.
 
 
-We now map out the inverse: how a curve, specified by curvature and two boundary conditions,
+We now map out the inverse: how a curve, specified by curvature and three initial conditions,
  and the traversal over that curve, specified by a function,
 define light curves.
 
@@ -134,8 +140,9 @@ Parameters considered in traditional models include
   shift in $\Magg - \Magr$. Since $\mathbf{1}$ and $\dustunit$ span $\Rtwo$, the placement
   $\dm\,\mathbf{1} + \colr\,\dustunit$ is an arbitrary translation and this basis is
   declared, not measured: a different choice would only change what $\colr$ counts.
-\item $\xstretch$: A wavelength-independent dilation in the light curve, which
-  corresponds to `stretch'.  This enters as $\phase \rightarrow \xstretch\,\phase$.
+\item $\xstretch$: A wavelength-independent dilation of the light curve, corresponding
+  to `stretch': a supernova with $\xstretch > 1$ evolves more slowly, reaching each point
+  of the template at $\xstretch$ times the mean phase.
   \end{itemize}
 
 The motivation for describing light-curve shapes this way is apparent: in this
@@ -151,12 +158,25 @@ To go beyond traditional light-curve models, we explore two new per-supernova pa
   \label{eq:travlin}
 \end{equation}
 where $p_0$ and $p_1$ are functions obeying $p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$
-at $g$ maximum for every supernova, and $\xstretch > 0$ for monotonicity. The traversal is
+at $g$ maximum for every supernova. The traversal must increase,
+\begin{equation}
+  \deriv{\phase}{\arc} = \xstretch\,p_{0}'(\arc) + x_p\,p_{1}'(\arc) > 0
+  \qquad \text{on } [\arc_{\min}, \arclen],
+  \label{eq:monotone}
+\end{equation}
+a joint condition on the coefficients and the basis rather than positivity of $\xstretch$
+alone. Taking $p_{0}' > 0$ and writing $R = p_{1}'/p_{0}'$, the left side is affine in $R$,
+so \eqref{eq:monotone} holds throughout iff it holds at the extremes of $R$:
+\begin{equation}
+  \xstretch + x_p R_{\min} > 0, \qquad \xstretch + x_p R_{\max} > 0 ,
+  \label{eq:wedge}
+\end{equation}
+a wedge in $(\xstretch, x_p)$ with apex at the origin. It implies $\xstretch > 0$ but is
+not implied by it. The traversal is
 linear in $(\xstretch, x_p)$, which is what the fitting uses. With two functions in play
 $\xstretch$ no longer corresponds exactly to the `stretch' of \citet{Perlmutter1997}: it
 recovers that classical dilation only when $x_p = 0$, and otherwise no single factor
-describes the traversal.  Note that the $x_s$ here
-no longer exactly  corresponds to  `strech' of xxx.
+describes the traversal.
 
 There are degenerate solutions to Eq.~\eqref{eq:travlin}. For example,
 $p_{0} \rightarrow \alpha\,p_{0} + \beta\,p_{1}$ together with
@@ -170,9 +190,14 @@ We break this degeneracy by normalizing the population,
   \mathrm{Var}(x_p) = 1, \qquad \mathrm{Cov}(\xstretch, x_p) = 0,
   \label{eq:travgauge}
 \end{equation}
-one condition for each: $\langle \xstretch \rangle = 1$ and $\mathrm{Var}(x_p) = 1$ set the
-scales of $p_{0}$ and $p_{1}$, while $\langle x_p \rangle = 0$ and
-$\mathrm{Cov}(\xstretch, x_p) = 0$ forbid adding either function to the other. 
+one for each parameter of the change of basis: $\langle \xstretch \rangle = 1$ and
+$\mathrm{Var}(x_p) = 1$ set the scales of $p_{0}$ and $p_{1}$, $\langle x_p \rangle = 0$
+forbids folding $p_{1}$ into $p_{0}$, and $\mathrm{Cov}(\xstretch, x_p) = 0$ forbids
+folding $p_{0}$ into $p_{1}$. All four are blind to the sign of $p_{1}$, being unchanged
+by $(p_{1}, x_p) \rightarrow (-p_{1}, -x_p)$, so a discrete ambiguity remains; we fix it
+by requiring $p_{1}(\arclen) > 0$, with $\arclen$ the arclength at the end of the modelled
+range, so that $x_p > 0$ lengthens the traversal. Anchored by $p_{1}(0) = 0$, this is the
+accumulated deviation over the whole arc rather than a local value.
 
 \item $\shapekappa$: First-order deviations in curvature, with
 \begin{equation}
@@ -184,11 +209,16 @@ $\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions.
 The degeneracy in the choice of basis is broken by
 \begin{equation}
   \langle \shapekappa \rangle = 0, \qquad \mathrm{Var}(\shapekappa) = 1,
-  \qquad \mathrm{Cov}(\xstretch, \shapekappa) > 0 ,
+  \qquad \int_{0}^{\arclen}\curv_{1}(\arc)\,\dd\arc > 0 ,
   \label{eq:curvgauge}
 \end{equation}
-the first making $\curv_{0}$ the mean curvature, the second fixing the scale of
-$\curv_{1}$, and the third specifying the sign.
+the first making $\curv_{0}$ the mean curvature and the second fixing the scale of
+$\curv_{1}$. As in \eqref{eq:travgauge} these leave a sign free, removed by the third:
+by \eqref{eq:turning} the integral is the net extra turning contributed by $\curv_{1}$,
+so $\shapekappa > 0$ means the track turns further. Both bases are thus fixed by
+conditions internal to the functions themselves, never by a correlation between a shape
+and a timing parameter, which would be both degenerate for an uncorrelated population and
+at odds with the separation the model asserts.
 \end{itemize}
 
 The model for a supernova light curve, parameterized
@@ -204,53 +234,53 @@ by $\allpars = (\dm,\, \colr,\, \xstretch,\, x_p,\, \shapekappa,\, \tmax)$, is t
 where $\curve(\arc; \shapekappa)$ is the curve generated from $\curv(\arc; \shapekappa)$ by
 the quadratures \eqref{eq:turning}--\eqref{eq:quadrature}. Equations \eqref{eq:modelmag} and \eqref{eq:modeltime} are the light curve in
 parametric form: $\arc$ sweeps the template, \eqref{eq:modeltime} places each of its points
-in observer time and \eqref{eq:modelmag} gives the magnitudes there, so the inverse
-$\arc(\phase)$ is never needed. The redshift $\zred$ is known rather than fitted, and
+in observer time and \eqref{eq:modelmag} gives the magnitudes there. The
+reparameterization $\arc(\phase)$ therefore never has to be constructed in closed form;
+evaluating the model at the observed epochs requires only a monotone interpolation of
+\eqref{eq:modeltime}, which \eqref{eq:wedge} guarantees. The redshift $\zred$ is known rather than fitted, and
 $\phase$ is rest-frame throughout.
 
 \subsection{Modelling functions}
 \label{sec:traversal}
 
-The model contains several functions that need to be fit: $\kappa_0(s)$, $\kappa_1(s)$, 
- $p_0(s)$, $p_1(s)$, 
- These functions are fit using neural networks.
+The curvature basis $\curv_{0}, \curv_{1}$ and the traversal basis $p_{0}, p_{1}$ are
+global functions on $[\arc_{\min}, \arclen]$, represented by neural networks and fit
+jointly with the per-supernova parameters. Each carries an explicit amplitude, for instance
+$p_{1} = a_{1}\,\NN_{p_{1}}(\arc)$, so that the gauge conditions act on a few scalars
+rather than on network weights.
+
+Those conditions are moments of the fitted coefficients and so cannot hold a priori. Each
+is an exact symmetry of the likelihood, so imposing one changes no predicted light curve:
+after each optimization step the latent array is rescaled and the amplitudes compensated,
+and the sign conditions are a comparison and a flip. Gauge fixing is therefore a choice of
+representative, not a constraint the fit must trade against.
+
+The model as it stands carries no intrinsic scatter: every departure of a supernova from
+the six-parameter family must be absorbed by photometric noise. This is a limitation
+rather than a claim, and is the first thing to revisit once the six parameters are shown
+to earn their cost.
 
 
-\section{Samples}
+\section{Sample}
 \label{sec:samples}
 
 Coverage was measured directly from the \ztf\ SN~Ia DR2 archive
 \citep{Rigault2025}. Starting from the 3628 cataloged objects, we require
-$\zred < 0.05$ and both the \texttt{lccoverage} and \texttt{fitquality} flags, leaving
-669 supernovae, of which 654 have a light-curve file present in the release. Epochs are
-counted inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and
-with none of the quality bits $\{1,2,4,8,16\}$ set.
+$\zred < 0.05$ and both the \texttt{lccoverage} and \texttt{fitquality} flags set,
+leaving 652 supernovae. Fourteen of these have no light-curve file in the release; they
+are exactly the fourteen whose \salt\ $t_{0}$ is NaN, so the absence is of photometry
+rather than of shape, and 638 objects remain with light curves. Epochs are counted per
+band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
+none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default.
 
-\begin{center}
-\begin{tabular}{lrrrrr}
-\toprule
-Minimum epochs per band & $g$ & $r$ & $i$ & $g\,\&\,r$ & $g\,\&\,r\,\&\,i$ \\
-\midrule
-$\geq 3$  & 636 & 639 & 216 & 636 & 215 \\
-$\geq 5$  & 606 & 631 & 179 & 599 & 177 \\
-$\geq 10$ & 490 & 537 &  82 & 465 &  80 \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Two samples follow. The \textbf{primary sample} is the 599 supernovae with at least
-five good $g$ and $r$ epochs; here $n=2$ and there is a single invariant. The
-\textbf{torsion subsample} is the 177 that additionally have at least five good
-$i$-band epochs; here $n=3$ and $\tors(\arc)$ exists as a genuine second invariant.
-The latter is small, but it is the only configuration in which the original motivation
-for a second shape parameter --- that torsion describes the evolution of inter-band
-magnitude differences --- can be tested, so it is a distinct analysis rather than an
-afterthought. Torsion is undefined wherever the curvature vanishes
-(Section~\ref{sec:curve}), so it is identified only where the track turns.
+The analysis uses the 598 supernovae with at least five good epochs in \emph{each} of $g$
+and $r$; the count is 635 at three or more and 464 at ten or more. The $i$ band is not
+used: only 178 objects reach five good $i$ epochs, too few to support a third dimension.
+Selection and counts are produced by \texttt{dgsn.data.sample}.
 
 \paragraph{A caveat on the window used for counting.} Counting epochs inside
 $[-15,+40]$~d requires a date of maximum, but $\tmax$ is precisely what the model fits
-(Section~\ref{sec:traversal}); the numbers above were obtained using the archive's
+(Section~\ref{sec:pars}); the numbers above were obtained using the archive's
 \salt\ $t_{0}$ to place the window. This is \salt\ entering upstream of
 \emph{selection}, far weaker than \salt\ entering the fit --- no photometry is
 transformed, initialized, or K-corrected by it, and the fitted $\tmax$ remains free and
@@ -266,17 +296,13 @@ before fitting rather than being fitted. Only host-galaxy reddening remains a fr
 quantity, and only in rung L2c. Note that what is known is $E(B-V)$, not
 $A_{g}(\phase)$ and $A_{r}(\phase)$; by Section~\ref{sec:phasedust} the conversion is
 phase-dependent and needs an SED, so removing a constant offset is an approximation
-here as well --- milder, since Galactic columns at the high latitudes of this sample
-are low, but the same approximation and not exact.
+here as well. It is not uniformly mild: the sample has median \texttt{mwebv} of $0.043$,
+but $24\%$ of it exceeds $0.1$, $12\%$ exceeds $0.2$ and the largest is $1.06$, with a
+fifth of the objects at Galactic latitude $|b| < 20^{\circ}$. No latitude or reddening cut
+is imposed, so the approximation is worst for precisely the objects where it matters most.
 
 
 \section{Extra}
-The above follows the  SALT2 procedure of decoupling light curve shape from dust,
-whose focus is on supernova standardization.
-An alternative and equally valid parameterization retains $\colr$ but replaces the fixed
-$\dustunit$ with a vector $\mathbf{R}$ drawn from an extinction law, shifting light curves
-by $(\colr\,R_{g}, \colr\,R_{r})$, notation that asserts correspondence with dust. This is
-the approach of \citet{Mandel2022}, whose focus is on cosmology.
 
 
 \bibliographystyle{plainnat}

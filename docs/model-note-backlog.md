@@ -395,6 +395,95 @@ keeping because it is easy to get backwards: `m_g'' = -sin(phi) kappa = kappa(0)
 
 ---
 
+## Retired from `CLAUDE.md` as standing rules (2026-08-28)
+
+`CLAUDE.md` was pared down because it had accumulated more rules than an exploratory
+phase can carry. The three below were removed **as enforced commitments**, not because
+they are wrong. Each is recorded here so the reasoning is recoverable and so re-adopting
+one is a deliberate act.
+
+### SALT2 strictly downstream
+
+Was: *an independent benchmark on the same objects, never used to preprocess,
+K-correct, interpolate, or initialise. Using it upstream would make the independence
+claim false.*
+
+This is what backed the project's independence claim, and it is the one whose removal has
+teeth: nothing now prevents SALT2 entering upstream by accident. The known breach is
+already on file — the epoch-counting window is placed with the archive's SALT2 `t0`,
+because the window needs a date of maximum and the date of maximum is what the model
+fits. Selection only; no photometry is transformed or initialised by it.
+
+**Consequence of retiring it:** independence is no longer protected by default and has to
+be re-established deliberately before any result is claimed. The check that settles the
+window breach is a recount against an SED-free anchor, comparing the *symmetric
+difference* of the two samples rather than the counts, since equal counts can hide
+different membership.
+
+### Evaluation is out-of-sample, always
+
+Was: *with per-SN parameters in the high single digits and a conditioned network, good
+in-sample fits are guaranteed and carry no evidential weight.*
+
+The argument is unchanged and still correct; it is retired only as a standing rule, on
+the grounds that during exploration in-sample fits are useful diagnostics even though
+they are not evidence. Nothing about the reasoning expires — restore it before any
+result is reported.
+
+### Code is written for general `R^n`
+
+Was justified entirely by the `R^3` torsion subsample, which was dropped on 2026-08-28
+when the analysis was restricted to `g` and `r`. With no `R^3` sample the justification
+is gone, so the commitment went with it. The `n = 2` case wants its own code path
+regardless: the signed-curvature convention (normal as the rotated tangent) is specific
+to the plane and is not a specialisation of the general-`n` Frenet apparatus, where
+`kappa >= 0` is forced. See [the orientation/origin
+redundancy](#the-orientationorigin-redundancy-and-why-n--2-has-no-free-orientation).
+
+---
+
+## Null epochs — parked, not currently used
+
+Moved out of `CLAUDE.md` on 2026-08-28. No pre-explosion epochs enter the likelihood as
+the model stands, and everything below rests on readings of the archive columns that are
+**inferred from the column list and NOT YET VERIFIED against `ztfcosmo`**.
+
+
+No pre-explosion epochs enter the likelihood as the model now stands; this is retained
+because the turn-on rung is parked rather than abandoned (see the backlog), and because
+the rank-one `offset_unc` item applies to **faint detections late in the window** too,
+where it is live. Everything here rests on readings of the archive columns that are
+**inferred from the column list and NOT YET VERIFIED against `ztfcosmo`**. Verify before
+writing any of them into a document or relying on them in code; "no asserted values"
+applies to the data model as much as to results.
+
+- **"Expected flux is exactly zero" is false.** The expected pre-explosion flux is
+  `flux_offset`, and zero only after it is subtracted. Subtract it deterministically —
+  the same rule as `1+z` and `mwebv`.
+- **`offset_unc` is rank-one**, one offset per light curve common to every epoch of a
+  band, so **`chi2` is not diagonal**: `C = diag(sigma^2) + offset_unc^2 · 1·1^T`.
+  Negligible beside a bright detection, **dominant** across a run of nulls. A diagonal
+  treatment makes their joint constraint appear to tighten as `1/sqrt(N)` when the true
+  floor is `offset_unc` and does not shrink. Marginalise analytically by
+  Sherman–Morrison; adds no parameter.
+- **Exclude `in_baseline` epochs.** They are the data the zero level was estimated from,
+  so their residuals are shrunk toward zero by construction; using them as constraints on
+  `f = 0` double-counts.
+- **A null epoch set needs its own cut.** Drop `SNR > 5` — expected SNR is zero, so a
+  threshold keeps only upward noise excursions, a one-sided selection on the noise
+  realisation of the very quantity being fitted. And `flag & 31 == 0` is the wrong cut
+  here, a change in kind rather than a tightening: it protects *detections*, whereas for
+  a null *depth* is benign (a shallow epoch has large `sigma` and self-weights down under
+  a correct Gaussian flux likelihood) while *bias* is fatal, and bits 32–1024 (seeing,
+  field, moon, airmass) are precisely the bits correlated with systematic offsets. Select
+  nulls on **provenance and error only, never on measured flux**. Pin down whether
+  `sigma` is pre- or post-`err_scale`, which matters far more at zero signal.
+
+The **selection window and its `SNR > 5` criterion are untouched**, so the 599/177
+counts and the regression test asserting 599 stand.
+
+---
+
 ## The basis and anchoring redundancies, and the conventions that remove them
 
 **Settled, 2026-08-27.** Moved out of the note, where it had been the subsection
