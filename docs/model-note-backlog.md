@@ -395,6 +395,97 @@ keeping because it is easy to get backwards: `m_g'' = -sin(phi) kappa = kappa(0)
 
 ---
 
+## The basis and anchoring redundancies, and the conventions that remove them
+
+**Settled, 2026-08-27.** Moved out of the note, where it had been the subsection
+`Degeneracies`. The note now carries only the closing paragraph of the parameterisation
+section: the counting table and the statement that no exactly flat direction survives.
+Everything below is the derivation behind that table — argument rather than model, and by
+2026-08-27 a second telling of conventions the model section already adopts inline
+(`eq:travgauge`, `eq:curvgauge`). It is kept because the count is the kind of claim that
+gets challenged, and because two of its entries record a choice that could have gone the
+other way.
+
+**The general count.** Each expansion is linear in global functions with per-supernova
+coefficients, and the model sees only the span, never the basis. A change of basis undone
+by a compensating change of coefficients leaves every light curve unaltered. An expansion
+of rank `n` with `k` coefficients pinned carries
+
+```
+n^2 - kn   flat directions
+```
+
+— with nothing pinned the whole of `GL(n,R)` is absorbed; pinning a coefficient forbids the
+`n` transformations that would move it.
+
+**Two routes, and which is available is forced rather than chosen.** The `n^2 - kn`
+conditions come either from *declaring the basis outright*, possible only when its elements
+are known a priori, or from *normalising the population of coefficients*, which is the only
+route when the basis functions are learned. Placement takes the first and cannot take the
+second, because `<mu>` is not free to normalise — it carries the cosmology. Stretch and
+curvature deviation have no absolute scale, so normalising them costs nothing.
+
+**Placement.** Since `1` and `e_c` span `R^2`, replacing `e_c` by `alpha*1 + beta*e_c` is
+undone exactly by `(mu, c) -> (mu + alpha*c, beta*c)`. Any direction not parallel to `1`
+gives the same model, so `e_c = (0,-1)` is declared rather than fitted. Both basis vectors
+declared is four conditions, the whole redundancy. See also
+[`e_c` is exactly unidentifiable below L2c](#e_c-is-exactly-unidentifiable-below-l2c).
+
+**Curvature.** For any `eta` and `lambda != 0`,
+
+```
+(kappa_0, kappa_1, x_kappa) -> (kappa_0 + eta*kappa_1, lambda*kappa_1,
+                                (x_kappa - eta)/lambda)
+```
+
+leaves `kappa` unchanged for every supernova. Only these two directions arise, not four,
+because the coefficient of `kappa_0` is pinned at unity: rescaling `kappa_0`, or adding
+`kappa_0` to `kappa_1`, would move it off unity and so is not available. Removed by
+`eq:curvgauge` — `<x_kappa> = 0` fixes `eta`, `Var(x_kappa) = 1` fixes `|lambda|`, and the
+sign condition `Cov(x, x_kappa) > 0` removes `lambda < 0`, there being no other way to
+distinguish `kappa_1` from `-kappa_1`.
+
+**Traversal.** Here the redundancy is the full four, because *both* coefficients of
+`p(s) = x*p_0(s) + x_p*p_1(s)` are free per supernova. The four directions act linearly:
+
+```
+p_0 -> nu*p_0,          x   -> x/nu
+p_1 -> lambda*p_1,      x_p -> x_p/lambda
+p_0 -> p_0 + eta*p_1,   x_p -> x_p - eta*x
+p_1 -> p_1 + rho*p_0,   x   -> x - rho*x_p
+```
+
+`eq:travgauge` fixes exactly one each of `nu, eta, lambda, rho`, the last by
+`rho = Cov(x, x_p)/Var(x_p)`. In the singular limit `p_1 ∝ p_0` the family collapses to one
+dimension and no convention helps.
+
+**The one live choice: `Cov(x, x_p) = 0` is not Fisher orthogonality.** `Cov(x, x_p) = 0`
+decorrelates the fitted coefficients *across the sample*, which is what makes `x_p`
+interpretable as timing variation not already carried by stretch. Requiring `p_1` to be
+orthogonal to `p_0` under the Fisher weight would instead decorrelate the *estimates* of
+`x` and `x_p` within one supernova. The two fix `rho` to different values and cannot both
+hold. The population condition is the gauge; the Fisher condition is a matter of
+conditioning, to be handled by the basis used for fitting.
+
+**Anchoring — not basis redundancies.** These concern where `s` and `p` are pinned, and are
+recorded because a convention mistaken for a measurement is the error these entries exist to
+prevent.
+
+- *Arclength origin against frame orientation.* Integrating `kappa(.+a)` from
+  `psi_0 + int_0^a kappa` reproduces the same curve, so origin and orientation carry one
+  joint redundancy. Fixing `psi_0 = -pi/2` removes it: a shift now requires
+  `int_0^a kappa = 0`, so generically `a = 0`. The anchor is self-enforcing, since
+  `psi(0) = -pi/2` forces `m_g'(0) = 0`. The count behind this — `n(n-1)/2 - 1` free
+  orientation parameters, zero for `n = 2` — is in
+  [The orientation/origin redundancy](#the-orientationorigin-redundancy-and-why-n--2-has-no-free-orientation).
+- *Phase origin against the traversal.* A per-supernova shift in `p` would be absorbed by
+  the traversal were `p(0)` free, leaving any fitted epoch of maximum undetermined.
+  `p_0(0) = p_1(0) = 0` removes it. Equivalently, it keeps the constant function out of
+  `span{p_0, p_1}`: were the constant admitted, its coefficient would be exactly such a
+  shift. This is a statement about the *dimension* of the span, not about a basis within it.
+
+---
+
 ## `e_c` is exactly unidentifiable below L2c
 
 **Settled, 2026-08-22.** The reddening direction was made a sample-wide fit parameter
