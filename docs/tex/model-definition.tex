@@ -145,13 +145,12 @@ Parameters considered in traditional models include
 \begin{itemize}
 \item $\peakmag$: The apparent peak $g$ magnitude, contributing a term
   $\peakmag\,\mathbf{1}$ added to $\curve$. It is achromatic, and absorbs the absolute
-  peak magnitude, the distance modulus and any grey offset together; separating them is
-  the downstream standardization, so the distance modulus $\dm$ is never fitted here.
+  peak magnitude, the distance modulus and any grey offset together.
 \item $\colr$: A phase-independent shift in color.  This contributes a term
   $ \colr\,\dustunit$ added to $\curve$, with $\dustunit = (0,-1)$, so that $\colr$ is the
   shift in $\Magg - \Magr$. Since $\mathbf{1}$ and $\dustunit$ span $\Rtwo$, the placement
   $\peakmag\,\mathbf{1} + \colr\,\dustunit$ is an arbitrary translation and this basis is
-  declared, not measured: a different choice would only change what $\colr$ counts.
+  declared, not measured.
 \item $\xstretch$: A wavelength-independent dilation of the light curve, corresponding
   to `stretch': a supernova with $\xstretch > 1$ evolves more slowly, reaching each point
   of the template at $\xstretch$ times the mean phase.
@@ -188,8 +187,10 @@ $p_{0}' > 0$. This is a wedge in $(\xstretch, x_p)$ with apex at the origin. It 
 $\xstretch > 0$ exactly when $0 \in [R_{\min}, R_{\max}]$, that is when $p_{1}'$ changes
 sign, $\xstretch$ being then a convex combination of the two left-hand sides; otherwise
 $\xstretch < 0$ is admissible. The traversal is
-linear in $(\xstretch, x_p)$, which is what the fitting uses. With two functions in play
-$\xstretch$ no longer corresponds exactly to the `stretch' of \citet{Perlmutter1997}: it
+linear in $(\xstretch, x_p)$, which is what the fitting uses.
+
+With two functions in play
+$\xstretch$ no longer corresponds exactly to the `stretch' in the traditional light-curve models: it
 recovers that classical dilation only when $x_p = 0$, and otherwise no single factor
 describes the traversal.
 
@@ -284,70 +285,77 @@ $\phase$ is rest-frame throughout.
 \subsection{Modelling functions}
 \label{sec:traversal}
 
-The curvature basis $\curv_{0}, \curv_{1}$ and the traversal basis $p_{0}, p_{1}$ are
-global functions on $[\arc_{\min}, \arclen]$, represented by neural networks and fit
-jointly with the per-supernova parameters. Each carries an explicit amplitude, for instance
-$p_{1} = a_{1}\,\NN_{p_{1}}(\arc)$, so that the gauge conditions act on a few scalars
-rather than on network weights.
+Four global functions on $[\arc_{\min}, \arclen]$ carry the template. Together $\curv_{0}$
+and $p_{0}$ are the mean \snia: the average track through magnitude space, and the average
+rate at which a supernova walks along it. $\curv_{1}$ and $p_{1}$ are the first mode of
+departure from that mean, split so the two halves cannot be confused --- $\curv_{1}$ moves
+where the track goes, $p_{1}$ how fast the supernova covers it. In \salt\ both roles are
+carried by $M_{1}$ and scaled by the single coefficient $x_{1}$; here they are two
+functions with two coefficients, and whether the data want both is the question the model
+exists to ask. All four are neural networks fit jointly with the per-supernova parameters,
+as \salt\ trains $M_{0}$ and $M_{1}$ jointly with each supernova's
+$(x_{0}, x_{1}, \colr)$.
 
 The traversal networks emit \emph{derivatives}, integrated on the arclength grid,
 \begin{equation}
   p_{0}'(\arc) = \mathrm{softplus}\,\NN_{p_{0}}(\arc), \qquad
   p_{1}'(\arc) = a_{1}\,\NN_{p_{1}}(\arc), \qquad
-  p_{k}(\arc) = \int_{0}^{\arc} p_{k}'(\zeta)\,\dd\zeta .
+  p_{k}(\arc) = \int_{0}^{\arc} p_{k}'(\zeta)\,\dd\zeta ,
   \label{eq:travnet}
 \end{equation}
-The anchors $p_{0}(0) = p_{1}(0) = 0$ and the positivity of $p_{0}'$ assumed in
-\eqref{eq:wedge} then hold identically rather than as conditions to be imposed. Applying
-the same device to $\dd\phase/\dd\arc$ itself would guarantee monotonicity outright, but at
-the cost of the linearity in $(\xstretch, x_p)$ on which \eqref{eq:travlin} rests, so the
-wedge is kept as a constraint instead.
+so that $p_{0}$ is built from a manifestly positive rate, as \eqref{eq:wedge} assumes, and
+both functions vanish at $\arc = 0$, putting $\phase = 0$ at $g$ maximum for every
+supernova. Neither has to be imposed. Applying the same device to $\dd\phase/\dd\arc$
+itself would force monotonicity outright, but at the cost of the linearity in
+$(\xstretch, x_p)$ on which \eqref{eq:travlin} rests.
 
-What remains divides in two, and the division is what makes it tractable. The gauge
-conditions \eqref{eq:travgauge} and \eqref{eq:curvgauge} are moments of the fitted
-coefficients and cannot hold a priori, but each is an \emph{exact symmetry} of the
-likelihood: imposing one changes no predicted light curve. They are therefore fixed by
-projection after each optimization step, never by a penalty, which would trade against the
-fit for nothing. For the traversal the projection is closed-form --- writing
-$m = \langle u \rangle$ and $S = \mathrm{Cov}(u)$ for $u = (\xstretch, x_p)$, the matrix
-$A \in \mathrm{GL}(2,\Real)$ carrying $u \mapsto Au$ into gauge satisfies $(Am)_{1} = 1$,
-$(Am)_{2} = 0$, $(ASA^{\top})_{22} = 1$ and $(ASA^{\top})_{12} = 0$, four equations in four
-unknowns, while the basis transforms as $P \mapsto A^{-\top}P$ for
-$P = (p_{0}, p_{1})^{\top}$, the transpose being what leaves $\phase = u^{\top}P$
-invariant. Its second row is
-$t\,(-m_{2}, m_{1})$ with $t$ set by the variance condition and its sign by
-$p_{1}(\arclen) > 0$; the first row then solves a $2 \times 2$ system. The curvature case
-is a shift and a scale. Gauge fixing is a choice of representative, not something the fit
-must trade against.
+Two conditions on the per-supernova coefficients are statements about supernovae. The wedge
+\eqref{eq:wedge} says the clock runs forward: the rate
+$\dd\phase/\dd\arc = \xstretch\,p_{0}' + x_p\,p_{1}'$ is a \emph{signed} combination, since
+$x_p$ takes either sign, and an object whose phase ran backwards partway along its track is
+not a slow supernova but not a supernova. The turning condition \eqref{eq:turncond} says
+there is one $g$ maximum and not two: maximum light is where the tangent runs along the $r$
+axis, $\Psi$ measures how far it has turned since, and a turn of $\pi$ places a second $g$
+peak inside the window. Both are small sets of linear inequalities on one supernova's
+coefficients --- two half-planes in $(\xstretch, x_p)$, an interval in $\shapekappa$ by
+\eqref{eq:turnlin} --- so projecting onto them is closed-form and costs nothing. Both cost
+likelihood when they bind, as projected gradient descent should. Whether either is active
+is worth recording: the wedge binds when $R = p_{1}'/p_{0}'$ ranges widely, being a single
+half-plane when $R$ is constant and narrowing as its range grows, and \eqref{eq:turncond}
+binds when the shape mode would turn the track too far or reverse it. Either happening for
+more than a few objects is a verdict on the basis, not a numerical nuisance.
 
-The wedge \eqref{eq:wedge} and the turning condition \eqref{eq:turncond} are not
-symmetries: they restrict the model, and projecting onto them changes the likelihood, as
-projected gradient descent should. Each is a small set of linear inequalities on one
-supernova's coefficients --- two half-planes for $(\xstretch, x_p)$ by \eqref{eq:wedge},
-an interval for $\shapekappa$ by \eqref{eq:turnlin} --- so the projection is closed-form
-and costs nothing.
+Four further numbers are convention. Each basis may be rescaled with its coefficient
+compensating, and either member of a pair folded into the other, without changing a single
+predicted flux; \salt\ has the same freedom and fixes it the same way, by normalizing
+$x_{1}$ over its training set. Here \eqref{eq:travgauge} and \eqref{eq:curvgauge} do it.
+They are fixed by projection after each optimization step, never by a penalty, which would
+pay $\chi^{2}$ to move in a direction no photometry can see. For the traversal the
+projection is closed-form --- writing $m = \langle u \rangle$ and $S = \mathrm{Cov}(u)$ for
+$u = (\xstretch, x_p)$, the matrix $A \in \mathrm{GL}(2,\Real)$ carrying $u \mapsto Au$
+into gauge satisfies $(Am)_{1} = 1$, $(Am)_{2} = 0$, $(ASA^{\top})_{22} = 1$ and
+$(ASA^{\top})_{12} = 0$, four equations in four unknowns, while the basis transforms as
+$P \mapsto A^{-\top}P$ for $P = (p_{0}, p_{1})^{\top}$, the transpose being what leaves
+$\phase = u^{\top}P$ invariant. Its second row is $t\,(-m_{2}, m_{1})$ with $t$ set by the
+variance condition and its sign by $p_{1}(\arclen) > 0$; the first row then solves a
+$2 \times 2$ system, subject to keeping $p_{0}'$ positive. The curvature case is a shift
+and a scale.
 
-The two projections do not interfere.
+What is \emph{not} fixed by convention is the point of the exercise.
+$\mathrm{Cov}(\xstretch, x_p) = 0$ relates two timing coefficients. The shape--timing
+correlations $\mathrm{Cov}(\shapekappa, \xstretch)$ and $\mathrm{Cov}(\shapekappa, x_p)$
+are left free: they are what the model is built to measure, and fixing either by convention
+would assume the answer.
 
-\begin{proposition}
-Gauge fixing cannot move a supernova into or out of the region admitted by
-\eqref{eq:wedge} and \eqref{eq:turncond}, and projection onto that region cannot break the
-gauge conditions.
-\end{proposition}
-
-\begin{proof}
-Both constraints are conditions on $\dd\phase/\dd\arc$ and on $\curv$, and both quantities
-are unchanged by a change of basis, since $\phase$ and $\curv$ are what the bases
-represent. The admissible region is therefore gauge-invariant, and projection onto it acts
-only within a gauge orbit.
-\end{proof}
-
-\noindent
-So the two are applied in either order, once per step, with no iteration between them.
-Whether either constraint is \emph{active} is worth recording: the wedge binds when a
-supernova's two traversal functions are near collinear, and \eqref{eq:turncond} binds when
-the shape mode would turn the track too far or reverse it. Either happening for more than a
-few objects is a statement about the parameterization, not a numerical nuisance.
+The two projections differ in kind, and that sets their order. Admissibility is a property
+of one supernova's predicted light curve; the gauge conditions are moments of the whole
+sample. Choosing units changes no predicted light curve, so gauge fixing cannot make an
+admissible supernova inadmissible or the reverse. Projecting one supernova onto the
+admissible region does change its coefficients, and with them the sample moments. The
+influence runs one way, so the physics is enforced object by object and the population
+renormalized afterwards, once per step and with no iteration between them: an object left
+on its wedge boundary is moved by the renormalization in coordinates but not in prediction,
+and stays on the boundary.
 
 The model as it stands carries no intrinsic scatter: every departure of a supernova from
 the six-parameter family must be absorbed by photometric noise. This is a limitation
