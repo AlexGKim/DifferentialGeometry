@@ -129,9 +129,7 @@ since $\Magg'' = -\sin\psi\,\curv$; and it is the only one on the interval only 
   \label{eq:turncond}
 \end{equation}
 where $\Psi(\arc) = \int_{0}^{\arc}\curv$ is the turning since maximum and
-$\Magg' = \cos\psi$ vanishes exactly at $\Psi \in \pi\mathbb{Z}$. Only \eqref{eq:peakcond}
-is imposed in Section~\ref{sec:pars}; where \eqref{eq:turncond} fails, $\peakmag$ and
-$\colr$ are not the peak magnitude and color.
+$\Magg' = \cos\psi$ vanishes exactly at $\Psi \in \pi\mathbb{Z}$.
 Setting the template $g$ magnitude and color to zero at maximum makes $\peakmag$ the peak
 $g$ magnitude and $\colr$ the color at peak, following \salt's practice of
 normalizing at maximum --- there in $B$, here in $g$.
@@ -221,9 +219,19 @@ accumulated deviation over the whole arc rather than a local value.
 \curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc),
 \end{equation}
  where
-$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions. By \eqref{eq:peakcond} the
-coefficient is bounded below, $\curv_{0}(0) + \shapekappa\,\curv_{1}(0) > 0$, a constraint
-on $\shapekappa$ of the same kind as \eqref{eq:wedge} is on $(\xstretch, x_p)$.
+$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions. The turning inherits the linearity,
+\begin{equation}
+  \Psi(\arc; \shapekappa) = K_{0}(\arc) + \shapekappa\,K_{1}(\arc), \qquad
+  K_{i}(\arc) = \int_{0}^{\arc}\curv_{i} ,
+  \label{eq:turnlin}
+\end{equation}
+so \eqref{eq:turncond} is one linear inequality in $\shapekappa$ per arclength and the
+admissible set is their intersection, an interval. It subsumes \eqref{eq:peakcond}: near
+the origin $\Psi \simeq \curv(0)\,\arc$, so requiring $\mathrm{sign}\,\Psi =
+\mathrm{sign}\,\arc$ there is requiring $\curv(0) > 0$. Grid points adjacent to
+$\arc = 0$ are dropped, where $K_{0}$ and $K_{1}$ both vanish and the inequality
+degenerates, and \eqref{eq:peakcond} covers them. An empty interval means $\curv_{0}$
+itself violates \eqref{eq:turncond} and the basis is wrong.
 
 The expansion is linear in $\curv$ but not in magnitudes. Writing
 $K_{1}(\arc) = \int_{0}^{\arc}\curv_{1}$, the turning is linear, $\psi = \psi_{0} +
@@ -312,17 +320,18 @@ $p_{1}(\arclen) > 0$; the first row then solves a $2 \times 2$ system. The curva
 is a shift and a scale. Gauge fixing is a choice of representative, not something the fit
 must trade against.
 
-The wedge \eqref{eq:wedge} and the peak condition \eqref{eq:peakcond} are not symmetries:
-they restrict the model, and projecting onto them changes the likelihood, as projected
-gradient descent should. Each is a small set of linear inequalities on one supernova's
-coefficients --- two half-planes for $(\xstretch, x_p)$, one half-line for $\shapekappa$
---- so the projection is closed-form and costs nothing.
+The wedge \eqref{eq:wedge} and the turning condition \eqref{eq:turncond} are not
+symmetries: they restrict the model, and projecting onto them changes the likelihood, as
+projected gradient descent should. Each is a small set of linear inequalities on one
+supernova's coefficients --- two half-planes for $(\xstretch, x_p)$ by \eqref{eq:wedge},
+an interval for $\shapekappa$ by \eqref{eq:turnlin} --- so the projection is closed-form
+and costs nothing.
 
 The two projections do not interfere.
 
 \begin{proposition}
 Gauge fixing cannot move a supernova into or out of the region admitted by
-\eqref{eq:wedge} and \eqref{eq:peakcond}, and projection onto that region cannot break the
+\eqref{eq:wedge} and \eqref{eq:turncond}, and projection onto that region cannot break the
 gauge conditions.
 \end{proposition}
 
@@ -336,8 +345,8 @@ only within a gauge orbit.
 \noindent
 So the two are applied in either order, once per step, with no iteration between them.
 Whether either constraint is \emph{active} is worth recording: the wedge binds when a
-supernova's two traversal functions are near collinear, and \eqref{eq:peakcond} binds when
-the shape mode would invert the curvature at maximum. Either happening for more than a
+supernova's two traversal functions are near collinear, and \eqref{eq:turncond} binds when
+the shape mode would turn the track too far or reverse it. Either happening for more than a
 few objects is a statement about the parameterization, not a numerical nuisance.
 
 The model as it stands carries no intrinsic scatter: every departure of a supernova from
