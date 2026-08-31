@@ -123,13 +123,19 @@ after $g$, as observed. The extremum is peak brightness, a minimum of $\Magg$, o
   \curv(0) > 0 ,
   \label{eq:peakcond}
 \end{equation}
-since $\Magg'' = -\sin\psi\,\curv$; and it is the only one on the interval only if
+since $\Magg'' = -\sin\psi\,\curv$; and it is the only one on the interval if and only if
 \begin{equation}
-  0 < \abs{\Psi(\arc)} < \pi \qquad (\arc \neq 0) ,
+  0 < \Psi(\arc) < \pi \quad (\arc > 0), \qquad
+  -\pi < \Psi(\arc) < 0 \quad (\arc < 0) ,
   \label{eq:turncond}
 \end{equation}
 where $\Psi(\arc) = \int_{0}^{\arc}\curv$ is the turning since maximum and
-$\Magg' = \cos\psi$ vanishes exactly at $\Psi \in \pi\mathbb{Z}$.
+$\Magg' = \cos\psi = \sin\Psi$ vanishes exactly at $\Psi \in \pi\mathbb{Z}$. The track
+turns one way and not too far, on each side: $\sign\Psi = \sign\arc$ makes $\Magg$
+brighten into maximum and fade after it, and $\abs{\Psi} < \pi$ keeps the tangent from
+coming back around to vertical, which would be a second $g$ peak. Since $\Psi(0) = 0$ and
+$\Psi$ is continuous, it cannot reach $\pm\pi$ without the second condition catching it
+first.
 Setting the template $g$ magnitude and color to zero at maximum makes $\peakmag$ the peak
 $g$ magnitude and $\colr$ the color at peak, following \salt's practice of
 normalizing at maximum --- there in $B$, here in $g$.
@@ -176,18 +182,32 @@ at $g$ maximum for every supernova. The traversal must increase,
   \label{eq:monotone}
 \end{equation}
 a joint condition on the coefficients and the basis rather than positivity of $\xstretch$
-alone. Taking $p_{0}' > 0$ and writing $R = p_{1}'/p_{0}'$, the left side is affine in $R$,
-so \eqref{eq:monotone} holds throughout iff it holds at the extremes of $R$:
+alone. Writing $u = (\xstretch, x_p)$ and $v(\arc) = (p_{0}'(\arc), p_{1}'(\arc))$,
+\eqref{eq:monotone} is $u \cdot v(\arc) > 0$ for every $\arc$: one half-plane through the
+origin per arclength, so the admissible set is an open convex cone. In two dimensions such
+an intersection is bounded by two of its members, those normal to the angular extremes of
+$v$,
 \begin{equation}
-  \xstretch + x_p R_{\min} > 0, \qquad \xstretch + x_p R_{\max} > 0 ,
+  u \cdot v(\arc_{-}) > 0, \qquad u \cdot v(\arc_{+}) > 0 ,
   \label{eq:wedge}
 \end{equation}
-the extremes being attained since $R$ is continuous on a compact interval with
-$p_{0}' > 0$. This is a wedge in $(\xstretch, x_p)$ with apex at the origin. It implies
-$\xstretch > 0$ exactly when $0 \in [R_{\min}, R_{\max}]$, that is when $p_{1}'$ changes
-sign, $\xstretch$ being then a convex combination of the two left-hand sides; otherwise
-$\xstretch < 0$ is admissible. The traversal is
-linear in $(\xstretch, x_p)$, which is what the fitting uses.
+where $\arc_{\pm}$ are the arclengths at which $v$ is angularly extremal, in the sense that
+the cross product $v(\arc_{-}) \times v(\arc) $ is of one sign and
+$v(\arc_{+}) \times v(\arc)$ of the other for every $\arc$. The extremes are attained since
+$v$ is continuous on a compact interval, and the characterization needs no branch
+convention for the angle. This is a wedge
+in $(\xstretch, x_p)$ with apex at the origin, nonempty exactly when the directions
+$v(\arc)$ span less than half a turn: two traversal functions that disagree by more than
+that admit no coefficients at all and are the wrong pair. The wedge implies $\xstretch > 0$
+exactly when the $v(\arc)$ span the $p_{1}'$ axis, $\xstretch$ being then a convex
+combination of the two left-hand sides; otherwise $\xstretch < 0$ is admissible.
+
+Nothing here divides by a fitted quantity, and the form is manifestly invariant under the
+change of basis of Section~\ref{sec:traversal}: $u \mapsto Au$ carries
+$v \mapsto A^{-\top}v$, leaving $u \cdot v$ and hence the cone alone. When $p_{0}' > 0$ the
+angular extremes are those of $p_{1}'/p_{0}'$ and \eqref{eq:wedge} is the familiar pair of
+bounds on that ratio. The traversal is linear in $(\xstretch, x_p)$, which is what the
+fitting uses.
 
 With two functions in play
 $\xstretch$ no longer corresponds exactly to the `stretch' in the traditional light-curve models: it
@@ -226,13 +246,15 @@ $\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions. The turning inherits the 
   K_{i}(\arc) = \int_{0}^{\arc}\curv_{i} ,
   \label{eq:turnlin}
 \end{equation}
-so \eqref{eq:turncond} is one linear inequality in $\shapekappa$ per arclength and the
-admissible set is their intersection, an interval. It subsumes \eqref{eq:peakcond}: near
-the origin $\Psi \simeq \curv(0)\,\arc$, so requiring $\mathrm{sign}\,\Psi =
-\mathrm{sign}\,\arc$ there is requiring $\curv(0) > 0$. Grid points adjacent to
-$\arc = 0$ are dropped, where $K_{0}$ and $K_{1}$ both vanish and the inequality
-degenerates, and \eqref{eq:peakcond} covers them. An empty interval means $\curv_{0}$
-itself violates \eqref{eq:turncond} and the basis is wrong.
+so \eqref{eq:turncond} is two linear inequalities in $\shapekappa$ per arclength and the
+admissible set is their intersection, an interval. It implies \eqref{eq:peakcond}: near the
+origin $\Psi \simeq \curv(0)\,\arc$, so $\sign\Psi = \sign\arc$ there is $\curv(0) > 0$.
+The implication is not enough to drop it, because the grid points adjacent to $\arc = 0$
+are exactly where it acts: $K_{0}$ and $K_{1}$ both vanish at the origin, so the
+inequalities degenerate near it and those points are dropped. Imposed as
+$\curv_{0}(0) + \shapekappa\,\curv_{1}(0) > 0$, \eqref{eq:peakcond} is one more linear
+inequality on the same $\shapekappa$ and covers the gap. An empty interval means
+$\curv_{0}$ itself violates \eqref{eq:turncond} and the basis is wrong.
 
 The expansion is linear in $\curv$ but not in magnitudes. Writing
 $K_{1}(\arc) = \int_{0}^{\arc}\curv_{1}$, the turning is linear, $\psi = \psi_{0} +
@@ -296,18 +318,21 @@ exists to ask. All four are neural networks fit jointly with the per-supernova p
 as \salt\ trains $M_{0}$ and $M_{1}$ jointly with each supernova's
 $(x_{0}, x_{1}, \colr)$.
 
-The traversal networks emit \emph{derivatives}, integrated on the arclength grid,
+The traversal networks emit \emph{derivatives}, mixed by a matrix and integrated on the
+arclength grid,
 \begin{equation}
-  p_{0}'(\arc) = \mathrm{softplus}\,\NN_{p_{0}}(\arc), \qquad
-  p_{1}'(\arc) = a_{1}\,\NN_{p_{1}}(\arc), \qquad
-  p_{k}(\arc) = \int_{0}^{\arc} p_{k}'(\zeta)\,\dd\zeta ,
+  P'(\arc) = C\,N(\arc), \qquad
+  N = \bigl(\NN_{p_{0}}, \NN_{p_{1}}\bigr)^{\top}, \qquad
+  P(\arc) = \int_{0}^{\arc} P'(\zeta)\,\dd\zeta ,
   \label{eq:travnet}
 \end{equation}
-so that $p_{0}$ is built from a manifestly positive rate, as \eqref{eq:wedge} assumes, and
-both functions vanish at $\arc = 0$, putting $\phase = 0$ at $g$ maximum for every
-supernova. Neither has to be imposed. Applying the same device to $\dd\phase/\dd\arc$
-itself would force monotonicity outright, but at the cost of the linearity in
-$(\xstretch, x_p)$ on which \eqref{eq:travlin} rests.
+with $C \in \mathrm{GL}(2,\Real)$. The four entries of $C$ are four scalars for the four
+gauge parameters below, which the change of basis moves instead of the network weights; two
+amplitudes would not suffice, the mixing $p_{0} \to \alpha p_{0} + \beta p_{1}$ having no
+home in them. Integrating from the origin makes $p_{0}(0) = p_{1}(0) = 0$ hold identically
+under any $C$, putting $\phase = 0$ at $g$ maximum for every supernova. Emitting
+$\dd\phase/\dd\arc$ itself would force monotonicity outright, but at the cost of the
+linearity in $(\xstretch, x_p)$ on which \eqref{eq:travlin} rests.
 
 Two conditions on the per-supernova coefficients are statements about supernovae. The wedge
 \eqref{eq:wedge} says the clock runs forward: the rate
@@ -320,8 +345,9 @@ peak inside the window. Both are small sets of linear inequalities on one supern
 coefficients --- two half-planes in $(\xstretch, x_p)$, an interval in $\shapekappa$ by
 \eqref{eq:turnlin} --- so projecting onto them is closed-form and costs nothing. Both cost
 likelihood when they bind, as projected gradient descent should. Whether either is active
-is worth recording: the wedge binds when $R = p_{1}'/p_{0}'$ ranges widely, being a single
-half-plane when $R$ is constant and narrowing as its range grows, and \eqref{eq:turncond}
+is worth recording: the wedge binds when the directions $v(\arc)$ spread widely, being a
+single half-plane when they are parallel and closing as the spread approaches half a turn,
+and \eqref{eq:turncond}
 binds when the shape mode would turn the track too far or reverse it. Either happening for
 more than a few objects is a verdict on the basis, not a numerical nuisance.
 
@@ -336,10 +362,18 @@ $u = (\xstretch, x_p)$, the matrix $A \in \mathrm{GL}(2,\Real)$ carrying $u \map
 into gauge satisfies $(Am)_{1} = 1$, $(Am)_{2} = 0$, $(ASA^{\top})_{22} = 1$ and
 $(ASA^{\top})_{12} = 0$, four equations in four unknowns, while the basis transforms as
 $P \mapsto A^{-\top}P$ for $P = (p_{0}, p_{1})^{\top}$, the transpose being what leaves
-$\phase = u^{\top}P$ invariant. Its second row is $t\,(-m_{2}, m_{1})$ with $t$ set by the
-variance condition and its sign by $p_{1}(\arclen) > 0$; the first row then solves a
-$2 \times 2$ system, subject to keeping $p_{0}'$ positive. The curvature case is a shift
-and a scale.
+$\phase = u^{\top}P$ invariant, and is applied to $C$ rather than to the networks. Its
+second row is $t\,(-m_{2}, m_{1})$ with $t$ set by the variance condition and its sign by
+$p_{1}(\arclen) > 0$; the first row then solves a $2 \times 2$ system. The curvature case
+is a shift and a scale.
+
+That $p_{0}'$ stays positive under this mixing is a consequence rather than a condition,
+and the physical reading is the shortest proof. Since $\dd\phase/\dd\arc = u \cdot v$, the
+statement $p_{0}' > 0$ is that $u = (1,0)$ is admissible: the mean supernova ages forward.
+The admissible set is a convex cone, the gauge conditions put the population mean at
+exactly $(1,0)$, and a mean of admissible objects is admissible --- strictly so unless
+every supernova is pinned to the same boundary ray, which is a sample with no timing
+diversity at all. An average of forward-running supernovae runs forward.
 
 What is \emph{not} fixed by convention is the point of the exercise.
 $\mathrm{Cov}(\xstretch, x_p) = 0$ relates two timing coefficients. The shape--timing
