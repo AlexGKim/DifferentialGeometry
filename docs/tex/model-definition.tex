@@ -116,29 +116,23 @@ quadratures give $\psi$ and the curve,
                   \bigl(\cos\psi(\zeta),\ \sin\psi(\zeta)\bigr)\,\dd\zeta .
                   \label{eq:quadrature}
 \end{align}
-We choose $\curve_{0} = (0,0)$ and $\psi_{0} = -\pi/2$, so that $\Magg'(0) = 0$ with
-$\Magr'(0) < 0$: $g$ is at an extremum while $r$ is still brightening, hence $r$ peaks
-after $g$, as observed. The extremum is peak brightness, a minimum of $\Magg$, only if
+We choose $\curve_{0} = (0,0)$ and $\psi_{0} = -\pi/2$, so that at $s=0$
+the template $g$ magnitude and color are zero ($M_g(0)=0$, $M_r(0)=0$), and
+$M_g(0)$ is a critical point while the $M_r(0)$ is brightening
+($\Magg'(0) = 0$, $\Magr'(0) < 0$).
+ The extremum is peak brightness, a minimum of $\Magg$, if
 \begin{equation}
   \curv(0) > 0 ,
   \label{eq:peakcond}
 \end{equation}
-since $\Magg'' = -\sin\psi\,\curv$; and it is the only one on the interval if and only if
+since $\Magg'' = -\sin\psi\,\curv$; and it is the only critical point on the interval,
+hence the global minimum, if and only if
 \begin{equation}
   0 < \Psi(\arc) < \pi \quad (\arc > 0), \qquad
   -\pi < \Psi(\arc) < 0 \quad (\arc < 0) ,
   \label{eq:turncond}
 \end{equation}
-where $\Psi(\arc) = \int_{0}^{\arc}\curv$ is the turning since maximum and
-$\Magg' = \cos\psi = \sin\Psi$ vanishes exactly at $\Psi \in \pi\mathbb{Z}$. The track
-turns one way and not too far, on each side: $\sign\Psi = \sign\arc$ makes $\Magg$
-brighten into maximum and fade after it, and $\abs{\Psi} < \pi$ keeps the tangent from
-coming back around to vertical, which would be a second $g$ peak. Since $\Psi(0) = 0$ and
-$\Psi$ is continuous, it cannot reach $\pm\pi$ without the second condition catching it
-first.
-Setting the template $g$ magnitude and color to zero at maximum makes $\peakmag$ the peak
-$g$ magnitude and $\colr$ the color at peak, following \salt's practice of
-normalizing at maximum --- there in $B$, here in $g$.
+where $\Psi(\arc) = \int_{0}^{\arc}\curv$ is the turning since maximum.
 
 The connection to supernova phase is specified by the inverse of $s(p)$,  the function $p(s)$.
 
