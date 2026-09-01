@@ -122,16 +122,12 @@ significance, and are informational — they are **not** excluded. Cutting on
 `flag == 0` throws away most genuine detections and silently reduces the usable
 sample to near zero.
 
-**Milky Way extinction is left in the photometry, not removed.** To first order
-it is a constant per band, hence a translation in magnitude space, and `1` and
-`e_c` span `R^2` — so it is absorbed exactly by `m_g^max` and `c`, leaving the
-curve and `kappa` untouched. The consequence is that those two parameters carry
-the Galactic term and it must be removed **downstream**, where `mwebv` is known
-per SN. The absorption is exact only for a constant `A_lambda`; the band
-extinction depends on an evolving spectrum, so `R_lambda` drifts a few percent
-across the window and that residual does reach `kappa`. Not a small-extinction
-sample: median `mwebv` 0.043, 24% above 0.1, 5.5% above 0.3, max 1.06, a fifth
-at `|b| < 20°`. No latitude or reddening cut.
+**Milky Way extinction is not removed from the photometry.** The data reach the
+fit as observed; the Galactic term is absorbed by the placement parameters and
+taken out downstream. Why that is legitimate is in the note — do not restate it
+here. `mwebv` is the SFD `E(B-V)` at the SN coordinates. Not a small-extinction
+sample: median 0.043, 24% above 0.1, 5.5% above 0.3, max 1.06, a fifth at
+`|b| < 20°`. No latitude or reddening cut is imposed.
 
 **Do not apply the 0.86 rescaling twice.** Schlafly & Finkbeiner (2011)
 coefficients (`A_g = 3.303 E(B-V)`, `A_r = 2.285 E(B-V)` for SDSS-like bands;
@@ -145,11 +141,10 @@ systematically over-correct. Bites downstream, where the correction is applied.
 
 JAX · diffrax (Frenet ODE, adjoint) · optax · numpyro (posteriors, later).
 
-The four global functions are expansions on a fixed orthonormal basis, not
-networks — the gauge conditions are then exact algebra on the coefficients
-rather than a projection. Training is still an **auto-decoder**: basis
+No neural networks: the global functions are basis expansions, so there is
+nothing for `equinox` to do. Training is an **auto-decoder** — basis
 coefficients and the per-SN latent array live in one pytree and are optimised
-jointly. The decoder is linear.
+jointly — with a linear decoder.
 
 Two implementations of the geometry, which must agree on `kappa`:
 - `geometry/frenet.py` — diffrax ODE integration. **Primary.**
