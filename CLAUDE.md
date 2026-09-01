@@ -122,12 +122,24 @@ significance, and are informational — they are **not** excluded. Cutting on
 `flag == 0` throws away most genuine detections and silently reduces the usable
 sample to near zero.
 
-**Milky Way extinction.** `mwebv` is known per SN, so MW reddening is a
-*deterministic* translation in magnitude space and is removed up front, not
-fitted. What is known is `E(B-V)`, not the band extinctions; converting needs an
-SED, so the removal is an approximation. It is **not** uniformly mild: median
-`mwebv` is 0.043, but 24% exceeds 0.1 and 5.5% exceeds 0.3, and a fifth of the
-sample sits at `|b| < 20°`. No latitude or reddening cut is imposed.
+**Milky Way extinction is left in the photometry, not removed.** To first order
+it is a constant per band, hence a translation in magnitude space, and `1` and
+`e_c` span `R^2` — so it is absorbed exactly by `m_g^max` and `c`, leaving the
+curve and `kappa` untouched. The consequence is that those two parameters carry
+the Galactic term and it must be removed **downstream**, where `mwebv` is known
+per SN. The absorption is exact only for a constant `A_lambda`; the band
+extinction depends on an evolving spectrum, so `R_lambda` drifts a few percent
+across the window and that residual does reach `kappa`. Not a small-extinction
+sample: median `mwebv` 0.043, 24% above 0.1, 5.5% above 0.3, max 1.06, a fifth
+at `|b| < 20°`. No latitude or reddening cut.
+
+**Do not apply the 0.86 rescaling twice.** Schlafly & Finkbeiner (2011)
+coefficients (`A_g = 3.303 E(B-V)`, `A_r = 2.285 E(B-V)` for SDSS-like bands;
+compute for ZTF's own filters rather than borrowing) are defined against the
+**raw** SFD map value and already include the ~14% recalibration. Feed them
+uncorrected `mwebv`. Rescaling the map by 0.86 *and* using SF11 coefficients
+double-counts; the older SFD98 coefficients (`R_g, R_r = 3.793, 2.751`)
+systematically over-correct. Bites downstream, where the correction is applied.
 
 ## Stack
 
