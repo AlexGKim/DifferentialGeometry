@@ -131,11 +131,13 @@ sample sits at `|b| < 20°`. No latitude or reddening cut is imposed.
 
 ## Stack
 
-JAX · diffrax (Frenet ODE, adjoint) · equinox (networks) · optax ·
-numpyro (posteriors, later).
+JAX · diffrax (Frenet ODE, adjoint) · optax · numpyro (posteriors, later).
 
-Training is an **auto-decoder**: network weights and the per-SN latent array live
-in one pytree and are optimised jointly.
+The four global functions are expansions on a fixed orthonormal basis, not
+networks — the gauge conditions are then exact algebra on the coefficients
+rather than a projection. Training is still an **auto-decoder**: basis
+coefficients and the per-SN latent array live in one pytree and are optimised
+jointly. The decoder is linear.
 
 Two implementations of the geometry, which must agree on `kappa`:
 - `geometry/frenet.py` — diffrax ODE integration. **Primary.**

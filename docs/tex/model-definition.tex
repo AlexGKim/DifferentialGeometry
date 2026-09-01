@@ -228,8 +228,8 @@ four conditions for four freedoms and two for two. Each pair leaves a sign, fixe
 $\int_{0}^{\arclen} q_{1} > 0$ and $\int_{0}^{\arclen} \curv_{1} > 0$, so a positive
 coefficient lengthens the late traversal and turns the track further.
 
-This is Gram--Schmidt on the network outputs, evaluated inside the forward pass: there is
-no projection step and no population statistic, so nothing is imposed on the coefficients
+The basis of Section~\ref{sec:traversal} satisfies these by construction, so there is
+no projection step and no population statistic, and nothing is imposed on the coefficients
 and $\langle\xstretch\rangle$, $\mathrm{Var}(x_p)$, $\mathrm{Cov}(\xstretch, x_p)$ and
 $\mathrm{Var}(\shapekappa)$ are measurements rather than conventions. The price is that
 $q_{0}$ and $\curv_{0}$ describe the supernova with $\xstretch = x_p = \shapekappa = 0$
@@ -246,20 +246,36 @@ from it, split so the two halves cannot be confused --- $\curv_{1}$ moves where 
 goes, $q_{1}$ how fast the supernova covers it. In \salt\ both roles are carried by
 $M_{1}$ and scaled by the single coefficient $x_{1}$; here they are two functions with two
 coefficients, and whether the data want both is the question the model exists to ask. All
-four are neural networks fit jointly with the per-supernova parameters, as \salt\ trains
-$M_{0}$ and $M_{1}$ jointly with each supernova's $(x_{0}, x_{1}, \colr)$.
+four are expansions on a fixed basis, their coefficients fit jointly with the per-supernova
+parameters, as \salt\ trains $M_{0}$ and $M_{1}$ jointly with each supernova's
+$(x_{0}, x_{1}, \colr)$.
 
-The networks emit the four functions on the arclength grid, and \eqref{eq:gauge} is
-applied to them there, before use: centre where required, normalize, and orthogonalize
-each pair. This is Gram--Schmidt on a $2 \times N$ array, differentiable and costing a few
-inner products, and no supernova enters it, so it composes with minibatching and with
-fitting one new object against a frozen basis. \salt\ has the same freedom and fixes it the
-other way, by normalizing $x_{1}$ over its training set; the difference is that a condition
-on functions can be imposed where the functions are made, while a condition on a population
-cannot. It leaves the sign of each mode, fixed once by the two integrals in
-\eqref{eq:gauge}. It is ill-conditioned only when a pair becomes collinear, which is not a
-numerical nuisance to suppress but the statement that the two functions carry the same
-information.
+Let $\{\phi_{k}\}$ be orthonormal on $[\arc_{\min}, \arclen]$ with $\phi_{0}$ constant, and
+write
+\begin{equation}
+  q_{1} = \sum_{k \geq 1} a_{k}\phi_{k}, \quad
+  q_{0} = \sum_{k \geq 1} b_{k}\phi_{k}, \quad
+  \curv_{1} = \sum_{k \geq 0} c_{k}\phi_{k}, \quad
+  \curv_{0} = \sum_{k \geq 0} d_{k}\phi_{k} ,
+  \label{eq:basis}
+\end{equation}
+the traversal pair omitting $\phi_{0}$, which is what makes $\bar q_{0} = \bar q_{1} = 0$
+in \eqref{eq:gauge} hold identically; the curvature pair carries no mean condition and
+keeps it. The remaining conditions are then algebra rather than quadrature:
+$\langle q_{1}, q_{1}\rangle = \norm{a}^{2}$ and $\langle q_{0}, q_{1}\rangle = b \cdot a$
+exactly, and likewise for $(c,d)$. Fitting unconstrained $\tilde a, \tilde b$ and setting
+$a = \tilde a/\norm{\tilde a}$ and $b = \tilde b - (\tilde b \cdot a)\,a$ imposes
+\eqref{eq:gauge} to machine precision; $q_{0}$ is orthogonalized but not normalized, its
+norm being physical. The two sign conditions are linear inequalities on $a$ and $c$, fixed
+by flipping the raw vector. \salt\ has the same freedom and fixes it the other way, by
+normalizing $x_{1}$ over its training set; the difference is that a condition on functions
+can be built into how the functions are written, while a condition on a population cannot.
+
+A basis of $K$ functions leaves $4K - 2$ global parameters, and truncates the function
+space: $K$ is a modelling choice and not only a parameterization, and raising it tests
+whether the data want more freedom than it allows. The construction degenerates only when $a$ and $b$ become
+parallel, which is not a numerical nuisance to suppress but the statement that the two
+functions carry the same information.
 
 One condition on the per-supernova coefficients is a statement about supernovae. The
 turning condition \eqref{eq:turncond} says there is one $g$ maximum and not two: maximum
