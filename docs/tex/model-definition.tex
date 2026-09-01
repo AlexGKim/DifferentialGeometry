@@ -292,19 +292,17 @@ and $r$; the count is 635 at three or more and 464 at ten or more. The $i$ band 
 used: only 178 objects reach five good $i$ epochs, too few to support a third dimension.
 Selection and counts are produced by \texttt{dgsn.data.sample}.
 
-\paragraph{A caveat on the window used for counting.} Counting epochs inside
-$[-15,+40]$~d requires a date of maximum, but $\tmax$ is precisely what the model fits
-(Section~\ref{sec:pars}); the numbers above were obtained using the archive's
-\salt\ $t_{0}$ to place the window. This is \salt\ entering upstream of
-\emph{selection}, far weaker than \salt\ entering the fit --- no photometry is
-transformed, initialized, or K-corrected by it, and the fitted $\tmax$ remains free and
-independent. It is nonetheless an exception to the rule that \salt\ stays strictly
-downstream, and is recorded here rather than left implicit. The check that settles it is
-to recount using an SED-free anchor, for instance a window placed on the brightest good
-$g$ epoch, and confirm that the two samples agree in \emph{membership}: equal counts can
-hide different objects, so the symmetric difference is the quantity to report. The
-fourteen selected objects with NaN $t_{0}$ need no such estimator, having no photometry
-to place a window on.
+\paragraph{Two uses of \salt.} Counting epochs inside $[-15,+40]$~d requires a date of
+maximum, and the numbers above use the archive's \salt\ $t_{0}$ to place the window; the
+same value initializes $\tmax$, which is free thereafter. No photometry is transformed,
+rescaled or K-corrected by either. Each is checked rather than assumed away. For the fit,
+$\tmax$ is compared with $t_{0}$ and the analysis repeated with one substituted for the
+other; because the fit starts at $t_{0}$, agreement counts only if the fit could have
+disagreed, so the comparison is run from perturbed starts. For the selection, the sample is
+recounted against an SED-free anchor --- a window on the brightest good $g$ epoch --- and
+the two samples compared by \emph{membership}: equal counts can hide different objects, so
+the symmetric difference is what to report. The fourteen selected objects with NaN $t_{0}$
+need neither, having no photometry to place a window on.
 
 \paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
 \texttt{mwebv}, so its \emph{amplitude} is known and is removed deterministically
