@@ -269,18 +269,11 @@ backwards, and an object whose phase ran backwards partway along its track would
 slow supernova but not a supernova.
 
 A supernova will not lie exactly on any member of the six-parameter family, and the
-departure is not photometric noise. Grey offsets, color shifts and time shifts are already
-free in $\peakmag$, $\colr$ and $\tmax$, so what remains is departure in \emph{shape},
-carried by a per-band intrinsic scatter $\sigma_{g}, \sigma_{r}$ added to the flux variance
-and fitted with everything else. Without it the global functions follow whichever
-supernovae have the smallest photometric errors, the per-supernova uncertainties come out
-too small, and no model comparison is trustworthy --- including the two this model exists
-to make. Two scalars are deliberately less than the scatter deserves: one flexible enough
-to follow its phase dependence is also flexible enough to absorb $\shapekappa$, and that
-$\sigma$ does not inflate when $\shapekappa$ is removed is the check that it has not.
+departure is not photometric noise. It is carried by an intrinsic scatter, defined with the
+likelihood in Section~\ref{sec:likelihood}.
 
 
-\section{Sample}
+\section{Data Sample}
 \label{sec:samples}
 
 Coverage was measured directly from the \ztf\ SN~Ia DR2 archive
@@ -291,10 +284,8 @@ are exactly the fourteen whose \salt\ $t_{0}$ is NaN, so the absence is of photo
 rather than of shape, and 638 objects remain with light curves. Epochs are counted per
 band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
 none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. The
-signal-to-noise requirement defines the sample and nothing more: every epoch in the window
-enters the likelihood, non-detections and negative fluxes included. The likelihood is
-Gaussian in native flux, so a low-signal epoch weights itself down correctly, whereas
-discarding one would select on the noise realization of the very quantity being fitted.
+signal-to-noise requirement defines the sample and nothing more; what enters the likelihood
+is Section~\ref{sec:likelihood}.
 
 The analysis uses the 598 supernovae with at least five good epochs in \emph{each} of $g$
 and $r$; the count is 635 at three or more and 464 at ten or more. The $i$ band is not
@@ -325,6 +316,51 @@ here as well. It is not uniformly mild: the sample has median \texttt{mwebv} of 
 but $24\%$ of it exceeds $0.1$, $12\%$ exceeds $0.2$ and the largest is $1.06$, with a
 fifth of the objects at Galactic latitude $|b| < 20^{\circ}$. No latitude or reddening cut
 is imposed, so the approximation is worst for precisely the objects where it matters most.
+
+
+\section{Likelihood}
+\label{sec:likelihood}
+
+The model is built in magnitude space and confronted with the data in flux. Magnitude space
+is where distance and reddening act as translations, to which $\curv$ is blind; flux is
+where the \ztf\ errors are Gaussian and where a non-detection is an ordinary measurement
+near zero rather than a missing one. Converting the data to magnitudes would discard the
+negative fluxes and make the errors asymmetric, so the conversion runs the other way.
+
+The template is generated on the arclength grid, giving
+$\bigl(t(\arc \mid \allpars), \magg(\arc \mid \allpars), \magr(\arc \mid \allpars)\bigr)$
+from \eqref{eq:modelmag} and \eqref{eq:modeltime}. For an epoch $i$ observed at $t_{i}$ in
+band $b_{i}$, the arclength $\arc_{i}$ solving $t(\arc_{i} \mid \allpars) = t_{i}$ is found
+by monotone interpolation, and the predicted flux is
+\begin{equation}
+  \hat f_{i}(\allpars)
+    = 10^{-0.4\,[\,m_{b_{i}}(\arc_{i} \mid \allpars)\, -\, \zp\,]} .
+  \label{eq:predflux}
+\end{equation}
+Every epoch in the window contributes, non-detections and negative fluxes included:
+\begin{equation}
+  -2\ln\mathcal{L}
+    = \sum_{i}\left[\frac{\bigl(f_{i} - \hat f_{i}\bigr)^{2}}{\sigma_{i}^{2}}
+      + \ln\sigma_{i}^{2}\right], \qquad
+  \sigma_{i}^{2} = \sigma_{f,i}^{2}
+    + \bigl(0.4\ln 10\ \sigma_{b_{i}}\,\hat f_{i}\bigr)^{2} ,
+  \label{eq:like}
+\end{equation}
+with $\sigma_{f,i}$ the archive's flux error. A low-signal epoch weights itself down
+correctly, whereas discarding one would select on the noise realization of the very
+quantity being fitted. The variance depends on $\allpars$, hence the log-determinant term.
+
+The second variance term is the intrinsic scatter. Grey offsets, color shifts and time
+shifts are already free in $\peakmag$, $\colr$ and $\tmax$, so what it carries is departure
+in \emph{shape}; it is written as a fractional flux error because that departure is a
+magnitude, and scaled by $\hat f_{i}$ rather than $f_{i}$ so a downward fluctuation does not
+earn itself a smaller weight. Without it the global functions follow whichever supernovae
+have the smallest photometric errors, the per-supernova uncertainties come out too small,
+and no model comparison is trustworthy --- including the two this model exists to make. Two
+scalars $\sigma_{g}, \sigma_{r}$ are deliberately less than the scatter deserves: one
+flexible enough to follow its phase dependence is also flexible enough to absorb
+$\shapekappa$, and that $\sigma$ does not inflate when $\shapekappa$ is removed is the check
+that it has not.
 
 
 \bibliographystyle{plainnat}
