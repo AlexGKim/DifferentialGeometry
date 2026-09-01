@@ -276,45 +276,47 @@ likelihood in Section~\ref{sec:likelihood}.
 \section{Data Sample}
 \label{sec:samples}
 
-Coverage was measured directly from the \ztf\ SN~Ia DR2 archive
+Supernova light curves are taken from  the \ztf\ SN~Ia DR2 archive
 \citep{Rigault2025}. Starting from the 3628 cataloged objects, we require
 $\zred < 0.05$ and both the \texttt{lccoverage} and \texttt{fitquality} flags set,
 leaving 652 supernovae. Fourteen of these have no light-curve file in the release; they
 are exactly the fourteen whose \salt\ $t_{0}$ is NaN, so the absence is of photometry
 rather than of shape, and 638 objects remain with light curves. Epochs are counted per
 band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
-none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. The
-signal-to-noise requirement defines the sample and nothing more; what enters the likelihood
-is Section~\ref{sec:likelihood}.
-
+none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. 
 The analysis uses the 598 supernovae with at least five good epochs in \emph{each} of $g$
-and $r$; the count is 635 at three or more and 464 at ten or more. The $i$ band is not
-used: only 178 objects reach five good $i$ epochs, too few to support a third dimension.
+and $r$,
 Selection and counts are produced by \texttt{dgsn.data.sample}.
 
-\paragraph{Two uses of \salt.} Counting epochs inside $[-15,+40]$~d requires a date of
-maximum, and the numbers above use the archive's \salt\ $t_{0}$ to place the window; the
-same value initializes $\tmax$, which is free thereafter. No photometry is transformed,
-rescaled or K-corrected by either. Each is checked rather than assumed away. For the fit,
+Counting epochs inside $[-15,+40]$~d requires a date of
+maximum, and the numbers above use the archive's \salt\ $t_{0}$ to place the window.
+For the fit,
 $\tmax$ is compared with $t_{0}$ and the analysis repeated with one substituted for the
-other; because the fit starts at $t_{0}$, agreement counts only if the fit could have
-disagreed, so the comparison is run from perturbed starts. For the selection, the sample is
+other. For the selection, the sample is
 recounted against an SED-free anchor --- a window on the brightest good $g$ epoch --- and
 the two samples compared by \emph{membership}: equal counts can hide different objects, so
 the symmetric difference is what to report. The fourteen selected objects with NaN $t_{0}$
 need neither, having no photometry to place a window on.
 
-\paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
-\texttt{mwebv}, so its amplitude is known and is subtracted from the photometry before
-fitting rather than being fitted. What is known is $E(B-V)$, however, not $A_{g}$ and
-$A_{r}$: converting one to the other needs the source spectrum within each band, and that
-spectrum evolves, so the band extinctions drift with phase while a single number per band
-is subtracted. The approximation is not uniformly mild --- the sample has median
-\texttt{mwebv} of $0.043$, but $24\%$ of it exceeds $0.1$, $12\%$ exceeds $0.2$ and the
-largest is $1.06$, with a fifth of the objects at Galactic latitude
-$|b| < 20^{\circ}$. No latitude or reddening cut is imposed, so it is worst for precisely
-the objects where it matters most.
-
+Supernova light curves are not corrected for Galactic dust.  
+To first order, such corrections would appear in the form
+\begin{equation}
+  m_{\lambda}^{\mathrm{corr}} = m_{\lambda}^{\mathrm{obs}} - A_{\lambda},
+  \qquad A_{\lambda} = R_{\lambda}\,E(B-V) ,
+  \label{eq:mwext}
+\end{equation}
+with $R_{\lambda}$ from \citet{Schlafly2011} assuming a \citet{Fitzpatrick1999} law at
+$R_{V} = 3.1$, and $E(B-V)$ the \citet{Schlegel1998} value at the supernova's coordinates,
+tabulated per object as \texttt{mwebv}. A constant per band is a translation in magnitude
+space, and $\mathbf{1}$ and $\dustunit$ span $\Rtwo$, so it is absorbed exactly by the
+placement: $\peakmag \mapsto \peakmag + A_{g}$ and
+$\colr \mapsto \colr + (A_{g} - A_{r})$, leaving the curve and hence $\curv$ untouched.
+Not correcting therefore costs nothing in the fit, and means instead that $\peakmag$ and
+$\colr$ carry the Galactic term, to be removed downstream where \texttt{mwebv} is known
+per object. The absorption is exact only for constant $A_{\lambda}$: the band-averaged
+extinction depends on a source spectrum that evolves, so $R_{\lambda}$ drifts across the
+window by a few percent, and that residual does reach $\curv$ --- not negligibly, since
+$E(B-V)$ exceeds $0.1$ for $24\%$ of the sample and reaches $1.06$.
 
 \section{Likelihood}
 \label{sec:likelihood}
