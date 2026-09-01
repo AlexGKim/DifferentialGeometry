@@ -236,7 +236,8 @@ goes, $q_{1}$ how fast the supernova covers it. All
 four are expansions on a fixed basis, their coefficients fit jointly with the per-supernova
 parameters.
 
-Let $\{\phi_{k}\}$ be orthonormal on $[\arc_{\min}, \arclen]$ with $\phi_{0}$ constant, and
+Let $\{\phi_{k}\}$ be orthonormal on $[\arc_{\min}, \arclen]$, with $\phi_{0}$ constant and
+each $\phi_{k}$ integrating in closed form --- polynomials and splines do both --- and
 write
 \begin{equation}
   q_{1} = \sum_{k \geq 1} a_{k}\phi_{k}, \quad
@@ -262,6 +263,12 @@ space: $K$ is a modelling choice and not only a parameterization, and raising it
 whether the data want more freedom than it allows. The construction degenerates only when $a$ and $b$ become
 parallel, which is not a numerical nuisance to suppress but the statement that the two
 functions carry the same information.
+
+Because the $\phi_{k}$ integrate analytically, so do $\Psi$ and hence $\psi$, and
+\eqref{eq:frenet2d} is no longer an initial-value problem: $\curve$ and $\phase$ are
+quadratures of known integrands. Neither has an elementary antiderivative --- $\cos$ and
+$\exp$ of a basis expansion --- so both are evaluated numerically, but on quadrature nodes
+rather than by stepping, and the gauge \eqref{eq:gauge} does not touch them.
 
 That the clock runs forward is not a condition here but a property of the form. Writing the
 traversal through $\log\,\dd\phase/\dd\arc$ admits no coefficients for which phase runs
@@ -324,14 +331,13 @@ $E(B-V)$ exceeds $0.1$ for $24\%$ of the sample and reaches $1.06$.
 The model is built in magnitude space and confronted with the data in flux. Magnitude space
 is where distance and reddening act as translations, to which $\curv$ is blind; flux is
 where the \ztf\ errors are Gaussian and where a non-detection is an ordinary measurement
-near zero rather than a missing one. Converting the data to magnitudes would discard the
-negative fluxes and make the errors asymmetric, so the conversion runs the other way.
+near zero rather than a missing one.
 
-The template is generated on the arclength grid, giving
+Equations \eqref{eq:modelmag} and \eqref{eq:modeltime} give
 $\bigl(t(\arc \mid \allpars), \magg(\arc \mid \allpars), \magr(\arc \mid \allpars)\bigr)$
-from \eqref{eq:modelmag} and \eqref{eq:modeltime}. For an epoch $i$ observed at $t_{i}$ in
-band $b_{i}$, the arclength $\arc_{i}$ solving $t(\arc_{i} \mid \allpars) = t_{i}$ is found
-by monotone interpolation, and the predicted flux is
+as functions of $\arc$. For an epoch $i$ observed at $t_{i}$ in band $b_{i}$, the arclength
+$\arc_{i}$ solving $t(\arc_{i} \mid \allpars) = t_{i}$ is found by monotone inversion, and
+the predicted flux is
 \begin{equation}
   \hat f_{i}(\allpars)
     = 10^{-0.4\,[\,m_{b_{i}}(\arc_{i} \mid \allpars)\, -\, \zp\,]} .
