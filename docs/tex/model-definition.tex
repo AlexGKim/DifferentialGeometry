@@ -150,7 +150,9 @@ where $\curve(\arc;\shapekappa)$ is generated from the curvature by the quadratu
 \eqref{eq:turning}--\eqref{eq:quadrature}. This is the light curve in parametric form:
 $\arc$ sweeps the template, \eqref{eq:modeltime} places each of its points in observer
 time and \eqref{eq:modelmag} gives the magnitudes there. Evaluation at the observed
-epochs is a monotone interpolation of \eqref{eq:modeltime}. The redshift $\zred$ is known rather than
+epochs is a monotone interpolation of \eqref{eq:modeltime}. Only $\shapekappa$ affects the curve shape. The others translate it, retime it, or set the
+clock.
+The redshift $\zred$ is known rather than
 fitted, and $\phase$ is rest-frame throughout. Table~\ref{tab:pars} collects the
 parameters.
 
@@ -174,12 +176,9 @@ $\shapekappa$ & amplitude of $\curv_{1}$ & shape \\
 \end{tabular}
 \end{table}
 
-Only $\shapekappa$ affects the curve shape. The others translate it, retime it, or set the
-clock.
 
-$\peakmag$, $\colr$ and $\tmax$ enter as constants. The other three enter through two
-functions of arclength, each expanded on a learned basis. The curvature is expanded
-directly,
+
+The curvature is expanded as
 \begin{equation}
   \curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc) ,
   \label{eq:curvlin}
@@ -196,11 +195,9 @@ The traversal is expanded through its rate,
   \label{eq:travlog}
 \end{equation}
 so that $\phase(0) = 0$ and $\dd\phase/\dd\arc > 0$ hold identically, for every
-$(\xstretch, x_p) \in \Rtwo$ and every basis. Nothing is lost by it: every positive rate is
-$e^{v}$ for some $v$, so the exponential removes the constraint rather than narrowing the
-family. Here $\xstretch$ is a
+$(\xstretch, x_p) \in \Rtwo$ and every basis. Here $\xstretch$ is a
 \emph{log} stretch: at $x_p = 0$ the traversal is the classical dilation by
-$e^{\xstretch}$, and away from it no single factor describes it.
+$e^{\xstretch}$.
 
 One admissibility condition survives, the turning condition \eqref{eq:turncond}. Since
 $\Psi(\arc; \shapekappa) = K_{0}(\arc) + \shapekappa\,K_{1}(\arc)$ with
