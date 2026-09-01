@@ -305,15 +305,15 @@ the symmetric difference is what to report. The fourteen selected objects with N
 need neither, having no photometry to place a window on.
 
 \paragraph{Milky Way extinction.} Galactic reddening is tabulated per object as
-\texttt{mwebv}, so its \emph{amplitude} is known and is removed deterministically
-before fitting rather than being fitted. What remains free is $\colr$, which absorbs
-host reddening and intrinsic color together and does not separate them. Note that what is
-known is $E(B-V)$, not $A_{g}(\phase)$ and $A_{r}(\phase)$; the conversion is
-phase-dependent and needs an SED, so removing a constant offset is an approximation
-here as well. It is not uniformly mild: the sample has median \texttt{mwebv} of $0.043$,
-but $24\%$ of it exceeds $0.1$, $12\%$ exceeds $0.2$ and the largest is $1.06$, with a
-fifth of the objects at Galactic latitude $|b| < 20^{\circ}$. No latitude or reddening cut
-is imposed, so the approximation is worst for precisely the objects where it matters most.
+\texttt{mwebv}, so its amplitude is known and is subtracted from the photometry before
+fitting rather than being fitted. What is known is $E(B-V)$, however, not $A_{g}$ and
+$A_{r}$: converting one to the other needs the source spectrum within each band, and that
+spectrum evolves, so the band extinctions drift with phase while a single number per band
+is subtracted. The approximation is not uniformly mild --- the sample has median
+\texttt{mwebv} of $0.043$, but $24\%$ of it exceeds $0.1$, $12\%$ exceeds $0.2$ and the
+largest is $1.06$, with a fifth of the objects at Galactic latitude
+$|b| < 20^{\circ}$. No latitude or reddening cut is imposed, so it is worst for precisely
+the objects where it matters most.
 
 
 \section{Likelihood}
