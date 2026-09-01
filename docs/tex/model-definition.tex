@@ -199,21 +199,9 @@ $(\xstretch, x_p) \in \Rtwo$ and every basis. Here $\xstretch$ is a
 \emph{log} stretch: at $x_p = 0$ the traversal is the classical dilation by
 $e^{\xstretch}$.
 
-Nothing constrains the coefficients. The turning condition \eqref{eq:turncond} is an
-expectation the fit should meet, not a condition imposed on it: since
-$\Psi(\arc; \shapekappa) = K_{0}(\arc) + \shapekappa\,K_{1}(\arc)$ with
-$K_{i} = \int_{0}^{\arc}\curv_{i}$ is linear in $\shapekappa$, it is one linear inequality
-per arclength and would be an interval in $\shapekappa$ were it imposed. It is not, because
-a supernova clipped to that interval is reported as an extreme but valid fit, whereas one
-left free reports $\max_{\arc}\abs{\Psi}$ and can be recognized. A supernova whose fit
-violates \eqref{eq:turncond} has two $g$ extrema, so its $\peakmag$ and $\colr$ are not the
-peak magnitude and color; $\max_{\arc}\abs{\Psi}/\pi$ is therefore a validity criterion for
-the fit, to be reported per object and acted on like a bad $\chi^{2}$. The same holds for
-\eqref{eq:peakcond}, whose failure is worse: $\curv(0) < 0$ makes $\arc = 0$ a minimum of
-brightness, so the model has anchored to the wrong feature entirely. A prior on
-$\shapekappa$ is a prior on turning:
-the curve reaches the turning through \eqref{eq:quadrature}, so the displacement it induces
-in magnitude space is a double integral of $\curv_{1}$ and grows with arclength.
+The model does not enforce the expectation of a single $g$-band global minimum described
+by Eqs.~\ref{eq:peakcond} and \ref{eq:turncond}.  These are expected features of the fit
+output.
 
 \paragraph{Gauge.} Each expansion fixes only the span of its basis: a change of basis
 undone by a compensating change of coefficients alters no prediction. The traversal has
@@ -275,32 +263,21 @@ whether the data want more freedom than it allows. The construction degenerates 
 parallel, which is not a numerical nuisance to suppress but the statement that the two
 functions carry the same information.
 
-The fit is therefore unconstrained: monotonicity is structural, the gauge is built into
-\eqref{eq:basis}, and \eqref{eq:turncond} is checked rather than imposed. What it checks is
-a statement about supernovae --- that there is one $g$ maximum and not two: maximum light
-is where the tangent runs along the $r$ axis, $\Psi$ measures how far it has turned since,
-and a turn of $\pi$ places a second $g$ peak inside the window. Violation for more than a
-few objects is a verdict on the basis rather than a numerical nuisance, and
-\eqref{eq:peakcond} is worth monitoring during the fit rather than only at the end, since
-$\curv(0) < 0$ is a reachable basin from a poor start; initializing $\curv_{0}$ from a
-template rather than at random keeps the fit out of it.
-
 That the clock runs forward is not a condition here but a property of the form. Writing the
 traversal through $\log\,\dd\phase/\dd\arc$ admits no coefficients for which phase runs
 backwards, and an object whose phase ran backwards partway along its track would not be a
 slow supernova but not a supernova.
 
-What is \emph{not} fixed by convention is the point of the exercise. Nothing at all is
-imposed on the per-supernova coefficients, so every moment of them is a measurement:
-$\mathrm{Cov}(\xstretch, x_p)$ says whether the second timing mode carries anything stretch
-does not, and the shape--timing correlations $\mathrm{Cov}(\shapekappa, \xstretch)$ and
-$\mathrm{Cov}(\shapekappa, x_p)$ are what the model is built to measure. Fixing any of them
-by convention would assume the answer.
-
-The model as it stands carries no intrinsic scatter: every departure of a supernova from
-the six-parameter family must be absorbed by photometric noise. This is a limitation
-rather than a claim, and is the first thing to revisit once the six parameters are shown
-to earn their cost.
+A supernova will not lie exactly on any member of the six-parameter family, and the
+departure is not photometric noise. Grey offsets, color shifts and time shifts are already
+free in $\peakmag$, $\colr$ and $\tmax$, so what remains is departure in \emph{shape},
+carried by a per-band intrinsic scatter $\sigma_{g}, \sigma_{r}$ added to the flux variance
+and fitted with everything else. Without it the global functions follow whichever
+supernovae have the smallest photometric errors, the per-supernova uncertainties come out
+too small, and no model comparison is trustworthy --- including the two this model exists
+to make. Two scalars are deliberately less than the scatter deserves: one flexible enough
+to follow its phase dependence is also flexible enough to absorb $\shapekappa$, and that
+$\sigma$ does not inflate when $\shapekappa$ is removed is the check that it has not.
 
 
 \section{Sample}
