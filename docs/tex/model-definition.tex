@@ -199,11 +199,19 @@ $(\xstretch, x_p) \in \Rtwo$ and every basis. Here $\xstretch$ is a
 \emph{log} stretch: at $x_p = 0$ the traversal is the classical dilation by
 $e^{\xstretch}$.
 
-One admissibility condition survives, the turning condition \eqref{eq:turncond}. Since
+Nothing constrains the coefficients. The turning condition \eqref{eq:turncond} is an
+expectation the fit should meet, not a condition imposed on it: since
 $\Psi(\arc; \shapekappa) = K_{0}(\arc) + \shapekappa\,K_{1}(\arc)$ with
 $K_{i} = \int_{0}^{\arc}\curv_{i}$ is linear in $\shapekappa$, it is one linear inequality
-per arclength and the admissible $\shapekappa$ is an interval, empty only if $\curv_{0}$
-itself violates it and the basis is wrong. A prior on $\shapekappa$ is a prior on turning:
+per arclength and would be an interval in $\shapekappa$ were it imposed. It is not, because
+a supernova clipped to that interval is reported as an extreme but valid fit, whereas one
+left free reports $\max_{\arc}\abs{\Psi}$ and can be recognized. A supernova whose fit
+violates \eqref{eq:turncond} has two $g$ extrema, so its $\peakmag$ and $\colr$ are not the
+peak magnitude and color; $\max_{\arc}\abs{\Psi}/\pi$ is therefore a validity criterion for
+the fit, to be reported per object and acted on like a bad $\chi^{2}$. The same holds for
+\eqref{eq:peakcond}, whose failure is worse: $\curv(0) < 0$ makes $\arc = 0$ a minimum of
+brightness, so the model has anchored to the wrong feature entirely. A prior on
+$\shapekappa$ is a prior on turning:
 the curve reaches the turning through \eqref{eq:quadrature}, so the displacement it induces
 in magnitude space is a double integral of $\curv_{1}$ and grows with arclength.
 
@@ -228,13 +236,6 @@ four conditions for four freedoms and two for two. Each pair leaves a sign, fixe
 $\int_{0}^{\arclen} q_{1} > 0$ and $\int_{0}^{\arclen} \curv_{1} > 0$, so a positive
 coefficient lengthens the late traversal and turns the track further.
 
-The basis of Section~\ref{sec:traversal} satisfies these by construction, so there is
-no projection step and no population statistic, and nothing is imposed on the coefficients
-and $\langle\xstretch\rangle$, $\mathrm{Var}(x_p)$, $\mathrm{Cov}(\xstretch, x_p)$ and
-$\mathrm{Var}(\shapekappa)$ are measurements rather than conventions. The price is that
-$q_{0}$ and $\curv_{0}$ describe the supernova with $\xstretch = x_p = \shapekappa = 0$
-rather than the population mean.
-
 
 \subsection{Modelling functions}
 \label{sec:traversal}
@@ -243,12 +244,9 @@ Four global functions on $[\arc_{\min}, \arclen]$ carry the template. Together $
 and $q_{0}$ are the reference \snia: the track through magnitude space, and the rate at
 which a supernova walks along it. $\curv_{1}$ and $q_{1}$ are the first mode of departure
 from it, split so the two halves cannot be confused --- $\curv_{1}$ moves where the track
-goes, $q_{1}$ how fast the supernova covers it. In \salt\ both roles are carried by
-$M_{1}$ and scaled by the single coefficient $x_{1}$; here they are two functions with two
-coefficients, and whether the data want both is the question the model exists to ask. All
+goes, $q_{1}$ how fast the supernova covers it. All
 four are expansions on a fixed basis, their coefficients fit jointly with the per-supernova
-parameters, as \salt\ trains $M_{0}$ and $M_{1}$ jointly with each supernova's
-$(x_{0}, x_{1}, \colr)$.
+parameters.
 
 Let $\{\phi_{k}\}$ be orthonormal on $[\arc_{\min}, \arclen]$ with $\phi_{0}$ constant, and
 write
@@ -261,7 +259,7 @@ write
 \end{equation}
 the traversal pair omitting $\phi_{0}$, which is what makes $\bar q_{0} = \bar q_{1} = 0$
 in \eqref{eq:gauge} hold identically; the curvature pair carries no mean condition and
-keeps it. The remaining conditions are then algebra rather than quadrature:
+keeps it. The remaining conditions are then algebra:
 $\langle q_{1}, q_{1}\rangle = \norm{a}^{2}$ and $\langle q_{0}, q_{1}\rangle = b \cdot a$
 exactly, and likewise for $(c,d)$. Fitting unconstrained $\tilde a, \tilde b$ and setting
 $a = \tilde a/\norm{\tilde a}$ and $b = \tilde b - (\tilde b \cdot a)\,a$ imposes
@@ -277,15 +275,15 @@ whether the data want more freedom than it allows. The construction degenerates 
 parallel, which is not a numerical nuisance to suppress but the statement that the two
 functions carry the same information.
 
-One condition on the per-supernova coefficients is a statement about supernovae. The
-turning condition \eqref{eq:turncond} says there is one $g$ maximum and not two: maximum
-light is where the tangent runs along the $r$ axis, $\Psi$ measures how far it has turned
-since, and a turn of $\pi$ places a second $g$ peak inside the window. It is an interval in
-$\shapekappa$, so projecting onto it is a clip, applied to each supernova after each step.
-It costs likelihood when it binds, as projected gradient descent should, and whether it
-binds is worth recording: it does so when the shape mode would turn the track too far or
-reverse it, which for more than a few objects is a verdict on the basis rather than a
-numerical nuisance.
+The fit is therefore unconstrained: monotonicity is structural, the gauge is built into
+\eqref{eq:basis}, and \eqref{eq:turncond} is checked rather than imposed. What it checks is
+a statement about supernovae --- that there is one $g$ maximum and not two: maximum light
+is where the tangent runs along the $r$ axis, $\Psi$ measures how far it has turned since,
+and a turn of $\pi$ places a second $g$ peak inside the window. Violation for more than a
+few objects is a verdict on the basis rather than a numerical nuisance, and
+\eqref{eq:peakcond} is worth monitoring during the fit rather than only at the end, since
+$\curv(0) < 0$ is a reachable basin from a poor start; initializing $\curv_{0}$ from a
+template rather than at random keeps the fit out of it.
 
 That the clock runs forward is not a condition here but a property of the form. Writing the
 traversal through $\log\,\dd\phase/\dd\arc$ admits no coefficients for which phase runs
