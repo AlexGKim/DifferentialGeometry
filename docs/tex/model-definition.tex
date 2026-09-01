@@ -135,251 +135,156 @@ The connection to supernova phase is specified by the inverse of $s(p)$,  the fu
 \subsection{Per-supernova light-curve model}
 \label{sec:pars}
 
-We seek to construct a light curve model that captures the diversity of SN~Ia
-behavior.
-Parameters considered in traditional models include
-\begin{itemize}
-\item $\peakmag$: The apparent peak $g$ magnitude, contributing a term
-  $\peakmag\,\mathbf{1}$ added to $\curve$. It is achromatic, and absorbs the absolute
-  peak magnitude, the distance modulus and any grey offset together.
-\item $\colr$: A phase-independent shift in color.  This contributes a term
-  $ \colr\,\dustunit$ added to $\curve$, with $\dustunit = (0,-1)$, so that $\colr$ is the
-  shift in $\Magg - \Magr$. Since $\mathbf{1}$ and $\dustunit$ span $\Rtwo$, the placement
-  $\peakmag\,\mathbf{1} + \colr\,\dustunit$ is an arbitrary translation and this basis is
-  declared, not measured.
-\item $\xstretch$: A wavelength-independent dilation of the light curve, corresponding
-  to `stretch': a supernova with $\xstretch > 1$ evolves more slowly, reaching each point
-  of the template at $\xstretch$ times the mean phase.
-  \end{itemize}
-
-The motivation for describing light-curve shapes this way is apparent: in this
-parameterization the curvature is unchanged. The terms $\peakmag\,\mathbf{1}$ and
-$\colr\,\dustunit$ translate the curve, and $\xstretch$ only alters the rate of travel
-along it.
-
-To go beyond traditional light-curve models, we explore two new per-supernova parameters,
-\begin{itemize}
-\item $x_p$: Variation in time evolution beyond that described by $s$, with
-\begin{equation}
-  \phase(\arc; \xstretch, x_p) = \xstretch\,p_{0}(\arc) + x_p\,p_{1}(\arc),
-  \label{eq:travlin}
-\end{equation}
-where $p_0$ and $p_1$ are functions obeying $p_{0}(0) = p_{1}(0) = 0$, so that $\phase = 0$
-at $g$ maximum for every supernova. The traversal must increase,
-\begin{equation}
-  \deriv{\phase}{\arc} = \xstretch\,p_{0}'(\arc) + x_p\,p_{1}'(\arc) > 0
-  \qquad \text{on } [\arc_{\min}, \arclen],
-  \label{eq:monotone}
-\end{equation}
-a joint condition on the coefficients and the basis rather than positivity of $\xstretch$
-alone. Writing $u = (\xstretch, x_p)$ and $v(\arc) = (p_{0}'(\arc), p_{1}'(\arc))$,
-\eqref{eq:monotone} is $u \cdot v(\arc) > 0$ for every $\arc$: one half-plane through the
-origin per arclength, so the admissible set is an open convex cone. In two dimensions such
-an intersection is bounded by two of its members, those normal to the angular extremes of
-$v$,
-\begin{equation}
-  u \cdot v(\arc_{-}) > 0, \qquad u \cdot v(\arc_{+}) > 0 ,
-  \label{eq:wedge}
-\end{equation}
-where $\arc_{\pm}$ are the arclengths at which $v$ is angularly extremal, in the sense that
-the cross product $v(\arc_{-}) \times v(\arc) $ is of one sign and
-$v(\arc_{+}) \times v(\arc)$ of the other for every $\arc$. The extremes are attained since
-$v$ is continuous on a compact interval, and the characterization needs no branch
-convention for the angle. This is a wedge
-in $(\xstretch, x_p)$ with apex at the origin, nonempty exactly when the directions
-$v(\arc)$ span less than half a turn: two traversal functions that disagree by more than
-that admit no coefficients at all and are the wrong pair. The wedge implies $\xstretch > 0$
-exactly when the $v(\arc)$ span the $p_{1}'$ axis, $\xstretch$ being then a convex
-combination of the two left-hand sides; otherwise $\xstretch < 0$ is admissible.
-
-Nothing here divides by a fitted quantity, and the form is manifestly invariant under the
-change of basis of Section~\ref{sec:traversal}: $u \mapsto Au$ carries
-$v \mapsto A^{-\top}v$, leaving $u \cdot v$ and hence the cone alone. When $p_{0}' > 0$ the
-angular extremes are those of $p_{1}'/p_{0}'$ and \eqref{eq:wedge} is the familiar pair of
-bounds on that ratio. The traversal is linear in $(\xstretch, x_p)$, which is what the
-fitting uses.
-
-With two functions in play
-$\xstretch$ no longer corresponds exactly to the `stretch' in the traditional light-curve models: it
-recovers that classical dilation only when $x_p = 0$, and otherwise no single factor
-describes the traversal.
-
-There are degenerate solutions to Eq.~\eqref{eq:travlin}. For example,
-$p_{0} \rightarrow \alpha\,p_{0} + \beta\,p_{1}$ together with
-$\xstretch \rightarrow \xstretch/\alpha$ and
-$x_p \rightarrow x_p - (\beta/\alpha)\,\xstretch$ leaves $\phase(\arc; \xstretch, x_p)$
-unchanged for every supernova, for any $\alpha > 0$ and $\beta$; the same holds for the
-corresponding replacement of $p_{1}$. 
-We break this degeneracy by normalizing the population,
-\begin{equation}
-  \langle \xstretch \rangle = 1, \qquad \langle x_p \rangle = 0, \qquad
-  \mathrm{Var}(x_p) = 1, \qquad \mathrm{Cov}(\xstretch, x_p) = 0,
-  \label{eq:travgauge}
-\end{equation}
-one for each parameter of the change of basis: $\langle \xstretch \rangle = 1$ and
-$\mathrm{Var}(x_p) = 1$ set the scales of $p_{0}$ and $p_{1}$, $\langle x_p \rangle = 0$
-forbids folding $p_{1}$ into $p_{0}$, and $\mathrm{Cov}(\xstretch, x_p) = 0$ forbids
-folding $p_{0}$ into $p_{1}$. All four are blind to the sign of $p_{1}$, being unchanged
-by $(p_{1}, x_p) \rightarrow (-p_{1}, -x_p)$, so a discrete ambiguity remains; we fix it
-by requiring $p_{1}(\arclen) > 0$, with $\arclen$ the arclength at the end of the modelled
-range, so that $x_p > 0$ lengthens the traversal. Anchored by $p_{1}(0) = 0$, this is the
-accumulated deviation over the whole arc rather than a local value.
-
-\item $\shapekappa$: First-order deviations in curvature, with
-\begin{equation}
-\curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc),
-\end{equation}
- where
-$\curv_{0}(\arc)$ and $\curv_{1}(\arc)$ are functions. The turning inherits the linearity,
-\begin{equation}
-  \Psi(\arc; \shapekappa) = K_{0}(\arc) + \shapekappa\,K_{1}(\arc), \qquad
-  K_{i}(\arc) = \int_{0}^{\arc}\curv_{i} ,
-  \label{eq:turnlin}
-\end{equation}
-so \eqref{eq:turncond} is two linear inequalities in $\shapekappa$ per arclength and the
-admissible set is their intersection, an interval. It implies \eqref{eq:peakcond}: near the
-origin $\Psi \simeq \curv(0)\,\arc$, so $\sign\Psi = \sign\arc$ there is $\curv(0) > 0$.
-The implication is not enough to drop it, because the grid points adjacent to $\arc = 0$
-are exactly where it acts: $K_{0}$ and $K_{1}$ both vanish at the origin, so the
-inequalities degenerate near it and those points are dropped. Imposed as
-$\curv_{0}(0) + \shapekappa\,\curv_{1}(0) > 0$, \eqref{eq:peakcond} is one more linear
-inequality on the same $\shapekappa$ and covers the gap. An empty interval means
-$\curv_{0}$ itself violates \eqref{eq:turncond} and the basis is wrong.
-
-The expansion is linear in $\curv$ but not in magnitudes. Writing
-$K_{1}(\arc) = \int_{0}^{\arc}\curv_{1}$, the turning is linear, $\psi = \psi_{0} +
-\int_{0}^{\arc}\curv_{0} + \shapekappa K_{1}$, but the curve reaches it through
-\eqref{eq:quadrature}, and to first order is displaced by
-\begin{equation}
-  \delta\curve(\arc) = \shapekappa \int_{0}^{\arc} K_{1}(\zeta)\,\norml(\zeta)\,\dd\zeta ,
-  \label{eq:kappadisp}
-\end{equation}
-a double integral of $\curv_{1}$ carried along the normal. The displacement therefore
-accumulates with arclength: a value of $\shapekappa$ negligible near maximum need not be
-negligible at the end of the window, and the linearization holds only while
-$\abs{\shapekappa K_{1}} \ll 1$. A prior on $\shapekappa$ is a prior on turning, not on
-displacement in magnitude space.
-
-The degeneracy in the choice of basis is broken by
-\begin{equation}
-  \langle \shapekappa \rangle = 0, \qquad \mathrm{Var}(\shapekappa) = 1,
-  \qquad \int_{0}^{\arclen}\curv_{1}(\arc)\,\dd\arc > 0 ,
-  \label{eq:curvgauge}
-\end{equation}
-the first making $\curv_{0}$ the mean curvature and the second fixing the scale of
-$\curv_{1}$. As in \eqref{eq:travgauge} these leave a sign free, removed by the third:
-by \eqref{eq:turning} the integral is the net extra turning contributed by $\curv_{1}$,
-so $\shapekappa > 0$ means the track turns further. Both bases are thus fixed by
-conditions internal to the functions themselves, never by a correlation between a shape
-and a timing parameter, which would be both degenerate for an uncorrelated population and
-at odds with the separation the model asserts.
-\end{itemize}
-
-The model for a supernova light curve, parameterized
-by $\allpars = (\peakmag,\, \colr,\, \xstretch,\, x_p,\, \shapekappa,\, \tmax)$, is then
+A supernova is described by six parameters,
+$\allpars = (\peakmag,\, \colr,\, \xstretch,\, x_p,\, \shapekappa,\, \tmax)$, entering as
 \begin{align}
   \begin{pmatrix} \magg \\ \magr \end{pmatrix}\!(\arc \mid \allpars)
-    &= \curve\bigl(\arc;\, \shapekappa\bigr) \;+\; \peakmag\,\mathbf{1} \;+\; \colr\,\dustunit,
+    &= \curve\bigl(\arc;\, \shapekappa\bigr) \;+\; \peakmag\,\mathbf{1}
+       \;+\; \colr\,\dustunit,
     \label{eq:modelmag}\\
   t(\arc \mid \allpars)
-    &= \tmax + (1+\zred)\,\bigl[\xstretch\,p_{0}(\arc) + x_p\,p_{1}(\arc)\bigr],
+    &= \tmax + (1+\zred)\,\phase(\arc;\, \xstretch, x_p),
     \label{eq:modeltime}
 \end{align}
-where $\curve(\arc; \shapekappa)$ is the curve generated from $\curv(\arc; \shapekappa)$ by
-the quadratures \eqref{eq:turning}--\eqref{eq:quadrature}. Equations \eqref{eq:modelmag} and \eqref{eq:modeltime} are the light curve in
-parametric form: $\arc$ sweeps the template, \eqref{eq:modeltime} places each of its points
-in observer time and \eqref{eq:modelmag} gives the magnitudes there. The
-reparameterization $\arc(\phase)$ therefore never has to be constructed in closed form;
-evaluating the model at the observed epochs requires only a monotone interpolation of
-\eqref{eq:modeltime}, which \eqref{eq:wedge} guarantees. The redshift $\zred$ is known rather than fitted, and
-$\phase$ is rest-frame throughout.
+where $\curve(\arc;\shapekappa)$ is generated from the curvature by the quadratures
+\eqref{eq:turning}--\eqref{eq:quadrature}. This is the light curve in parametric form:
+$\arc$ sweeps the template, \eqref{eq:modeltime} places each of its points in observer
+time and \eqref{eq:modelmag} gives the magnitudes there. Evaluation at the observed
+epochs is a monotone interpolation of \eqref{eq:modeltime}. The redshift $\zred$ is known rather than
+fitted, and $\phase$ is rest-frame throughout. Table~\ref{tab:pars} collects the
+parameters.
+
+\begin{table}[tb]
+\centering
+\caption{The six per-supernova parameters. $q_{1}$ and $\curv_{1}$ are the second basis
+functions of the traversal and curvature expansions, \eqref{eq:travlog} and
+\eqref{eq:curvlin}.}
+\label{tab:pars}
+\begin{tabular}{lll}
+\toprule
+ & enters as & role \\
+\midrule
+$\peakmag$    & $+\,\peakmag\,\mathbf{1}$ & translation: absolute magnitude, distance, grey \\
+$\colr$       & $+\,\colr\,\dustunit$ & translation: color \\
+$\tmax$       & offset of $t$ & timing: origin \\
+$\xstretch$   & offset of $\log\,\dd\phase/\dd\arc$ & timing: dilation \\
+$x_p$         & amplitude of $q_{1}$ & timing: departure from dilation \\
+$\shapekappa$ & amplitude of $\curv_{1}$ & shape \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Only $\shapekappa$ affects the curve shape. The others translate it, retime it, or set the
+clock.
+
+$\peakmag$, $\colr$ and $\tmax$ enter as constants. The other three enter through two
+functions of arclength, each expanded on a learned basis. The curvature is expanded
+directly,
+\begin{equation}
+  \curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc) ,
+  \label{eq:curvlin}
+\end{equation}
+the leading coefficient pinned at unity. This costs no direction of shape variation, since
+$\curv_{1} \propto \curv_{0}$ is admissible and gives an overall amplitude of turning; it
+costs a second shape mode, which in two bands is what a second free coefficient would be.
+The traversal is expanded through its rate,
+\begin{equation}
+  \deriv{\phase}{\arc}
+    = \exp\bigl[\xstretch + q_{0}(\arc) + x_p\,q_{1}(\arc)\bigr] ,
+  \qquad
+  \phase(\arc) = \int_{0}^{\arc} \deriv{\phase}{\zeta}\,\dd\zeta ,
+  \label{eq:travlog}
+\end{equation}
+so that $\phase(0) = 0$ and $\dd\phase/\dd\arc > 0$ hold identically, for every
+$(\xstretch, x_p) \in \Rtwo$ and every basis. Nothing is lost by it: every positive rate is
+$e^{v}$ for some $v$, so the exponential removes the constraint rather than narrowing the
+family. Here $\xstretch$ is a
+\emph{log} stretch: at $x_p = 0$ the traversal is the classical dilation by
+$e^{\xstretch}$, and away from it no single factor describes it.
+
+One admissibility condition survives, the turning condition \eqref{eq:turncond}. Since
+$\Psi(\arc; \shapekappa) = K_{0}(\arc) + \shapekappa\,K_{1}(\arc)$ with
+$K_{i} = \int_{0}^{\arc}\curv_{i}$ is linear in $\shapekappa$, it is one linear inequality
+per arclength and the admissible $\shapekappa$ is an interval, empty only if $\curv_{0}$
+itself violates it and the basis is wrong. A prior on $\shapekappa$ is a prior on turning:
+the curve reaches the turning through \eqref{eq:quadrature}, so the displacement it induces
+in magnitude space is a double integral of $\curv_{1}$ and grows with arclength.
+
+\paragraph{Gauge.} Each expansion fixes only the span of its basis: a change of basis
+undone by a compensating change of coefficients alters no prediction. The traversal has
+four such freedoms, $q_{1} \mapsto \lambda q_{1} + \mu$ and
+$q_{0} \mapsto q_{0} + \alpha + \nu q_{1}$, absorbed by $(\xstretch, x_p)$; the curvature has
+two, $\curv_{1} \mapsto \lambda\curv_{1}$ and
+$\curv_{0} \mapsto \curv_{0} + \nu\curv_{1}$, absorbed by $\shapekappa$. We remove them on
+the functions rather than on the population. Writing
+$\langle f, g\rangle = \int_{\arc_{\min}}^{\arclen} fg\,\dd\arc$ and $\bar f$ for the mean
+of $f$ over that interval,
+\begin{equation}
+  \bar q_{1} = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
+  \bar q_{0} = 0, \quad \langle q_{0},q_{1}\rangle = 0;
+  \qquad
+  \langle \curv_{1},\curv_{1}\rangle = 1, \quad
+  \langle \curv_{0},\curv_{1}\rangle = 0 ,
+  \label{eq:gauge}
+\end{equation}
+four conditions for four freedoms and two for two. Each pair leaves a sign, fixed by
+$\int_{0}^{\arclen} q_{1} > 0$ and $\int_{0}^{\arclen} \curv_{1} > 0$, so a positive
+coefficient lengthens the late traversal and turns the track further.
+
+This is Gram--Schmidt on the network outputs, evaluated inside the forward pass: there is
+no projection step and no population statistic, so nothing is imposed on the coefficients
+and $\langle\xstretch\rangle$, $\mathrm{Var}(x_p)$, $\mathrm{Cov}(\xstretch, x_p)$ and
+$\mathrm{Var}(\shapekappa)$ are measurements rather than conventions. The price is that
+$q_{0}$ and $\curv_{0}$ describe the supernova with $\xstretch = x_p = \shapekappa = 0$
+rather than the population mean.
+
 
 \subsection{Modelling functions}
 \label{sec:traversal}
 
 Four global functions on $[\arc_{\min}, \arclen]$ carry the template. Together $\curv_{0}$
-and $p_{0}$ are the mean \snia: the average track through magnitude space, and the average
-rate at which a supernova walks along it. $\curv_{1}$ and $p_{1}$ are the first mode of
-departure from that mean, split so the two halves cannot be confused --- $\curv_{1}$ moves
-where the track goes, $p_{1}$ how fast the supernova covers it. In \salt\ both roles are
-carried by $M_{1}$ and scaled by the single coefficient $x_{1}$; here they are two
-functions with two coefficients, and whether the data want both is the question the model
-exists to ask. All four are neural networks fit jointly with the per-supernova parameters,
-as \salt\ trains $M_{0}$ and $M_{1}$ jointly with each supernova's
-$(x_{0}, x_{1}, \colr)$.
+and $q_{0}$ are the reference \snia: the track through magnitude space, and the rate at
+which a supernova walks along it. $\curv_{1}$ and $q_{1}$ are the first mode of departure
+from it, split so the two halves cannot be confused --- $\curv_{1}$ moves where the track
+goes, $q_{1}$ how fast the supernova covers it. In \salt\ both roles are carried by
+$M_{1}$ and scaled by the single coefficient $x_{1}$; here they are two functions with two
+coefficients, and whether the data want both is the question the model exists to ask. All
+four are neural networks fit jointly with the per-supernova parameters, as \salt\ trains
+$M_{0}$ and $M_{1}$ jointly with each supernova's $(x_{0}, x_{1}, \colr)$.
 
-The traversal networks emit \emph{derivatives}, mixed by a matrix and integrated on the
-arclength grid,
-\begin{equation}
-  P'(\arc) = C\,N(\arc), \qquad
-  N = \bigl(\NN_{p_{0}}, \NN_{p_{1}}\bigr)^{\top}, \qquad
-  P(\arc) = \int_{0}^{\arc} P'(\zeta)\,\dd\zeta ,
-  \label{eq:travnet}
-\end{equation}
-with $C \in \mathrm{GL}(2,\Real)$. The four entries of $C$ are four scalars for the four
-gauge parameters below, which the change of basis moves instead of the network weights; two
-amplitudes would not suffice, the mixing $p_{0} \to \alpha p_{0} + \beta p_{1}$ having no
-home in them. Integrating from the origin makes $p_{0}(0) = p_{1}(0) = 0$ hold identically
-under any $C$, putting $\phase = 0$ at $g$ maximum for every supernova. Emitting
-$\dd\phase/\dd\arc$ itself would force monotonicity outright, but at the cost of the
-linearity in $(\xstretch, x_p)$ on which \eqref{eq:travlin} rests.
+The networks emit the four functions on the arclength grid, and \eqref{eq:gauge} is
+applied to them there, before use: centre where required, normalize, and orthogonalize
+each pair. This is Gram--Schmidt on a $2 \times N$ array, differentiable and costing a few
+inner products, and no supernova enters it, so it composes with minibatching and with
+fitting one new object against a frozen basis. \salt\ has the same freedom and fixes it the
+other way, by normalizing $x_{1}$ over its training set; the difference is that a condition
+on functions can be imposed where the functions are made, while a condition on a population
+cannot. It leaves the sign of each mode, fixed once by the two integrals in
+\eqref{eq:gauge}. It is ill-conditioned only when a pair becomes collinear, which is not a
+numerical nuisance to suppress but the statement that the two functions carry the same
+information.
 
-Two conditions on the per-supernova coefficients are statements about supernovae. The wedge
-\eqref{eq:wedge} says the clock runs forward: the rate
-$\dd\phase/\dd\arc = \xstretch\,p_{0}' + x_p\,p_{1}'$ is a \emph{signed} combination, since
-$x_p$ takes either sign, and an object whose phase ran backwards partway along its track is
-not a slow supernova but not a supernova. The turning condition \eqref{eq:turncond} says
-there is one $g$ maximum and not two: maximum light is where the tangent runs along the $r$
-axis, $\Psi$ measures how far it has turned since, and a turn of $\pi$ places a second $g$
-peak inside the window. Both are small sets of linear inequalities on one supernova's
-coefficients --- two half-planes in $(\xstretch, x_p)$, an interval in $\shapekappa$ by
-\eqref{eq:turnlin} --- so projecting onto them is closed-form and costs nothing. Both cost
-likelihood when they bind, as projected gradient descent should. Whether either is active
-is worth recording: the wedge binds when the directions $v(\arc)$ spread widely, being a
-single half-plane when they are parallel and closing as the spread approaches half a turn,
-and \eqref{eq:turncond}
-binds when the shape mode would turn the track too far or reverse it. Either happening for
-more than a few objects is a verdict on the basis, not a numerical nuisance.
+One condition on the per-supernova coefficients is a statement about supernovae. The
+turning condition \eqref{eq:turncond} says there is one $g$ maximum and not two: maximum
+light is where the tangent runs along the $r$ axis, $\Psi$ measures how far it has turned
+since, and a turn of $\pi$ places a second $g$ peak inside the window. It is an interval in
+$\shapekappa$, so projecting onto it is a clip, applied to each supernova after each step.
+It costs likelihood when it binds, as projected gradient descent should, and whether it
+binds is worth recording: it does so when the shape mode would turn the track too far or
+reverse it, which for more than a few objects is a verdict on the basis rather than a
+numerical nuisance.
 
-Four further numbers are convention. Each basis may be rescaled with its coefficient
-compensating, and either member of a pair folded into the other, without changing a single
-predicted flux; \salt\ has the same freedom and fixes it the same way, by normalizing
-$x_{1}$ over its training set. Here \eqref{eq:travgauge} and \eqref{eq:curvgauge} do it.
-They are fixed by projection after each optimization step, never by a penalty, which would
-pay $\chi^{2}$ to move in a direction no photometry can see. For the traversal the
-projection is closed-form --- writing $m = \langle u \rangle$ and $S = \mathrm{Cov}(u)$ for
-$u = (\xstretch, x_p)$, the matrix $A \in \mathrm{GL}(2,\Real)$ carrying $u \mapsto Au$
-into gauge satisfies $(Am)_{1} = 1$, $(Am)_{2} = 0$, $(ASA^{\top})_{22} = 1$ and
-$(ASA^{\top})_{12} = 0$, four equations in four unknowns, while the basis transforms as
-$P \mapsto A^{-\top}P$ for $P = (p_{0}, p_{1})^{\top}$, the transpose being what leaves
-$\phase = u^{\top}P$ invariant, and is applied to $C$ rather than to the networks. Its
-second row is $t\,(-m_{2}, m_{1})$ with $t$ set by the variance condition and its sign by
-$p_{1}(\arclen) > 0$; the first row then solves a $2 \times 2$ system. The curvature case
-is a shift and a scale.
+That the clock runs forward is not a condition here but a property of the form. Writing the
+traversal through $\log\,\dd\phase/\dd\arc$ admits no coefficients for which phase runs
+backwards, and an object whose phase ran backwards partway along its track would not be a
+slow supernova but not a supernova.
 
-That $p_{0}'$ stays positive under this mixing is a consequence rather than a condition,
-and the physical reading is the shortest proof. Since $\dd\phase/\dd\arc = u \cdot v$, the
-statement $p_{0}' > 0$ is that $u = (1,0)$ is admissible: the mean supernova ages forward.
-The admissible set is a convex cone, the gauge conditions put the population mean at
-exactly $(1,0)$, and a mean of admissible objects is admissible --- strictly so unless
-every supernova is pinned to the same boundary ray, which is a sample with no timing
-diversity at all. An average of forward-running supernovae runs forward.
-
-What is \emph{not} fixed by convention is the point of the exercise.
-$\mathrm{Cov}(\xstretch, x_p) = 0$ relates two timing coefficients. The shape--timing
-correlations $\mathrm{Cov}(\shapekappa, \xstretch)$ and $\mathrm{Cov}(\shapekappa, x_p)$
-are left free: they are what the model is built to measure, and fixing either by convention
-would assume the answer.
-
-The two projections differ in kind, and that sets their order. Admissibility is a property
-of one supernova's predicted light curve; the gauge conditions are moments of the whole
-sample. Choosing units changes no predicted light curve, so gauge fixing cannot make an
-admissible supernova inadmissible or the reverse. Projecting one supernova onto the
-admissible region does change its coefficients, and with them the sample moments. The
-influence runs one way, so the physics is enforced object by object and the population
-renormalized afterwards, once per step and with no iteration between them: an object left
-on its wedge boundary is moved by the renormalization in coordinates but not in prediction,
-and stays on the boundary.
+What is \emph{not} fixed by convention is the point of the exercise. Nothing at all is
+imposed on the per-supernova coefficients, so every moment of them is a measurement:
+$\mathrm{Cov}(\xstretch, x_p)$ says whether the second timing mode carries anything stretch
+does not, and the shape--timing correlations $\mathrm{Cov}(\shapekappa, \xstretch)$ and
+$\mathrm{Cov}(\shapekappa, x_p)$ are what the model is built to measure. Fixing any of them
+by convention would assume the answer.
 
 The model as it stands carries no intrinsic scatter: every departure of a supernova from
 the six-parameter family must be absorbed by photometric noise. This is a limitation
