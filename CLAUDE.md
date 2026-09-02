@@ -42,7 +42,7 @@ rather than quote from memory.
 
 Milky Way extinction is **not** removed: the data reach the fit as observed and
 the Galactic term is taken out downstream. `mwebv` is the SFD `E(B-V)`. Not a
-small-extinction sample — median 0.043, 24% above 0.1, max 1.06.
+small-extinction sample — median 0.042, 23% above 0.1, max 1.06.
 
 ## Traps
 
