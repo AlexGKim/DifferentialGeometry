@@ -367,7 +367,15 @@ the predicted flux is
 with $\zp = 30$, the archive's zero point. It is pinned, not fitted: $\zp$ and $\peakmag$
 are exactly degenerate in \eqref{eq:modelmag} and \eqref{eq:predflux}, and this choice is
 what makes $\peakmag$ the $g$ magnitude on the archive's own scale.
-Every epoch in the window contributes, non-detections and negative fluxes included:
+The epoch set is fixed before fitting. The window is placed by the archive's $t_{0}$ and
+$\tmax$ is free within it; anchoring instead on the fitted $\tmax$ would change which
+epochs enter as the sampler moves, and since each contributes $\ln\sigma_{i}^{2} \simeq 11$
+to \eqref{eq:like} whatever its residual, admitting or dropping one shifts the objective by
+more than a typical epoch fits it. Epochs are those inside the window passing
+\texttt{flag \& 31 == 0}, the archive's quality mask; its first bit marks
+$\sigma_{f,i} = 0$, without which \eqref{eq:like} is undefined for six epochs of this
+sample. Within that set every epoch contributes, non-detections and negative fluxes
+included:
 \begin{equation}
   -2\ln\mathcal{L}
     = \sum_{i}\left[\frac{\bigl(f_{i} - \hat f_{i}\bigr)^{2}}{\sigma_{i}^{2}}
@@ -376,9 +384,29 @@ Every epoch in the window contributes, non-detections and negative fluxes includ
     + \bigl(0.4\ln 10\ \sigma_{b_{i}}\,\hat f_{i}\bigr)^{2} ,
   \label{eq:like}
 \end{equation}
-with $\sigma_{f,i}$ the archive's flux error. A low-signal epoch weights itself down
+with $\sigma_{f,i}$ the archive's flux error, which already carries \texttt{err\_scale};
+\texttt{flux} already has \texttt{flux\_offset} subtracted. A low-signal epoch weights itself down
 correctly, whereas discarding one would select on the noise realization of the very
 quantity being fitted. The variance depends on $\allpars$, hence the log-determinant term.
+
+The interval $[\arc_{\min}, \arclen]$ is padded so that every epoch of every supernova maps
+inside it, but nothing stops an excursion in $\xstretch$ from carrying one outside during
+sampling. Dropping it would make the objective discontinuous, so the map is softened
+instead. With $u_{i} = [t_{i} - t(\arc_{\min})]/[t(\arclen) - t(\arc_{\min})]$ and
+$\mathrm{sp}(x) = \epsilon\log(1 + e^{x/\epsilon})$, the arclength is soft-clamped and the
+flux tapered,
+\begin{equation}
+  \hat\arc_{i} = \arc_{\min} + (\arclen - \arc_{\min})
+    \bigl[\mathrm{sp}(u_{i}) - \mathrm{sp}(u_{i}-1)\bigr] ,
+  \qquad
+  \hat f_{i} \;\longmapsto\; \hat f_{i}\,
+    \exp\!\bigl[-\bigl(\mathrm{sp}(-u_{i}) + \mathrm{sp}(u_{i}-1)\bigr)^{2}/\epsilon^{2}\bigr] .
+  \label{eq:soft}
+\end{equation}
+Both are $C^{\infty}$ in $\allpars$, agree with the model to $O(\epsilon)$ for
+$u_{i} \in [0,1]$, and send the predicted flux to zero outside. An epoch carried out of
+range then contributes $f_{i}^{2}/\sigma_{i}^{2}$: free if it was consistent with zero,
+expensive if it was a detection, which is the pushback wanted.
 
 The second variance term is the intrinsic scatter. Grey offsets, color shifts and time
 shifts are already free in $\peakmag$, $\colr$ and $\tmax$, so what it carries is departure
