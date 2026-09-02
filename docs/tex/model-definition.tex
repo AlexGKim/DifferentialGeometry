@@ -74,7 +74,8 @@ strictly increasing and invertible, and the curve reparameterized as $\curve(\ar
 unit-speed, $\norm{\curve'(\arc)} = 1$.
 The template is carried on a fixed arclength interval $\arc \in [\arc_{\min}, \arclen]$
 with $\arc_{\min} < 0 < \arclen$, declared once for the model rather than fitted and wide
-enough to cover the modelled phase range for every supernova. Every global function below
+enough to cover the modelled phase range for every supernova; the value is measured from
+the sample in Section~\ref{sec:samples}. Every global function below
 is a function on this interval, and it is $\arclen$ that appears in the gauge conditions
 of Section~\ref{sec:pars}. What varies between supernovae is which phases these arclengths
 map to, not the interval itself.
@@ -147,7 +148,10 @@ $\allpars = (\peakmag,\, \colr,\, \xstretch,\, x_p,\, \shapekappa,\, \tmax)$, en
     \label{eq:modeltime}
 \end{align}
 where $\curve(\arc;\shapekappa)$ is generated from the curvature by the quadratures
-\eqref{eq:turning}--\eqref{eq:quadrature}. This is the light curve in parametric form:
+\eqref{eq:turning}--\eqref{eq:quadrature}, and the placement is expanded on the declared
+basis $\mathbf{1} = (1,1)$, $\dustunit = (0,-1)$. These span $\Rtwo$, so the pair
+$(\peakmag, \colr)$ reaches every translation; at $\arc = 0$, where $\curve = (0,0)$, they
+are the $g$ magnitude and the $g-r$ color. This is the light curve in parametric form:
 $\arc$ sweeps the template, \eqref{eq:modeltime} places each of its points in observer
 time and \eqref{eq:modelmag} gives the magnitudes there. Evaluation at the observed
 epochs is a monotone interpolation of \eqref{eq:modeltime}. Only $\shapekappa$ affects the curve shape. The others translate it, retime it, or set the
@@ -236,9 +240,13 @@ goes, $q_{1}$ how fast the supernova covers it. All
 four are expansions on a fixed basis, their coefficients fit jointly with the per-supernova
 parameters.
 
-Let $\{\phi_{k}\}$ be orthonormal on $[\arc_{\min}, \arclen]$, with $\phi_{0}$ constant and
-each $\phi_{k}$ integrating in closed form --- polynomials and splines do both --- and
-write
+Let $\{\phi_{k}\}$ be the Legendre polynomials, shifted to $[\arc_{\min}, \arclen]$ and
+normalized. They meet the three conditions the construction needs natively: orthonormal
+under the flat measure $\langle f,g\rangle = \int fg\,\dd\arc$ that the gauge below uses,
+$\phi_{0}$ constant, and integrals in closed form by a coefficient recurrence. Chebyshev
+polynomials share the last two but are orthogonal under $(1-x^{2})^{-1/2}$, which
+concentrates them at the ends of the interval --- the wrong place, the feature of interest
+being the turning near $\arc = 0$. Writing
 \begin{equation}
   q_{1} = \sum_{k \geq 1} a_{k}\phi_{k}, \quad
   q_{0} = \sum_{k \geq 1} b_{k}\phi_{k}, \quad
@@ -305,7 +313,20 @@ the two samples compared by \emph{membership}: equal counts can hide different o
 the symmetric difference is what to report. The fourteen selected objects with NaN $t_{0}$
 need neither, having no photometry to place a window on.
 
-Supernova light curves are not corrected for Galactic dust.  
+The arclength interval of Section~\ref{sec:curve} is declared from the sample rather than
+assumed. Smoothing each well-observed light curve in flux and integrating
+$\dd\arc = \norm{\dd\curve/\dd\phase}\,\dd\phase$ outward from the $g$ maximum gives, over
+the $[-15,+40]$~d window, a median span of $[-4.8, +3.9]$ mag with fifth and ninety-fifth
+percentiles at $-8.9$ and $+7.3$. The measurement is biased high, since noise lengthens a
+path, and moves by $0.7$ mag across a factor of ten in smoothing; the \citet{Hsiao2007}
+template, having no noise, gives $[-3.2, +3.3]$. We declare
+$[\arc_{\min}, \arclen] = [-8, +8]$, wide enough that every supernova's window maps inside
+it, and verify after fitting that it does --- the fitted traversal gives
+$\phase(\arc_{\min})$ and $\phase(\arclen)$ per object, and both must bracket
+$[-15,+40]$~d. Width is not free, the basis spending resolution where no supernova reaches,
+so that check is also how the interval is tightened.
+
+Supernova light curves are not corrected for Galactic dust.
 To first order, such corrections would appear in the form
 \begin{equation}
   m_{\lambda}^{\mathrm{corr}} = m_{\lambda}^{\mathrm{obs}} - A_{\lambda},
@@ -340,9 +361,12 @@ $\arc_{i}$ solving $t(\arc_{i} \mid \allpars) = t_{i}$ is found by monotone inve
 the predicted flux is
 \begin{equation}
   \hat f_{i}(\allpars)
-    = 10^{-0.4\,[\,m_{b_{i}}(\arc_{i} \mid \allpars)\, -\, \zp\,]} .
+    = 10^{-0.4\,[\,m_{b_{i}}(\arc_{i} \mid \allpars)\, -\, \zp\,]} ,
   \label{eq:predflux}
 \end{equation}
+with $\zp = 30$, the archive's zero point. It is pinned, not fitted: $\zp$ and $\peakmag$
+are exactly degenerate in \eqref{eq:modelmag} and \eqref{eq:predflux}, and this choice is
+what makes $\peakmag$ the $g$ magnitude on the archive's own scale.
 Every epoch in the window contributes, non-detections and negative fluxes included:
 \begin{equation}
   -2\ln\mathcal{L}
