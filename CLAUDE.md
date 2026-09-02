@@ -58,6 +58,11 @@ iterating light-curve files on disk rather than the selected objects applied the
 counted. One supernova at `z = 0.0925` passed every threshold and inflated all
 six counts by one. Selection is an object list, not a directory listing.
 
+**`sn_type != "snia-pec"` does not select normal SNe Ia.** One 91bg/86G object
+is typed `snia`, with the peculiarity recorded only in `sub_type`. Select
+positively on `sn_type == "snia-cosmo"`, which is DR2's own cosmology
+classification and admits `norm`, `91t` and `99aa` and no peculiar subtype.
+
 **`filter` is a DataFrame method.** `lc.filter == "ztfg"` compares a bound
 method to a string, is False for every row, and yields zero epochs. Use
 `lc["filter"]`.

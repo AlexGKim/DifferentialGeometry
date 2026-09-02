@@ -34,6 +34,12 @@ QUALITY_MASK = 31
 
 BANDS = ("ztfg", "ztfr", "ztfi")
 
+# DR2's own cosmology classification.  It contains norm, 91t and 99aa and no
+# peculiar subtype; snia-pec holds 91bg, Iax, 03fg, 02es, 00cx and 18byg.  Note
+# that ``sn_type != "snia-pec"`` is NOT equivalent: one 91bg/86G object is typed
+# ``snia``, with the peculiarity recorded only in ``sub_type``.
+SN_TYPE = "snia-cosmo"
+
 
 def archive_root() -> Path:
     """Locate the DR2 archive."""
@@ -50,11 +56,12 @@ def metadata(root: Path | None = None) -> pd.DataFrame:
 
 
 def select(meta: pd.DataFrame) -> pd.DataFrame:
-    """Objects passing the redshift cut with both quality flags set."""
+    """Normal SNe Ia passing the redshift cut with both quality flags set."""
     keep = (
         (meta.redshift < MAX_REDSHIFT)
         & (meta.lccoverage_flag == 1)
         & (meta.fitquality_flag == 1)
+        & (meta.sn_type == SN_TYPE)
     )
     return meta.loc[keep]
 
@@ -96,7 +103,7 @@ def epoch_counts(sub: pd.DataFrame, root: Path | None = None) -> pd.DataFrame:
             continue
         rows.append(good_epochs(r.ztfname, r.t0, r.redshift, root))
         names.append(r.ztfname)
-    return pd.DataFrame(rows, index=names)
+    return pd.DataFrame(rows, index=pd.Index(names))
 
 
 def main() -> None:

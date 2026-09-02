@@ -293,14 +293,20 @@ likelihood in Section~\ref{sec:likelihood}.
 
 Supernova light curves are taken from  the \ztf\ SN~Ia DR2 archive
 \citep{Rigault2025}. Starting from the 3628 cataloged objects, we require
-$\zred < 0.05$ and both the \texttt{lccoverage} and \texttt{fitquality} flags set,
-leaving 652 supernovae. Fourteen of these have no light-curve file in the release; they
-are exactly the fourteen whose \salt\ $t_{0}$ is NaN, so the absence is of photometry
-rather than of shape, and 638 objects remain with light curves. Epochs are counted per
+$\zred < 0.05$, both the \texttt{lccoverage} and \texttt{fitquality} flags equal to one,
+and the archive's own cosmology classification \texttt{sn\_type == snia-cosmo}, leaving
+602 supernovae. That last cut is what restricts the sample to normal \sneia: it admits
+\texttt{norm}, \texttt{91t} and \texttt{99aa} and no peculiar subtype, while
+\texttt{snia-pec} holds the 91bg, Iax, 03fg, 02es, 00cx and 18byg objects whose light-curve
+shapes a single $\shapekappa$ could not span alongside normals. Excluding
+\texttt{snia-pec} instead would not do: one 91bg-like object is typed \texttt{snia}, its
+peculiarity recorded only in \texttt{sub\_type}. Fourteen of the 602 have no light-curve
+file in the release; they are exactly the fourteen whose \salt\ $t_{0}$ is NaN, so the
+absence is of photometry rather than of shape, and 588 objects remain with light curves. Epochs are counted per
 band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
 none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. 
-The analysis uses the 598 supernovae with at least five good epochs in \emph{each} of $g$
-and $r$,
+The analysis uses the 552 supernovae with at least five good epochs in \emph{each} of $g$
+and $r$; the count is 586 at three or more and 442 at ten or more.
 Selection and counts are produced by \texttt{dgsn.data.sample}.
 
 Counting epochs inside $[-15,+40]$~d requires a date of
@@ -316,8 +322,8 @@ need neither, having no photometry to place a window on.
 The arclength interval of Section~\ref{sec:curve} is declared from the sample rather than
 assumed. Smoothing each well-observed light curve in flux and integrating
 $\dd\arc = \norm{\dd\curve/\dd\phase}\,\dd\phase$ outward from the $g$ maximum gives, over
-the $[-15,+40]$~d window, a median span of $[-4.8, +3.9]$ mag with fifth and ninety-fifth
-percentiles at $-8.9$ and $+7.3$. The measurement is biased high, since noise lengthens a
+the $[-15,+40]$~d window, a median span of $[-4.9, +3.9]$ mag with fifth and ninety-fifth
+percentiles at $-8.9$ and $+7.4$. The measurement is biased high, since noise lengthens a
 path, and moves by $0.7$ mag across a factor of ten in smoothing; the \citet{Hsiao2007}
 template, having no noise, gives $[-3.2, +3.3]$. We declare
 $[\arc_{\min}, \arclen] = [-8, +8]$, wide enough that every supernova's window maps inside
@@ -344,7 +350,7 @@ $\colr$ carry the Galactic term, to be removed downstream where \texttt{mwebv} i
 per object. The absorption is exact only for constant $A_{\lambda}$: the band-averaged
 extinction depends on a source spectrum that evolves, so $R_{\lambda}$ drifts across the
 window by a few percent, and that residual does reach $\curv$ --- not negligibly, since
-$E(B-V)$ exceeds $0.1$ for $24\%$ of the sample and reaches $1.06$.
+$E(B-V)$ exceeds $0.1$ for $23\%$ of the sample and reaches $1.06$.
 
 \section{Likelihood}
 \label{sec:likelihood}
