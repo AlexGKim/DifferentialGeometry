@@ -121,15 +121,19 @@ We take $\psi_{0} = -\pi/2$, for which $\Magr'(0) < 0$, since $r$ peaks after $g
   \curv(0) > 0 ,
   \label{eq:peakcond}
 \end{equation}
-since $\Magg'' = -\sin\psi\,\curv$. Furthermore it is the only critical point on the
-interval, hence the global minimum, if and only if
+since $\Magg'' = -\sin\psi\,\curv$. Critical points of $\Magg$ are the zeros of
+$\Magg' = \cos\psi$, that is the points where $\Psi \equiv 0 \pmod \pi$; given
+\eqref{eq:peakcond}, $\arc = 0$ is the only one on the interval if and only if
 \begin{equation}
   0 < \Psi(\arc) < \pi \quad (\arc > 0), \qquad
   -\pi < \Psi(\arc) < 0 \quad (\arc < 0) ,
   \label{eq:turncond}
 \end{equation}
-where $\Psi(\arc) = \int_{0}^{\arc}\curv$ is the turning since maximum. The two are not
-independent: \eqref{eq:turncond} forces $\curv(0) \geq 0$.
+where $\Psi(\arc) = \int_{0}^{\arc}\curv$ is the turning since maximum. Peak brightness is
+then the global minimum of $\Magg$. The converse does not hold: a curve turning past $\pi$
+acquires a further pair of critical points, and $\Magg(0)$ may still be the global minimum
+if the second minimum is the fainter. The two conditions are not independent:
+\eqref{eq:turncond} forces $\curv(0) \geq 0$.
 
 The connection to supernova phase is specified by the inverse of $s(p)$,  the function $p(s)$.
 
@@ -268,7 +272,9 @@ can be built into how the functions are written, while a condition on a populati
 
 A basis of $K$ functions leaves $4K - 2$ global parameters, and truncates the function
 space: $K$ is a modelling choice and not only a parameterization, and raising it tests
-whether the data want more freedom than it allows. The construction degenerates only when $a$ and $b$ become
+whether the data want more freedom than it allows. We fit $K \in \{16, 32, 64\}$ and select
+on out-of-sample residual, the three spaced so that each step is a real change in
+flexibility. The construction degenerates only when $a$ and $b$ become
 parallel, which is not a numerical nuisance to suppress but the statement that the two
 functions carry the same information.
 
