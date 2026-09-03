@@ -60,27 +60,22 @@ $\curve = (\Magg, \Magr)$, so focus on $n=2$.
 
 \subsection{Light curves as traversal over curves in magnitude space}
 \label{sec:curve}
-The rest-frame multi-band light-curve template, as a function of phase $\phase$ measured
-from $g$ maximum, is denoted as
+The rest-frame $g$ and $r$-band light curves, as a function of phase $\phase$ measured
+from $g$ maximum, are denoted as
 \begin{equation}
   \curve(\phase)
     = \bigl(\Magg(\phase), \Magr(\phase)\bigr) \in \Rtwo.
   \label{eq:curvedef}
 \end{equation}
 $\curve$ is a parameterized curve in the $2$-dimensional magnitude space.
-The relation between phase and arclength along the curve is $\arc(\phase)$, defined by
+The arclength along the curve, $\arc(\phase)$, is defined by
 $\dd \arc = \norm{\dd\curve/\dd \phase}\,\dd \phase$ with the constant of integration
-fixed by $\arc = 0$ at $g$ maximum. Wherever $\norm{\dd\curve/\dd\phase} \neq 0$ this is
-strictly increasing and invertible, and the curve reparameterized as $\curve(\arc)$ is
+fixed by $\arc = 0$ at $g$ maximum $s(0)=0$; wherever $\norm{\dd\curve/\dd\phase} \neq 0$ this is
+strictly increasing and invertible.  The curve $\gamma(s)$ is
 unit-speed, $\norm{\curve'(\arc)} = 1$.
-The template is carried on a fixed arclength interval $\arc \in [\arc_{\min}, \arclen]$
+The curve is defined on a fixed arclength interval $\arc \in [\arc_{\min}, \arclen]$
 with $\arc_{\min} < 0 < \arclen$, declared once for the model rather than fitted and wide
-enough to cover the modelled phase range for every supernova; the value is measured from
-the sample in Section~\ref{sec:samples}. Every global function below
-is a function on this interval, and it is $\arclen$ that appears in the gauge conditions
-of Section~\ref{sec:pars}. What varies between supernovae is which phases these arclengths
-map to, not the interval itself.
-A unit-speed curve in $\Rtwo$ admits a Frenet frame,
+enough to cover the modelled phase range for every supernova. A unit-speed curve in $\Rtwo$ admits a Frenet frame,
  \begin{equation}
   \curve' = \tang, \qquad
   \tang' = \curv\,\norml.
@@ -91,11 +86,11 @@ $90^{\circ}$ rotation of $\tang$; the \emph{curvature} $\curv$ is correspondingl
 
 
 We now map out the inverse: how a curve, specified by curvature and three initial conditions,
- and the traversal over that curve, specified by a function,
+ and the traversal over that curve 
 define light curves.
 
 
-Given $\curv$, $\curve(\arc)$ is determined through the above differential equations and
+Given $\curv$, $\curve(\arc)$ is determined through the  differential equations in Eq.~\ref{eq:frenet2d} and
 initial conditions for the direction of $\tang$ and the position of $\curve$. Writing the
 unit tangent by its angle $\psi$, the equations are solved with
 \begin{equation}
@@ -104,8 +99,8 @@ unit tangent by its angle $\psi$, the equations are solved with
   \norml(\arc) = \bigl(-\sin\psi(\arc),\ \cos\psi(\arc)\bigr),
   \label{eq:tangangle}
 \end{equation}
-and $\psi' = \curv$. Curvature is thus the rate of turning of the tangent, and two
-quadratures give $\psi$ and the curve,
+and $\psi' = \curv$. Curvature is thus the rate of turning of the tangent, and
+\eqref{eq:frenet2d} integrates in two quadratures, giving $\psi$ and then the curve,
 \begin{align}
   \psi(\arc)   &= \psi_{0} + \int_{{0}}^{\arc}\curv(\zeta)\,\dd\zeta ,
                   \label{eq:turning}\\
@@ -113,57 +108,75 @@ quadratures give $\psi$ and the curve,
                   \bigl(\cos\psi(\zeta),\ \sin\psi(\zeta)\bigr)\,\dd\zeta .
                   \label{eq:quadrature}
 \end{align}
-We choose $\curve_{0} = (0,0)$, so that at $\arc = 0$ the template $g$ magnitude and color
-are zero ($\Magg(0) = 0$, $\Magr(0) = 0$). Both $\psi_{0} = \pm\pi/2$ make $\arc = 0$ a
-critical point of $\Magg$, differing only in whether $r$ is brightening or fading there.
-We take $\psi_{0} = -\pi/2$, for which $\Magr'(0) < 0$, since $r$ peaks after $g$.
- The extremum is peak brightness, a local minimum of $\Magg$, if
+
+When working with light-curve templates, we choose $\curve_{0} = (0,0)$, so that at
+$\arc = 0$ both magnitudes, and hence also the color, are zero
+($\Magg(0) = \Magr(0) = 0$). Both $\psi_{0} = \pm\pi/2$ make $\arc = 0$ a
+critical point of $\Magg$, differing only in whether $r$ is brightening or fading there;
+we take $\psi_{0} = -\pi/2$, for which $\Magr'(0) < 0$, since $r$ peaks after $g$.
+The extremum is peak brightness, a local minimum of $\Magg$, if
 \begin{equation}
   \curv(0) > 0 ,
   \label{eq:peakcond}
 \end{equation}
-since $\Magg'' = -\sin\psi\,\curv$. Critical points of $\Magg$ are the zeros of
-$\Magg' = \cos\psi$, that is the points where $\Psi \equiv 0 \pmod \pi$; given
-\eqref{eq:peakcond}, $\arc = 0$ is the only one on the interval if and only if
-\begin{equation}
-  0 < \Psi(\arc) < \pi \quad (\arc > 0), \qquad
-  -\pi < \Psi(\arc) < 0 \quad (\arc < 0) ,
-  \label{eq:turncond}
-\end{equation}
-where $\Psi(\arc) = \int_{0}^{\arc}\curv$ is the turning since maximum. Peak brightness is
-then the global minimum of $\Magg$. The converse does not hold: a curve turning past $\pi$
-acquires a further pair of critical points, and $\Magg(0)$ may still be the global minimum
-if the second minimum is the fainter. The two conditions are not independent:
-\eqref{eq:turncond} forces $\curv(0) \geq 0$.
+since $\Magg'' = -\sin\psi\,\curv$. We impose no constraint based on it.
 
-The connection to supernova phase is specified by the inverse of $s(p)$,  the function $p(s)$.
+The connection to supernova phase remains specified by $s(p)$.
 
 \subsection{Per-supernova light-curve model}
 \label{sec:pars}
-
+Having presented our mathematical representation of light curves, in this section we describe the
+model used to describe data from the family of Type~Ia supernova light curves.
 A supernova is described by six parameters,
 $\allpars = (\peakmag,\, \colr,\, \xstretch,\, x_p,\, \shapekappa,\, \tmax)$, entering as
 \begin{align}
-  \begin{pmatrix} \magg \\ \magr \end{pmatrix}\!(\arc \mid \allpars)
-    &= \curve\bigl(\arc;\, \shapekappa\bigr) \;+\; \peakmag\,\mathbf{1}
-       \;+\; \colr\,\dustunit,
-    \label{eq:modelmag}\\
-  t(\arc \mid \allpars)
-    &= \tmax + (1+\zred)\,\phase(\arc;\, \xstretch, x_p),
-    \label{eq:modeltime}
+  \phase(t \mid \tmax) &= \frac{t - \tmax}{1 + \zred} ,
+    \label{eq:modeltime}\\
+  \begin{pmatrix} \magg \\ \magr \end{pmatrix}\!(\phase \mid \allpars)
+    &= \curve\bigl(\arc(\phase;\, \xstretch, x_p);\, \shapekappa\bigr)
+       \;+\; \peakmag\,\mathbf{1} \;+\; \colr\,\dustunit .
+    \label{eq:modelmag}
 \end{align}
-where $\curve(\arc;\shapekappa)$ is generated from the curvature by the quadratures
-\eqref{eq:turning}--\eqref{eq:quadrature}, and the placement is expanded on the declared
-basis $\mathbf{1} = (1,1)$, $\dustunit = (0,-1)$. These span $\Rtwo$, so the pair
-$(\peakmag, \colr)$ reaches every translation; at $\arc = 0$, where $\curve = (0,0)$, they
-are the $g$ magnitude and the $g-r$ color. This is the light curve in parametric form:
-$\arc$ sweeps the template, \eqref{eq:modeltime} places each of its points in observer
-time and \eqref{eq:modelmag} gives the magnitudes there. Evaluation at the observed
-epochs is a monotone interpolation of \eqref{eq:modeltime}. Only $\shapekappa$ affects the curve shape. The others translate it, retime it, or set the
+The model is read in the direction the data run. An epoch observed at $t$ is carried to
+rest-frame phase by \eqref{eq:modeltime}, which involves no modelling functions, then to
+arclength by $\arc(\phase)$, and \eqref{eq:modelmag} gives the magnitudes there. It is
+$\arc(\phase)$ that is modelled rather than its inverse, so the chain is one of
+evaluations and nothing is inverted.
+The
+basis $\mathbf{1} = (1,1)$, $\dustunit = (0,-1)$ is used to specify the light curve placement in magnitude space.
+The parameter pair
+$(\peakmag, \colr)$
+gives the $g$ magnitude and the $g-r$ color  at $\arc = p = 0$.
+
+The parameterized curves are given by $\curve(\arc;\shapekappa)$, which in turn are
+specified by the curvature.  In our model,
+the curvature is expanded as
+\begin{equation}
+  \curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc).
+  \label{eq:curvlin}
+\end{equation}
+The traversal $\arc(\phase;\, \xstretch, x_p)$ is expanded through its rate, as a function
+of phase,
+\begin{equation}
+  \deriv{\arc}{\phase}
+    = \exp\bigl[\xstretch + q_{0}(\phase) + x_p\,q_{1}(\phase)\bigr] ,
+  \qquad
+  \arc(\phase) = \int_{0}^{\phase} \deriv{\arc}{\zeta}\,\dd\zeta ,
+  \label{eq:travlog}
+\end{equation}
+so that $\arc(0) = 0$ and $\dd\arc/\dd\phase > 0$ hold identically, for every
+$(\xstretch, x_p) \in \Rtwo$ and every basis. Here $q_{0}$ and $q_{1}$ are carried on the
+rest-frame phase window $[\phase_{\min}, \phase_{\max}] = [-15, +40]$~d, which unlike the
+arclength interval is the same for every supernova by construction; it is the window the
+sample is selected on in Section~\ref{sec:samples}. Here $\xstretch$ is a \emph{log} speed: at
+$x_p = 0$ the supernova covers $e^{\xstretch}$ times the reference arclength per rest-frame
+day, which is the classical dilation of the time axis by $e^{-\xstretch}$.
+
+Table~\ref{tab:pars} summarizes the parameters.
+Only $\shapekappa$ affects the curve shape. The others translate it, retime it, or set the
 clock.
 The redshift $\zred$ is known rather than
-fitted, and $\phase$ is rest-frame throughout. Table~\ref{tab:pars} collects the
-parameters.
+fitted, and $\phase$ is rest-frame throughout. 
 
 \begin{table}[tb]
 \centering
@@ -178,7 +191,7 @@ functions of the traversal and curvature expansions, \eqref{eq:travlog} and
 $\peakmag$    & $+\,\peakmag\,\mathbf{1}$ & translation: absolute magnitude, distance, grey, $A_{g}$ \\
 $\colr$       & $+\,\colr\,\dustunit$ & translation: color \\
 $\tmax$       & offset of $t$ & timing: origin \\
-$\xstretch$   & offset of $\log\,\dd\phase/\dd\arc$ & timing: dilation \\
+$\xstretch$   & offset of $\log\,\dd\arc/\dd\phase$ & timing: dilation \\
 $x_p$         & amplitude of $q_{1}$ & timing: departure from dilation \\
 $\shapekappa$ & amplitude of $\curv_{1}$ & shape \\
 \bottomrule
@@ -186,39 +199,18 @@ $\shapekappa$ & amplitude of $\curv_{1}$ & shape \\
 \end{table}
 
 
-
-The curvature is expanded as
-\begin{equation}
-  \curv(\arc; \shapekappa) = \curv_{0}(\arc) + \shapekappa\,\curv_{1}(\arc) ,
-  \label{eq:curvlin}
-\end{equation}
-the leading coefficient pinned at unity. This costs no direction of shape variation, since
-$\curv_{1} \propto \curv_{0}$ is admissible and gives an overall amplitude of turning; it
-costs a second shape mode, which in two bands is what a second free coefficient would be.
-The traversal is expanded through its rate,
-\begin{equation}
-  \deriv{\phase}{\arc}
-    = \exp\bigl[\xstretch + q_{0}(\arc) + x_p\,q_{1}(\arc)\bigr] ,
-  \qquad
-  \phase(\arc) = \int_{0}^{\arc} \deriv{\phase}{\zeta}\,\dd\zeta ,
-  \label{eq:travlog}
-\end{equation}
-so that $\phase(0) = 0$ and $\dd\phase/\dd\arc > 0$ hold identically, for every
-$(\xstretch, x_p) \in \Rtwo$ and every basis. Here $\xstretch$ is a
-\emph{log} stretch: at $x_p = 0$ the traversal is the classical dilation by
-$e^{\xstretch}$.
-
-Neither \eqref{eq:peakcond} nor \eqref{eq:turncond} is enforced in the fit.
-
 \paragraph{Gauge.} Each expansion fixes only the span of its basis: a change of basis
 undone by a compensating change of coefficients alters no prediction. The traversal has
 four such freedoms, $q_{1} \mapsto \lambda q_{1} + \mu$ and
 $q_{0} \mapsto q_{0} + \alpha + \nu q_{1}$, absorbed by $(\xstretch, x_p)$; the curvature has
 two, $\curv_{1} \mapsto \lambda\curv_{1}$ and
 $\curv_{0} \mapsto \curv_{0} + \nu\curv_{1}$, absorbed by $\shapekappa$. We remove them on
-the functions rather than on the population. Writing
-$\langle f, g\rangle = \int fg\,\dd u$ for the inner product in the coordinate $u$ of
-\eqref{eq:umap} and $\bar f$ for the mean of $f$ over that interval,
+the functions rather than on the population. The two pairs live on different domains --- the
+traversal on the rest-frame phase window, the curvature on the arclength interval --- so
+each is normalized on its own. Writing $\langle f,g\rangle$ for $\int fg\,\dd\phase$ over
+the phase window when the arguments are $q_{0}, q_{1}$ and for $\int fg\,\dd u$ in the
+coordinate $u$ of \eqref{eq:umap} when they are $\curv_{0}, \curv_{1}$, and $\bar f$ for the
+corresponding mean,
 \begin{equation}
   \bar q_{1} = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
   \bar q_{0} = 0, \quad \langle q_{0},q_{1}\rangle = 0;
@@ -228,12 +220,21 @@ $\langle f, g\rangle = \int fg\,\dd u$ for the inner product in the coordinate $
   \label{eq:gauge}
 \end{equation}
 four conditions for four freedoms and two for two. Each pair leaves a sign, fixed by
-$\int_{0}^{\arclen} q_{1} > 0$ and $\int_{0}^{\arclen} \curv_{1} > 0$, so a positive
-coefficient lengthens the late traversal and turns the track further.
+$\int_{0}^{\phase_{\max}} q_{1} > 0$ and $\int_{0}^{\arclen} \curv_{1} > 0$, so a positive
+coefficient speeds the late traversal and turns the track further.
 
 
 \subsection{Modelling functions}
 \label{sec:traversal}
+
+\paragraph{Unresolved.} This section is written as though all four functions share one
+domain and one basis, which \eqref{eq:travlog} no longer makes true: $\curv_{0}, \curv_{1}$
+are functions of $\arc$ on $[\arc_{\min}, \arclen]$, while $q_{0}, q_{1}$ are functions of
+$\phase$ on $[\phase_{\min}, \phase_{\max}]$. The coordinate change below is what lets a
+polynomial resolve the turn in $\arc$; expressed in $\phase$ the traversal rate is the speed
+itself, bounded and smooth, and needs no such change. So the curvature keeps the map and the
+traversal should not, and this section has to be restructured around two bases rather than
+one --- including which of the two $K$ counts, and what the parameter count becomes.
 
 Four global functions on $[\arc_{\min}, \arclen]$ carry the template. Together $\curv_{0}$
 and $q_{0}$ are the reference \snia: the track through magnitude space, and the rate at
@@ -297,7 +298,8 @@ functions carry the same information.
 
 The map costs the closed-form integral that Legendre polynomials in $\arc$ would have given:
 $\dd\arc = \delta\cosh u\,\dd u$, and $\int\phi_{k}\cosh u\,\dd u$ has no elementary
-antiderivative, so $\Psi$ is a quadrature like the others. Nothing else changes, because
+antiderivative, so $\psi$ in \eqref{eq:turning} is a quadrature like the others. Nothing
+else changes, because
 $\curve$ and $\phase$ never had one either, being $\cos$ and $\exp$ of a basis expansion.
 So \eqref{eq:frenet2d} remains a set of quadratures of known integrands rather than an
 initial-value problem, all evaluated on shared nodes rather than by stepping, and the gauge
@@ -362,9 +364,9 @@ path, and moves by $0.7$ mag across a factor of ten in smoothing; the \citet{Hsi
 template, having no noise, gives $[-3.2, +3.3]$. We declare
 $[\arc_{\min}, \arclen] = [-8, +8]$, wide enough that every supernova's window maps inside
 it, and verify after fitting that it does --- the fitted traversal gives
-$\phase(\arc_{\min})$ and $\phase(\arclen)$ per object, and both must bracket
-$[-15,+40]$~d. Width is not free, the basis spending resolution where no supernova reaches,
-so that check is also how the interval is tightened.
+$\arc(\phase_{\min})$ and $\arc(\phase_{\max})$ per object, and both must fall inside
+$[\arc_{\min}, \arclen]$. Width is not free, the basis spending resolution where no
+supernova reaches, so that check is also how the interval is tightened.
 
 Supernova light curves are not corrected for Galactic dust.
 To first order, such corrections would appear in the form
@@ -394,14 +396,13 @@ is where distance and reddening act as translations, to which $\curv$ is blind; 
 where the \ztf\ errors are Gaussian and where a non-detection is an ordinary measurement
 near zero rather than a missing one.
 
-Equations \eqref{eq:modelmag} and \eqref{eq:modeltime} give
-$\bigl(t(\arc \mid \allpars), \magg(\arc \mid \allpars), \magr(\arc \mid \allpars)\bigr)$
-as functions of $\arc$. For an epoch $i$ observed at $t_{i}$ in band $b_{i}$, the arclength
-$\arc_{i}$ solving $t(\arc_{i} \mid \allpars) = t_{i}$ is found by monotone inversion, and
-the predicted flux is
+For an epoch $i$ observed at $t_{i}$ in band $b_{i}$, \eqref{eq:modeltime} gives the
+rest-frame phase $\phase_{i}$ and \eqref{eq:travlog} the arclength
+$\arc_{i} = \arc(\phase_{i})$, both by evaluation; no inversion enters the forward model.
+The predicted flux is
 \begin{equation}
   \hat f_{i}(\allpars)
-    = 10^{-0.4\,[\,m_{b_{i}}(\arc_{i} \mid \allpars)\, -\, \zp\,]} ,
+    = 10^{-0.4\,[\,m_{b_{i}}(\phase_{i} \mid \allpars)\, -\, \zp\,]} ,
   \label{eq:predflux}
 \end{equation}
 with $\zp = 30$, the archive's zero point. It is pinned, not fitted: $\zp$ and $\peakmag$
@@ -429,25 +430,28 @@ with $\sigma_{f,i}$ the archive's flux error, which already carries \texttt{err\
 correctly, whereas discarding one would select on the noise realization of the very
 quantity being fitted. The variance depends on $\allpars$, hence the log-determinant term.
 
-The interval $[\arc_{\min}, \arclen]$ is padded so that every epoch of every supernova maps
-inside it, but nothing stops an excursion in $\xstretch$ from carrying one outside during
-sampling. Dropping it would make the objective discontinuous, so the map is softened
-instead. With $u_{i} = [t_{i} - t(\arc_{\min})]/[t(\arclen) - t(\arc_{\min})]$ and
+Epochs are selected inside the phase window, but $\tmax$ is free, so an excursion can carry
+one outside it during sampling. Dropping it would make the objective discontinuous, so the
+map is softened instead. The clamp acts on phase, whose window is fixed and the same for
+every supernova: with
+$w_{i} = [\phase_{i} - \phase_{\min}]/[\phase_{\max} - \phase_{\min}]$,
 $\mathrm{sp}(x) = \epsilon\log(1 + e^{x/\epsilon})$ and $\epsilon = 0.01$, one percent of
-the range in the scaled coordinate $u_{i}$, the arclength is soft-clamped and the
-flux tapered,
+that range, the phase is soft-clamped and the flux tapered,
 \begin{equation}
-  \hat\arc_{i} = \arc_{\min} + (\arclen - \arc_{\min})
-    \bigl[\mathrm{sp}(u_{i}) - \mathrm{sp}(u_{i}-1)\bigr] ,
+  \hat\phase_{i} = \phase_{\min} + (\phase_{\max} - \phase_{\min})
+    \bigl[\mathrm{sp}(w_{i}) - \mathrm{sp}(w_{i}-1)\bigr] ,
   \qquad
   \hat f_{i} \;\longmapsto\; \hat f_{i}\,
-    \exp\!\bigl[-\bigl(\mathrm{sp}(-u_{i}) + \mathrm{sp}(u_{i}-1)\bigr)^{2}/\epsilon^{2}\bigr] .
+    \exp\!\bigl[-\bigl(\mathrm{sp}(-w_{i}) + \mathrm{sp}(w_{i}-1)\bigr)^{2}/\epsilon^{2}\bigr] .
   \label{eq:soft}
 \end{equation}
 Both are $C^{\infty}$ in $\allpars$, agree with the model to $O(\epsilon)$ for
-$u_{i} \in [0,1]$, and send the predicted flux to zero outside. An epoch carried out of
+$w_{i} \in [0,1]$, and send the predicted flux to zero outside. An epoch carried out of
 range then contributes $f_{i}^{2}/\sigma_{i}^{2}$: free if it was consistent with zero,
-expensive if it was a detection, which is the pushback wanted.
+expensive if it was a detection, which is the pushback wanted. The arclength needs the same
+treatment for the same reason --- $\arclen$ bounds $\curv$, and $\xstretch$ can carry
+$\arc(\phase_{\max})$ past it --- and takes the same softplus, in $\arc$ on
+$[\arc_{\min}, \arclen]$.
 
 The second variance term is the intrinsic scatter. Grey offsets, color shifts and time
 shifts are already free in $\peakmag$, $\colr$ and $\tmax$, so what it carries is departure
