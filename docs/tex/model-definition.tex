@@ -207,9 +207,7 @@ $(\xstretch, x_p) \in \Rtwo$ and every basis. Here $\xstretch$ is a
 \emph{log} stretch: at $x_p = 0$ the traversal is the classical dilation by
 $e^{\xstretch}$.
 
-The model does not enforce the expectation of a single $g$-band global minimum described
-by Eqs.~\ref{eq:peakcond} and \ref{eq:turncond}.  These are expected features of the fit
-output.
+Neither \eqref{eq:peakcond} nor \eqref{eq:turncond} is enforced in the fit.
 
 \paragraph{Gauge.} Each expansion fixes only the span of its basis: a change of basis
 undone by a compensating change of coefficients alters no prediction. The traversal has
@@ -218,8 +216,8 @@ $q_{0} \mapsto q_{0} + \alpha + \nu q_{1}$, absorbed by $(\xstretch, x_p)$; the 
 two, $\curv_{1} \mapsto \lambda\curv_{1}$ and
 $\curv_{0} \mapsto \curv_{0} + \nu\curv_{1}$, absorbed by $\shapekappa$. We remove them on
 the functions rather than on the population. Writing
-$\langle f, g\rangle = \int_{\arc_{\min}}^{\arclen} fg\,\dd\arc$ and $\bar f$ for the mean
-of $f$ over that interval,
+$\langle f, g\rangle = \int fg\,\dd u$ for the inner product in the coordinate $u$ of
+\eqref{eq:umap} and $\bar f$ for the mean of $f$ over that interval,
 \begin{equation}
   \bar q_{1} = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
   \bar q_{0} = 0, \quad \langle q_{0},q_{1}\rangle = 0;
@@ -244,13 +242,30 @@ goes, $q_{1}$ how fast the supernova covers it. All
 four are expansions on a fixed basis, their coefficients fit jointly with the per-supernova
 parameters.
 
-Let $\{\phi_{k}\}$ be the Legendre polynomials, shifted to $[\arc_{\min}, \arclen]$ and
-normalized. They meet the three conditions the construction needs natively: orthonormal
-under the flat measure $\langle f,g\rangle = \int fg\,\dd\arc$ that the gauge below uses,
-$\phi_{0}$ constant, and integrals in closed form by a coefficient recurrence. Chebyshev
-polynomials share the last two but are orthogonal under $(1-x^{2})^{-1/2}$, which
-concentrates them at the ends of the interval --- the wrong place, the feature of interest
-being the turning near $\arc = 0$. Writing
+The two maxima are close in time, about a day apart in $g$ and $r$, so the track doubles
+back on itself and the turn is confined to a very short stretch of arclength. At the median
+$x_{1}$ the speed at the turn falls to a ninth of its median, the curvature reaches
+$\curv \sim 200$, and $|\phase| < 3$~d holds under two percent of the arclength; at
+$x_{1} = -2$ the speed ratio is $260$ and $\curv$ exceeds $10^{3}$. A polynomial in $\arc$
+spreads its resolution evenly and cannot meet this: Legendre polynomials in $\arc$ leave
+errors of order a magnitude at every $K$ we tried. We therefore expand not in $\arc$ but in
+\begin{equation}
+  u = \asinh(\arc/\delta), \qquad \delta = 3\times10^{-4},
+  \label{eq:umap}
+\end{equation}
+smooth and strictly increasing, linear for $|\arc| \ll \delta$ and logarithmic beyond, so
+that resolution spread evenly in $u$ is resolution in $\arc$ concentrated where the track
+turns. Too small a $\delta$ costs little and too large a $\delta$ fails, so it is set from
+the sharpest track rather than the average one.
+
+Let $\{\phi_{k}\}$ be the Legendre polynomials in $u$, shifted to
+$[u(\arc_{\min}), u(\arclen)]$ and normalized. They meet two of the conditions the
+construction needs natively --- orthonormal under the flat measure
+$\langle f,g\rangle = \int fg\,\dd u$ that the gauge uses, and $\phi_{0}$ constant. The map
+changes the measure the basis is orthonormal in, not that it is orthonormal, so the
+coefficient identities below remain exact. Chebyshev polynomials share these properties but
+are orthogonal under $(1-x^{2})^{-1/2}$, which concentrates them at the ends of the
+interval, where \eqref{eq:umap} has already spent what resolution is needed. Writing
 \begin{equation}
   q_{1} = \sum_{k \geq 1} a_{k}\phi_{k}, \quad
   q_{0} = \sum_{k \geq 1} b_{k}\phi_{k}, \quad
@@ -270,7 +285,8 @@ by flipping the raw vector. \salt\ has the same freedom and fixes it the other w
 normalizing $x_{1}$ over its training set; the difference is that a condition on functions
 can be built into how the functions are written, while a condition on a population cannot.
 
-A basis of $K$ functions leaves $4K - 2$ global parameters, and truncates the function
+A basis of $K$ functions gives $4K - 2$ coefficients, of which the four conditions of
+\eqref{eq:gauge} leave $4K - 6$ free, and truncates the function
 space: $K$ is a modelling choice and not only a parameterization, and raising it tests
 whether the data want more freedom than it allows. We fit $K \in \{16, 32, 64\}$ and select
 on out-of-sample residual, the three spaced so that each step is a real change in
@@ -278,11 +294,15 @@ flexibility. The construction degenerates only when $a$ and $b$ become
 parallel, which is not a numerical nuisance to suppress but the statement that the two
 functions carry the same information.
 
-Because the $\phi_{k}$ integrate analytically, so do $\Psi$ and hence $\psi$, and
-\eqref{eq:frenet2d} is no longer an initial-value problem: $\curve$ and $\phase$ are
-quadratures of known integrands. Neither has an elementary antiderivative --- $\cos$ and
-$\exp$ of a basis expansion --- so both are evaluated numerically, but on quadrature nodes
-rather than by stepping, and the gauge \eqref{eq:gauge} does not touch them.
+The map costs the closed-form integral that Legendre polynomials in $\arc$ would have given:
+$\dd\arc = \delta\cosh u\,\dd u$, and $\int\phi_{k}\cosh u\,\dd u$ has no elementary
+antiderivative, so $\Psi$ is a quadrature like the others. Nothing else changes, because
+$\curve$ and $\phase$ never had one either, being $\cos$ and $\exp$ of a basis expansion.
+So \eqref{eq:frenet2d} remains a set of quadratures of known integrands rather than an
+initial-value problem, all evaluated on shared nodes rather than by stepping, and the gauge
+\eqref{eq:gauge} does not touch them. Any such quadrature must carry the measure explicitly:
+orthonormalizing sampled columns imposes $L^{2}$ of the sampling density, which on a grid
+clustered by \eqref{eq:umap} is not $L^{2}(\dd u)$.
 
 That the clock runs forward is not a condition here but a property of the form. Writing the
 traversal through $\log\,\dd\phase/\dd\arc$ admits no coefficients for which phase runs
@@ -314,6 +334,13 @@ none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive defau
 The analysis uses the 552 supernovae with at least five good epochs in \emph{each} of $g$
 and $r$; the count is 586 at three or more and 442 at ten or more.
 Selection and counts are produced by \texttt{dgsn.data.sample}.
+
+Observed-frame $g$ and $r$ are identified with their rest-frame counterparts. A two-band
+model carries no spectral energy distribution and so cannot K-correct itself: only the time
+axis is de-redshifted, in \eqref{eq:modeltime}. This is the reason for the $\zred < 0.05$
+cut, which bounds the band shift rather than removing it. What remains is a systematic,
+smooth in $\zred$ and hence partly absorbed by $\peakmag$ and $\colr$; it is quantified
+after the fit against an external SED, never corrected for within it.
 
 Counting epochs inside $[-15,+40]$~d requires a date of
 maximum, and the numbers above use the archive's \salt\ $t_{0}$ to place the window.
@@ -405,7 +432,8 @@ The interval $[\arc_{\min}, \arclen]$ is padded so that every epoch of every sup
 inside it, but nothing stops an excursion in $\xstretch$ from carrying one outside during
 sampling. Dropping it would make the objective discontinuous, so the map is softened
 instead. With $u_{i} = [t_{i} - t(\arc_{\min})]/[t(\arclen) - t(\arc_{\min})]$ and
-$\mathrm{sp}(x) = \epsilon\log(1 + e^{x/\epsilon})$, the arclength is soft-clamped and the
+$\mathrm{sp}(x) = \epsilon\log(1 + e^{x/\epsilon})$ and $\epsilon = 0.01$, one percent of
+the range in the scaled coordinate $u_{i}$, the arclength is soft-clamped and the
 flux tapered,
 \begin{equation}
   \hat\arc_{i} = \arc_{\min} + (\arclen - \arc_{\min})
@@ -431,6 +459,39 @@ scalars $\sigma_{g}, \sigma_{r}$ are deliberately less than the scatter deserves
 flexible enough to follow its phase dependence is also flexible enough to absorb
 $\shapekappa$, and that $\sigma$ does not inflate when $\shapekappa$ is removed is the check
 that it has not.
+
+
+\section{Inference}
+\label{sec:inference}
+
+The posterior is sampled with the no-U-turn Hamiltonian Monte Carlo sampler in
+\texttt{cmdstan}. Global coefficients, per-supernova parameters and $\sigma_{g}, \sigma_{r}$
+are sampled jointly: $4K$ coefficients, six parameters for each of the $552$ supernovae, and
+two scalars. Nothing is profiled or held at a point estimate. The per-supernova parameters
+are incidental and grow in number with the sample, so a fit that maximized over them would
+return $\sigma_{g}, \sigma_{r}$ biased low; marginalizing over them does not.
+
+The gauge is imposed by construction rather than sampled. The sampler moves on
+unconstrained raw coefficients $(\tilde a, \tilde b, \tilde c, \tilde d)$, and
+$a = \tilde a/\norm{\tilde a}$, $b = \tilde b - (\tilde b \cdot a)a$ and their curvature
+counterparts are deterministic transforms of them, so \eqref{eq:gauge} holds at every
+iteration and no constraint enters the likelihood. Priors are standard normal on the raw
+coefficients and on $(\xstretch, x_p, \shapekappa)$ --- the gauge fixes the scale of the
+latent parameters, which is what makes a unit normal a statement rather than an arbitrary
+width --- half-normal on $\sigma_{g}$ and $\sigma_{r}$, and normal on $\tmax$ centered on
+the archive's $t_{0}$ with a width of one day. $\peakmag$ and $\colr$ are given wide normal
+priors, being placement rather than shape.
+
+Chains are started from the archive's \salt\ fit: $\tmax$ at $t_{0}$, $\peakmag$ and
+$\colr$ at the magnitude and color it implies, shape parameters at zero, and the global
+coefficients at a least-squares fit to the mean template. Initialization is not use of
+\salt\ as a prior --- it sets where the chains begin and not what they converge to, and the
+run is only accepted if chains from dispersed starts agree. Convergence requires
+$\hat R < 1.01$ and effective sample size above $400$ on every parameter, with no divergent
+transitions.
+
+$K$ is selected as in Section~\ref{sec:traversal}, by residual on supernovae held out of
+the fit; in-sample residual falls with $K$ by construction and ranks nothing.
 
 
 \bibliographystyle{plainnat}
