@@ -5,6 +5,7 @@
 \usepackage{natbib}
 \usepackage[hidelinks]{hyperref}
 \input{macros}
+\input{sample-counts}
 
 \theoremstyle{plain}
 \newtheorem{proposition}{Proposition}
@@ -318,21 +319,21 @@ likelihood in Section~\ref{sec:likelihood}.
 \label{sec:samples}
 
 Supernova light curves are taken from  the \ztf\ SN~Ia DR2 archive
-\citep{Rigault2025}. Starting from the 3628 cataloged objects, we require
+\citep{Rigault2025}. Starting from the \Ncatalogued\ cataloged objects, we require
 $\zred < 0.05$, both the \texttt{lccoverage} and \texttt{fitquality} flags equal to one,
 and the archive's own cosmology classification \texttt{sn\_type == snia-cosmo}, leaving
-602 supernovae. That last cut is what restricts the sample to normal \sneia: it admits
+\Nselected\ supernovae. That last cut is what restricts the sample to normal \sneia: it admits
 \texttt{norm}, \texttt{91t} and \texttt{99aa} and no peculiar subtype, while
 \texttt{snia-pec} holds the 91bg, Iax, 03fg, 02es, 00cx and 18byg objects whose light-curve
 shapes a single $\shapekappa$ could not span alongside normals. Excluding
 \texttt{snia-pec} instead would not do: one 91bg-like object is typed \texttt{snia}, its
-peculiarity recorded only in \texttt{sub\_type}. Fourteen of the 602 have no light-curve
-file in the release; they are exactly the fourteen whose \salt\ $t_{0}$ is NaN, so the
-absence is of photometry rather than of shape, and 588 objects remain with light curves. Epochs are counted per
+peculiarity recorded only in \texttt{sub\_type}. Of the \Nselected, \Nnolc\ have no light-curve
+file in the release; they are exactly those whose \salt\ $t_{0}$ is NaN, so the
+absence is of photometry rather than of shape, and \Nphot\ objects remain with light curves. Epochs are counted per
 band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
 none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. 
-The analysis uses the 552 supernovae with at least five good epochs in \emph{each} of $g$
-and $r$; the count is 586 at three or more and 442 at ten or more.
+The analysis uses the \Nanalysis\ supernovae with at least five good epochs in \emph{each} of $g$
+and $r$; the count is \Nthree\ at three or more and \Nten\ at ten or more.
 Selection and counts are produced by \texttt{dgsn.data.sample}.
 
 Observed-frame $g$ and $r$ are identified with their rest-frame counterparts. A two-band
@@ -349,7 +350,7 @@ $\tmax$ is compared with $t_{0}$ and the analysis repeated with one substituted 
 other. For the selection, the sample is
 recounted against an SED-free anchor --- a window on the brightest good $g$ epoch --- and
 the two samples compared by \emph{membership}: equal counts can hide different objects, so
-the symmetric difference is what to report. The fourteen selected objects with NaN $t_{0}$
+the symmetric difference is what to report. The \Nnolc\ selected objects with NaN $t_{0}$
 need neither, having no photometry to place a window on.
 
 The arclength interval of Section~\ref{sec:curve} is declared from the sample rather than
@@ -464,12 +465,13 @@ that it has not.
 \section{Inference}
 \label{sec:inference}
 
-The posterior is sampled with the no-U-turn Hamiltonian Monte Carlo sampler in
-\texttt{cmdstan}. Global coefficients, per-supernova parameters and $\sigma_{g}, \sigma_{r}$
-are sampled jointly: $4K$ coefficients, six parameters for each of the $552$ supernovae, and
+The posterior is sampled with the no-U-turn Hamiltonian Monte Carlo sampler
+\citep{Hoffman2011} in \texttt{cmdstan} \citep{Carpenter2017}. Global coefficients, per-supernova parameters and $\sigma_{g}, \sigma_{r}$
+are sampled jointly: $4K$ coefficients, six parameters for each of the \Nanalysis\ supernovae, and
 two scalars. Nothing is profiled or held at a point estimate. The per-supernova parameters
 are incidental and grow in number with the sample, so a fit that maximized over them would
-return $\sigma_{g}, \sigma_{r}$ biased low; marginalizing over them does not.
+return $\sigma_{g}, \sigma_{r}$ biased low \citep{Neyman1948}; marginalizing over them does
+not.
 
 The gauge is imposed by construction rather than sampled. The sampler moves on
 unconstrained raw coefficients $(\tilde a, \tilde b, \tilde c, \tilde d)$, and

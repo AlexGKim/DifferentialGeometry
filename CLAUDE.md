@@ -15,7 +15,9 @@ file.** Here: the data, the traps, the tooling.
 2. **`z < 0.05`.** A two-band model has no SED and cannot self-consistently
    K-correct; the cut keeps the correction small enough to neglect.
 3. **External SED templates and extinction laws quantify systematics only** —
-   never to fit or initialise.
+   never to fit. Initialisation is exempt: it sets where chains start, not what
+   they converge to, so SALT2 places the starting point (`model-definition.tex`
+   §5) and dispersed-start agreement is what checks it.
 
 Others were retired 2026-08-28 and are in the backlog. **SALT2 strictly
 downstream** and **evaluation is out-of-sample** must be re-established before
