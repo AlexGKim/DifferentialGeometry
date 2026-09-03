@@ -227,30 +227,23 @@ coefficient speeds the late traversal and turns the track further.
 \subsection{Modelling functions}
 \label{sec:traversal}
 
-\paragraph{Unresolved.} This section is written as though all four functions share one
-domain and one basis, which \eqref{eq:travlog} no longer makes true: $\curv_{0}, \curv_{1}$
-are functions of $\arc$ on $[\arc_{\min}, \arclen]$, while $q_{0}, q_{1}$ are functions of
-$\phase$ on $[\phase_{\min}, \phase_{\max}]$. The coordinate change below is what lets a
-polynomial resolve the turn in $\arc$; expressed in $\phase$ the traversal rate is the speed
-itself, bounded and smooth, and needs no such change. So the curvature keeps the map and the
-traversal should not, and this section has to be restructured around two bases rather than
-one --- including which of the two $K$ counts, and what the parameter count becomes.
+Four global functions carry the template, on two domains. Together $\curv_{0}$ and $q_{0}$
+describe an ``average''  \snia: the track through magnitude space, and the rate at which a
+supernova walks along it. $\curv_{1}$ and $q_{1}$ are the first mode of departure from it --- $\curv_{1}$ 
+perturbs where the track goes,
+$q_{1}$ how fast the supernova covers it. The curvature pair are functions of arclength on
+$[\arc_{\min}, \arclen]$, the traversal pair functions of phase on
+$[\phase_{\min}, \phase_{\max}]$; each is expanded on a fixed basis, and all the
+coefficients are fit jointly with the per-supernova parameters.
 
-Four global functions on $[\arc_{\min}, \arclen]$ carry the template. Together $\curv_{0}$
-and $q_{0}$ are the reference \snia: the track through magnitude space, and the rate at
-which a supernova walks along it. $\curv_{1}$ and $q_{1}$ are the first mode of departure
-from it, split so the two halves cannot be confused --- $\curv_{1}$ moves where the track
-goes, $q_{1}$ how fast the supernova covers it. All
-four are expansions on a fixed basis, their coefficients fit jointly with the per-supernova
-parameters.
-
-The two maxima are close in time, about a day apart in $g$ and $r$, so the track doubles
-back on itself and the turn is confined to a very short stretch of arclength. At the median
-$x_{1}$ the speed at the turn falls to a ninth of its median, the curvature reaches
-$\curv \sim 200$, and $|\phase| < 3$~d holds under two percent of the arclength; at
-$x_{1} = -2$ the speed ratio is $260$ and $\curv$ exceeds $10^{3}$. A polynomial in $\arc$
-spreads its resolution evenly and cannot meet this: Legendre polynomials in $\arc$ leave
-errors of order a magnitude at every $K$ we tried. We therefore expand not in $\arc$ but in
+\paragraph{The curvature basis.} The two maxima are close in time, about a day apart in $g$
+and $r$, so the track doubles back on itself and the turn is confined to a very short
+stretch of arclength. At the median $x_{1}$ the speed at the turn falls to an eleventh of
+its median, the curvature reaches $\curv \sim 240$, and $|\phase| < 3$~d carries under two
+percent of the arclength; at $x_{1} = -2$ the ratio is $84$ and $\curv$ exceeds $2000$. A
+polynomial in $\arc$ spreads its resolution evenly and cannot meet this: Legendre
+polynomials in $\arc$ leave errors of order a magnitude at every $K$ we tried. We therefore
+expand the curvature not in $\arc$ but in
 \begin{equation}
   u = \asinh(\arc/\delta), \qquad \delta = 3\times10^{-4},
   \label{eq:umap}
@@ -258,59 +251,97 @@ errors of order a magnitude at every $K$ we tried. We therefore expand not in $\
 smooth and strictly increasing, linear for $|\arc| \ll \delta$ and logarithmic beyond, so
 that resolution spread evenly in $u$ is resolution in $\arc$ concentrated where the track
 turns. Too small a $\delta$ costs little and too large a $\delta$ fails, so it is set from
-the sharpest track rather than the average one.
+the sharpest track rather than the average one. Let $\{\phi_{k}\}$ be the Legendre
+polynomials in $u$, shifted to $[u(\arc_{\min}), u(\arclen)]$ and normalized. They
+natively fulfill the three conditions for the basis orthonormal under $\int fg\,\dd u$, which
+is the measure \eqref{eq:gauge} uses for this pair; $\phi_{0}$ constant; and integrals by a
+coefficient recurrence. The map changes the measure the basis is orthonormal in, not that
+it is orthonormal, so the coefficient identities below remain exact. 
 
-Let $\{\phi_{k}\}$ be the Legendre polynomials in $u$, shifted to
-$[u(\arc_{\min}), u(\arclen)]$ and normalized. They meet two of the conditions the
-construction needs natively --- orthonormal under the flat measure
-$\langle f,g\rangle = \int fg\,\dd u$ that the gauge uses, and $\phi_{0}$ constant. The map
-changes the measure the basis is orthonormal in, not that it is orthonormal, so the
-coefficient identities below remain exact. Chebyshev polynomials share these properties but
-are orthogonal under $(1-x^{2})^{-1/2}$, which concentrates them at the ends of the
-interval, where \eqref{eq:umap} has already spent what resolution is needed. Writing
+\paragraph{The traversal basis.} No such map is wanted here, and the reason is the
+direction of \eqref{eq:travlog}. The reciprocal speed $\dd\phase/\dd\arc$ is what is nearly
+singular at the turn; the speed $\dd\arc/\dd\phase$ is bounded and smooth, and it is the
+speed that is expanded. Let $\{\chi_{k}\}$ be the Legendre polynomials in $\phase$, shifted
+to $[\phase_{\min}, \phase_{\max}]$ and normalized, orthonormal under $\int fg\,\dd\phase$.
+Against a \salt\ template this reaches a few hundredths of a magnitude by $K = 24$ with no
+coordinate change, for the three quarters of the sample with $x_{1} \gtrsim -1$. The
+exception is the fast decliners: where the speed approaches zero its logarithm diverges, so
+the $\exp$ of \eqref{eq:travlog} buys structural monotonicity at the price of an excursion
+without bound wherever the track approaches a cusp. That is the same obstacle the curvature
+meets at the same place, and it is why the $x_{1} \lesssim -2$ tail is expensive on both
+sides.
+
+\paragraph{Expansion and gauge.} Writing
 \begin{equation}
-  q_{1} = \sum_{k \geq 1} a_{k}\phi_{k}, \quad
-  q_{0} = \sum_{k \geq 1} b_{k}\phi_{k}, \quad
+  q_{1} = \sum_{k \geq 1} a_{k}\chi_{k}, \quad
+  q_{0} = \sum_{k \geq 1} b_{k}\chi_{k}, \quad
   \curv_{1} = \sum_{k \geq 0} c_{k}\phi_{k}, \quad
   \curv_{0} = \sum_{k \geq 0} d_{k}\phi_{k} ,
   \label{eq:basis}
 \end{equation}
-the traversal pair omitting $\phi_{0}$, which is what makes $\bar q_{0} = \bar q_{1} = 0$
+the traversal pair omitting $\chi_{0}$, which is what makes $\bar q_{0} = \bar q_{1} = 0$
 in \eqref{eq:gauge} hold identically; the curvature pair carries no mean condition and
-keeps it. The remaining conditions are then algebra:
+keeps $\phi_{0}$. The four remaining conditions of \eqref{eq:gauge} are then algebra:
 $\langle q_{1}, q_{1}\rangle = \norm{a}^{2}$ and $\langle q_{0}, q_{1}\rangle = b \cdot a$
-exactly, and likewise for $(c,d)$. Fitting unconstrained $\tilde a, \tilde b$ and setting
-$a = \tilde a/\norm{\tilde a}$ and $b = \tilde b - (\tilde b \cdot a)\,a$ imposes
-\eqref{eq:gauge} to machine precision; $q_{0}$ is orthogonalized but not normalized, its
-norm being physical. The two sign conditions are linear inequalities on $a$ and $c$, fixed
-by flipping the raw vector. \salt\ has the same freedom and fixes it the other way, by
-normalizing $x_{1}$ over its training set; the difference is that a condition on functions
-can be built into how the functions are written, while a condition on a population cannot.
+exactly, and likewise for $(c,d)$, each in its own measure. Fitting unconstrained
+$\tilde a, \tilde b$ and setting $a = \tilde a/\norm{\tilde a}$ and
+$b = \tilde b - (\tilde b \cdot a)\,a$ imposes \eqref{eq:gauge} to machine precision;
+$q_{0}$ is orthogonalized but not normalized, its norm being physical. The two sign
+conditions are linear inequalities on $a$ and $c$, but flipping a vector to satisfy one is
+discontinuous in the raw coefficients and so cannot sit inside the fit. It need not: the
+likelihood is invariant under $(q_{1}, x_p) \mapsto (-q_{1}, -x_p)$ and under the same
+change in $(\curv_{1}, \shapekappa)$, so the sign is a relabeling and is applied to the
+draws afterwards.
+\salt\ has the same freedom and fixes it the other way, by normalizing $x_{1}$ over its
+training set; the difference is that a condition on functions can be built into how the
+functions are written, while a condition on a population cannot.
 
-A basis of $K$ functions gives $4K - 2$ coefficients, of which the four conditions of
-\eqref{eq:gauge} leave $4K - 6$ free, and truncates the function
-space: $K$ is a modelling choice and not only a parameterization, and raising it tests
-whether the data want more freedom than it allows. We fit $K \in \{16, 32, 64\}$ and select
-on out-of-sample residual, the three spaced so that each step is a real change in
-flexibility. The construction degenerates only when $a$ and $b$ become
+Truncating the curvature at $K_{\curv}$ basis functions and the traversal at $K_{q}$ gives
+$2K_{\curv} + 2K_{q} - 2$ coefficients, of which those four conditions leave
+$2K_{\curv} + 2K_{q} - 6$ free. Truncation bounds the function space, so the two orders are
+modelling choices and not only a parameterization, and raising one tests whether the data
+want more freedom than it allows; they are set in Section~\ref{sec:inference}. The
+construction degenerates only when $a$ and $b$ become
 parallel, which is not a numerical nuisance to suppress but the statement that the two
 functions carry the same information.
 
-The map costs the closed-form integral that Legendre polynomials in $\arc$ would have given:
-$\dd\arc = \delta\cosh u\,\dd u$, and $\int\phi_{k}\cosh u\,\dd u$ has no elementary
-antiderivative, so $\psi$ in \eqref{eq:turning} is a quadrature like the others. Nothing
-else changes, because
-$\curve$ and $\phase$ never had one either, being $\cos$ and $\exp$ of a basis expansion.
-So \eqref{eq:frenet2d} remains a set of quadratures of known integrands rather than an
-initial-value problem, all evaluated on shared nodes rather than by stepping, and the gauge
-\eqref{eq:gauge} does not touch them. Any such quadrature must carry the measure explicitly:
-orthonormalizing sampled columns imposes $L^{2}$ of the sampling density, which on a grid
-clustered by \eqref{eq:umap} is not $L^{2}(\dd u)$.
+The coordinate change costs the closed-form integral that Legendre polynomials in $\arc$
+would have given: $\dd\arc = \delta\cosh u\,\dd u$, and $\int\phi_{k}\cosh u\,\dd u$ has no
+elementary antiderivative, so $\psi$ in \eqref{eq:turning} is a quadrature. The $\chi_{k}$
+keep theirs, being polynomials in the variable they are integrated over, but $\arc(\phase)$
+is not elementary either, being $\exp$ of an expansion, and neither is $\curve$, being
+$\cos$ of one. So \eqref{eq:frenet2d} is still solved by quadratures of known integrands
+rather than as an initial-value problem, all evaluated on shared nodes rather than by stepping,
+and the gauge \eqref{eq:gauge} does not touch them. Where \eqref{eq:gauge} itself is
+evaluated on nodes, those nodes must carry its measure: orthonormalizing sampled columns
+imposes $L^{2}$ of the sampling density, so the nodes are uniform in $u$ for the curvature
+pair and in $\phase$ for the traversal pair, or else weighted. Nodes uniform in $\arc$ give
+$L^{2}(\dd\arc)$, which is not the gauge.
+
+The same node sets serve the quadratures, shared across supernovae and fixed for the run,
+and $u$ and $\phase$ are also the coordinates the integrands are smooth in. One of the three
+integrals is not a quadrature at all: $\psi$ is linear in the coefficients of $\curv$, so
+$\int\phi_{k}\cosh u\,\dd u$ can be tabulated once for the run and $\psi$ at the nodes is a
+matrix product, exact. It is $\curve$ that sets the requirement, its integrand $\cos\psi$
+oscillating where the track turns; making $\psi$ exact rather than quadratured changes the
+recovered magnitudes by a percent of the error and nothing more. Because the integrands are
+analytic in the working coordinate, a spectral rule is worth its extra structure over a
+composite one: integrating an exact expansion and comparing the recovered magnitudes, so
+that quadrature alone is measured, gives $\sim10^{-4}$~mag at a hundred nodes, where the
+trapezoid rule converges as the square of the spacing and is still at $10^{-1}$ with four
+times as many.
+
+Cost follows from where the per-supernova parameters enter. Curvature is linear in
+$\shapekappa$, so $\psi$ for every supernova is that same matrix product and a scalar
+combination; but $\curve$ is $\cos$ of $\psi$, and that integral is taken for each. In
+\eqref{eq:travlog} $\xstretch$ factors out as $e^{\xstretch}$ and only $x_p$ survives inside,
+leaving one more integral per supernova. Two sweeps of $\Nanalysis$ curves over the shared
+nodes, then, at every evaluation of the log-density.
 
 That the clock runs forward is not a condition here but a property of the form. Writing the
-traversal through $\log\,\dd\phase/\dd\arc$ admits no coefficients for which phase runs
-backwards, and an object whose phase ran backwards partway along its track would not be a
-slow supernova but not a supernova.
+traversal through $\log\,\dd\arc/\dd\phase$ admits no coefficients for which arclength runs
+backwards, and an object that retraced its own track partway through would not be a slow
+supernova but no supernova at all.
 
 A supernova will not lie exactly on any member of the six-parameter family, and the
 departure is not photometric noise. It is carried by an intrinsic scatter, defined with the
@@ -471,7 +502,8 @@ that it has not.
 
 The posterior is sampled with the no-U-turn Hamiltonian Monte Carlo sampler
 \citep{Hoffman2011} in \texttt{cmdstan} \citep{Carpenter2017}. Global coefficients, per-supernova parameters and $\sigma_{g}, \sigma_{r}$
-are sampled jointly: $4K$ coefficients, six parameters for each of the \Nanalysis\ supernovae, and
+are sampled jointly: $2K_{\curv} + 2K_{q} - 2$ coefficients, six parameters for each of the
+\Nanalysis\ supernovae, and
 two scalars. Nothing is profiled or held at a point estimate. The per-supernova parameters
 are incidental and grow in number with the sample, so a fit that maximized over them would
 return $\sigma_{g}, \sigma_{r}$ biased low \citep{Neyman1948}; marginalizing over them does
@@ -481,23 +513,73 @@ The gauge is imposed by construction rather than sampled. The sampler moves on
 unconstrained raw coefficients $(\tilde a, \tilde b, \tilde c, \tilde d)$, and
 $a = \tilde a/\norm{\tilde a}$, $b = \tilde b - (\tilde b \cdot a)a$ and their curvature
 counterparts are deterministic transforms of them, so \eqref{eq:gauge} holds at every
-iteration and no constraint enters the likelihood. Priors are standard normal on the raw
-coefficients and on $(\xstretch, x_p, \shapekappa)$ --- the gauge fixes the scale of the
-latent parameters, which is what makes a unit normal a statement rather than an arbitrary
-width --- half-normal on $\sigma_{g}$ and $\sigma_{r}$, and normal on $\tmax$ centered on
-the archive's $t_{0}$ with a width of one day. $\peakmag$ and $\colr$ are given wide normal
+iteration and no constraint enters the likelihood. The two sign conventions are not among
+these transforms, being discontinuous; they are applied per draw in \texttt{generated
+quantities}, after the sampler has done its work and where they cannot reach the gradient.
+The raw coefficients are given normal priors whose width decays with the mode index,
+\begin{equation}
+  \tilde a_{k},\, \tilde b_{k},\, \tilde c_{k},\, \tilde d_{k}
+    \;\sim\; \mathcal{N}\!\left(0,\; \tau^{2} k^{-2\alpha}\right) ,
+  \qquad \alpha > \tfrac{1}{2} ,
+  \label{eq:coefprior}
+\end{equation}
+with $\alpha$ and $\tau$ hyperparameters, sampled with the rest under a half-normal on
+$\tau$ and a prior on $\alpha$ supported above $\tfrac{1}{2}$; the smoothness of the global
+functions is thus inferred and not asserted. The coefficients are written non-centered,
+$\tilde a_{k} = \tau k^{-\alpha}z_{k}$ with $z_{k}$ standard normal, since a scale sampled
+jointly with the coefficients it multiplies is the geometry Hamiltonian Monte Carlo handles
+worst.
+
+A common width would make the prior a function of the
+truncation: the gauge leaves $a$ uniform on the sphere, which is equal expected power in
+every mode and so a function as rough as the basis allows and rougher with each mode added,
+while $q_{0}$ and $\curv_{0}$, normalized by nothing, would carry
+$\langle q_{0}, q_{0}\rangle \sim K_{q}$. Raising an order would then coarsen and inflate
+the functions as well as freeing them, and the comparison across orders below would be
+reading that rather than flexibility. A decaying width states instead that the functions are
+smooth, with $\alpha$ setting how smooth and $\tau$ the overall scale, and leaves the
+truncation to do only its own work. The remaining priors are standard normal on
+$(\xstretch, x_p, \shapekappa)$ --- the gauge fixes the scale of the latent parameters,
+which is what makes a unit normal a statement rather than an arbitrary width ---
+half-normal on $\sigma_{g}$ and $\sigma_{r}$, and normal on $\tmax$ centered on the
+archive's $t_{0}$ with a width of one day. $\peakmag$ and $\colr$ are given wide normal
 priors, being placement rather than shape.
 
 Chains are started from the archive's \salt\ fit: $\tmax$ at $t_{0}$, $\peakmag$ and
 $\colr$ at the magnitude and color it implies, shape parameters at zero, and the global
 coefficients at a least-squares fit to the mean template. Initialization is not use of
 \salt\ as a prior --- it sets where the chains begin and not what they converge to, and the
-run is only accepted if chains from dispersed starts agree. Convergence requires
-$\hat R < 1.01$ and effective sample size above $400$ on every parameter, with no divergent
-transitions.
+run is only accepted if chains from dispersed starts agree. Convergence is judged from the
+usual statistics --- $\hat R$, effective sample size, divergent transitions --- read on the
+gauge-fixed functions and on the predicted fluxes rather than on the raw coefficients, four
+of whose directions the gauge leaves unidentified and on which those statistics carry no
+information about the fit.
 
-$K$ is selected as in Section~\ref{sec:traversal}, by residual on supernovae held out of
-the fit; in-sample residual falls with $K$ by construction and ranks nothing.
+The truncation orders are set by running the fit over
+$K_{\curv} \in \{16, 32, 64\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing residual on
+supernovae held out of it; in-sample residual falls with either order by construction and
+ranks nothing. \eqref{eq:coefprior} is what makes that comparison a comparison of
+truncations rather than of priors: a larger basis is free to leave its high modes near zero
+instead of obliged to fill them, and with $\alpha$ inferred the fit sets how fast they
+decay. That also blunts the choice, which is the point of making it this way --- a
+truncation past what the data support costs shrunken modes rather than a worse fit --- so
+the orders are expected to matter less than they would under a common width, and the grid
+above is as much a check on that as a search.
+
+Those brackets are placed by asking what it takes to reproduce a \salt\ template to
+$0.02$~mag, which for $-1 \leq x_{1} \leq 1.7$ wants $K_{\curv}$ between $26$ and $46$ and
+$K_{q}$ between $16$ and $26$. Two features of that exercise are why the brackets are wide
+and why they reach below it. The requirement is not monotone in $x_{1}$ --- the recovered
+magnitudes are a double integral of the curvature residual, so its sign structure counts for
+more than its size, and a smaller residual can integrate to a worse curve --- so the orders
+cannot be got by interpolating in $x_{1}$ and have to be tried. And a template carries no
+noise: \ztf\ epochs at signal-to-noise of order ten cannot resolve structure at $0.02$~mag,
+so the orders the data support should fall below the ones a template asks for. The
+curvature wants more than the traversal at every $x_{1}$, by a factor between $1.3$ and
+$2.9$, which is why the two are bracketed separately. Fast decliners are the exception in
+kind as well as degree: by $x_{1} = -2$, some $8$ percent of the sample, the curvature wants
+more than $96$ and the traversal near $70$, the cusp of Section~\ref{sec:traversal} showing
+up as a parameter count.
 
 
 \bibliographystyle{plainnat}
