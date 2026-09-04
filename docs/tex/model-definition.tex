@@ -638,6 +638,42 @@ $x_{1} = -2$, some $8$ percent of the sample, $K_{q}$ near $70$ would be wanted 
 $0.02$~mag against a template. Those objects are expected to fit less well than the rest,
 and the residuals should be reported by $x_{1}$ rather than pooled.
 
+\subsection{Bringing the fit up}
+\label{sec:staging}
+
+The cost of a fit rises by orders of magnitude across the stages below, so each is arranged
+to test what the one before it could not, and to fail cheaply on it.
+
+\begin{enumerate}
+\item A reference implementation of the forward map outside \texttt{Stan}, checked against
+  the cases that have closed forms: constant $\psi'$ gives a circle, a unit rate gives
+  $\arc = \phase$, and $\xstretch$ scales arclength by $e^{\xstretch}$. This is the oracle
+  for everything after it. The \texttt{Stan} forward map is required to reproduce it to
+  machine precision at fixed parameters, and its gradients to agree with finite differences.
+
+\item One supernova, six parameters, the global functions supplied as data rather than
+  sampled. This exercises the whole chain --- phase to arclength to magnitude to flux ---
+  together with both clamps and \eqref{eq:like}, and it runs in seconds. A fault in the
+  quadrature, in a clamp, or in the Jacobian of \eqref{eq:umap} surfaces here at no cost.
+
+\item The full model at the smallest orders on a few tens of supernovae. First contact with
+  the hierarchy: the funnel that \eqref{eq:coefprior} is written non-centered to avoid, the
+  unbounded $\alpha$, the two sign branches, and whether warmup finds its way from an
+  initialization that knows nothing about the global functions.
+
+\item The full training sample at one pair of orders, which establishes the cost of a fit
+  and whether convergence is reachable at all.
+
+\item The grid over $K_{\psi}$ and $K_{q}$, once a single fit is healthy.
+\end{enumerate}
+
+The ordering is not fastidiousness. In a hierarchical fit that has failed to converge, an
+error in a quadrature or a clamp is indistinguishable from a bad prior, a funnel, or a
+model that the data cannot support; the early stages exist to remove the first kind of
+explanation before the others are entertained. The reference implementation earns its keep
+the same way: without it, a disagreement between prediction and data has two candidate
+sources rather than one.
+
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
