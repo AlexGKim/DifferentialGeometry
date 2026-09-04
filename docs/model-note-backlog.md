@@ -786,3 +786,60 @@ a fixed colour law and a fitted `c`.
   conflates the two exactly as SALT2's `c` does. The order counting does not help here.
 - **Peculiar velocity** is not in the likelihood: `mu` is free per SN and absorbs it exactly,
   entering only at the Hubble-diagram stage.
+
+## Moved out of the Inference section (2026-09-04)
+
+Arguments for choices `model-definition.tex` §5 states. The choices stay in the note; the
+reasoning is here.
+
+### Why the coefficient prior decays with mode index
+
+A common width would make the prior a function of the truncation. The gauge leaves `a`
+uniform on the sphere, which is equal expected power in every mode and so a function as
+rough as the basis allows, and rougher with each mode added; while `q_0` and `Psi_0`,
+normalised by nothing, would carry `<q_0, q_0> ~ K_q`. Raising an order would then coarsen
+and inflate the functions as well as freeing them, and the comparison across orders would
+be reading that rather than flexibility. A decaying width states instead that the functions
+are smooth, with `alpha` setting how smooth and `tau` the overall scale, and leaves the
+truncation to do only its own work.
+
+### Why sample jointly rather than profile
+
+The per-supernova parameters are incidental and grow in number with the sample, so a fit
+that maximised over them would return `sigma_g, sigma_r` biased low (Neyman & Scott 1948);
+marginalising over them does not. This is why nothing is profiled or held at a point
+estimate.
+
+### Why the train/validation split is stratified on x1
+
+It is along `x1` that the difficulty of this model is known to vary — the traversal wants
+`K_q` near 70 at `x1 = -2` against 16 to 32 elsewhere. A random draw would leave the number
+of fast decliners in validation to chance: some nine of the 45 in the sample, but a poor
+draw could give three, and the question "does the model fail on fast decliners" would then
+be unanswerable for reasons having nothing to do with the model.
+
+### The validation residual is mildly optimistic
+
+A validation object is fit for its own six parameters on the same epochs whose residuals
+are then scored — six parameters against a median of 44 good epochs. Fitting them on
+alternate epochs and scoring on the rest removes the optimism at no computational cost, and
+is worth doing if the validation residuals come out better than the training ones.
+
+### Deprecated when Section 2.3 made the gauge algebraic
+
+The Inference section used to warn that quadrature nodes must carry the gauge measure:
+orthonormalising sampled columns imposes `L^2` of the sampling density, so nodes uniform in
+`s` give `L^2(ds)`, which is not the gauge. This was written when the gauge inner products
+were expected to be quadratured. §2.3 now gives them as exact algebra on the coefficients,
+with the Gram matrix of the shifted basis in closed form as a rank-one update, so the gauge
+is never evaluated on nodes and the warning has no subject. Restore it only if some
+quantity in the gauge stops being available in closed form.
+
+### Deprecated: the spectral-versus-trapezoid comparison
+
+Integrating an exact expansion and comparing recovered magnitudes, so that quadrature alone
+is measured, gave ~1e-4 mag at a hundred nodes where the trapezoid rule was still at 1e-1
+with four times as many. This justified "a spectral rule", which names no rule; the decision
+since taken is to start with composite Gauss-Legendre. The measurement stands as evidence
+that a low-order composite rule is wasteful here, and should be redone against whatever rule
+is adopted.

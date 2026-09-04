@@ -51,7 +51,7 @@ $\mathrm{diag}(1,1)$. Both are choices, argued at length in
 \texttt{docs/model-note-backlog.md}: the space because distance and dust (to first order)
 act there as translations, to which curvature is blind; the metric because none is
 physically preferred, so one must be declared. The likelihood, by contrast, is evaluated
-in native flux (Section~\ref{sec:samples}).
+in native flux (Section~\ref{sec:likelihood}).
 
 The primary configuration is \ztf\ $g$ and $r$ \citep{Bellm2019}, where $n=2$ and
 $\curve = (\Magg, \Magr)$, so focus on $n=2$.
@@ -194,7 +194,7 @@ supernovae range over but not the coordinates placed on that family, and a chang
 coordinates undone by a compensating change of parameters alters no prediction.
 The traversal has
 four such freedoms, $q_{1} \mapsto \lambda q_{1} + \mu$ and
-$q_{0} \mapsto q_{0} + \alpha + \nu q_{1}$, absorbed by $(\xstretch, x_p)$; the turning has
+$q_{0} \mapsto q_{0} + \beta + \nu q_{1}$, absorbed by $(\xstretch, x_p)$; the turning has
 two, $\turnone \mapsto \lambda\turnone$ and
 $\turnzero \mapsto \turnzero + \nu\turnone$, absorbed by $\shapeturn$. The turning admits
 no additive constant among these, $\turnzero(0) = \turnone(0) = 0$ having already pinned
@@ -249,10 +249,12 @@ already carries it, so that $\bar q_{0} = \bar q_{1} = 0$ holds identically. Wri
   q_{0} = \sum_{k \geq 1} b_{k}P_{k}(\phase),
   \label{eq:basisq}
 \end{equation}
-the conditions of \eqref{eq:gauge} on this pair are $\norm{a}^{2} = 1$ and $b \cdot a = 0$,
-since $\langle q_{1}, q_{1}\rangle = \norm{a}^{2}$ and
-$\langle q_{0}, q_{1}\rangle = b \cdot a$; fitting unconstrained $\tilde a, \tilde b$ and
-setting $a = \tilde a/\norm{\tilde a}$ and $b = \tilde b - (\tilde b \cdot a)\,a$ imposes
+the conditions of \eqref{eq:gauge} on this pair are $\norm{\mathbf{a}}^{2} = 1$ and
+$\mathbf{b} \cdot \mathbf{a} = 0$, since $\langle q_{1}, q_{1}\rangle = \norm{\mathbf{a}}^{2}$
+and $\langle q_{0}, q_{1}\rangle = \mathbf{b} \cdot \mathbf{a}$; fitting unconstrained
+$\tilde{\mathbf{a}}, \tilde{\mathbf{b}}$ and setting
+$\mathbf{a} = \tilde{\mathbf{a}}/\norm{\tilde{\mathbf{a}}}$ and
+$\mathbf{b} = \tilde{\mathbf{b}} - (\tilde{\mathbf{b}} \cdot \mathbf{a})\,\mathbf{a}$ imposes
 them to machine precision. Only $a$ is normalized: $q_{0}$ is orthogonalized against
 $q_{1}$ but keeps its own norm, which is physical. Against \salt, $K_{q}$ between $16$ and $32$ suffices over the
 three quarters of the sample with $x_{1} \gtrsim -1$, and considerably more in the
@@ -277,14 +279,24 @@ the sharpest track rather than the average one. The constant mode is absent here
 the basis is built to vanish at $\arc = 0$, which is what makes
 $\turnzero(0) = \turnone(0) = 0$ of \eqref{eq:curvlin} hold identically rather than by
 constraint: the $\tilde P_{k}$ are the Legendre polynomials in $u$, each shifted by its
-value at $\arc = 0$ and the set re-orthonormalized afterwards, the shift having cost
-orthonormality by a rank-one term. Writing
+value at $\arc = 0$ and the set re-orthonormalized afterwards. The shift costs
+orthonormality by a rank-one term, $\langle P_{j} - P_{j}(0), P_{k} - P_{k}(0)\rangle
+= \delta_{jk} + (u_{\max} - u_{\min})P_{j}(0)P_{k}(0)$, and the re-orthonormalization is
+Gram--Schmidt in ascending degree. The order is not a detail. Gram--Schmidt in that order
+is triangular, so $\tilde P_{k}$ is a combination of degrees no higher than $k$ and mode
+$k$ still means degree at most $k$; a symmetric orthonormalization would mix every degree
+into every mode, and the prior of \eqref{eq:coefprior}, whose width decays with the mode
+index, would then shrink combinations with no particular smoothness. The Gram matrix is a
+rank-one update of the identity, so its Cholesky factor is available in closed form and the
+transformation is computed once for the run; at $K_{\psi} = 24$ its condition number is
+$15$. Writing
 \begin{equation}
   \turnone = \sum_{k \geq 1} c_{k}\tilde P_{k}(u), \qquad
   \turnzero = \sum_{k \geq 1} d_{k}\tilde P_{k}(u),
   \label{eq:basispsi}
 \end{equation}
-the conditions of \eqref{eq:gauge} on this pair are $\norm{c}^{2} = 1$ and $d \cdot c = 0$,
+the conditions of \eqref{eq:gauge} on this pair are $\norm{\mathbf{c}}^{2} = 1$ and
+$\mathbf{d} \cdot \mathbf{c} = 0$,
 imposed as above. Against \salt, $K_{\psi} = 24$ reproduces the track across the whole
 range $-2 \leq x_{1} \leq 1.7$, from $0.007$~mag at the sample median to $0.022$ at the
 ends.
@@ -299,7 +311,7 @@ $2K_{\psi} + 2K_{q} - 4$ coefficients, neither pair carrying a constant, of whic
 conditions above leave $2K_{\psi} + 2K_{q} - 8$ free. Truncation bounds the function space,
 so the two orders are modeling choices and not only a parameterization, and raising one
 tests whether the data want more freedom than it allows. The construction degenerates only
-when $a$ and $b$ become parallel, or $c$ and $d$, which is not a numerical nuisance to
+when $\mathbf{a}$ and $\mathbf{b}$ become parallel, or $\mathbf{c}$ and $\mathbf{d}$, which is not a numerical nuisance to
 suppress but the statement that the pair's two functions carry the same information.
 
 \section{Data Sample}
@@ -317,7 +329,8 @@ shapes a single $\shapeturn$ could not span alongside normals. Excluding
 peculiarity recorded only in \texttt{sub\_type}. Of the \Nselected, \Nnolc\ have no light-curve
 file in the release; they are exactly those whose \salt\ $t_{0}$ is NaN, so the
 absence is of photometry rather than of shape, and \Nphot\ objects remain with light curves. Epochs are counted per
-band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
+band inside the rest-frame window $[-15,+40]$~d with $f_{i}/\sigma_{f,i} > 5$, signed, so
+that a negative flux fails it as a detection should, and with
 none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. That
 mask's first bit marks $\sigma_{f} = 0$, which six epochs of this sample carry; each also
 fails on \texttt{chi2dof} and limiting magnitude, so the mask removes them on their own
@@ -408,8 +421,7 @@ included,
     + \bigl(0.4\ln 10\ \sigma_{b_{i}}\,\hat f_{i}\bigr)^{2} ,
   \label{eq:like}
 \end{equation}
-with $\sigma_{f,i}$ the archive's flux error, which already carries \texttt{err\_scale};
-\texttt{flux} already has \texttt{flux\_offset} subtracted. 
+with $f_{i}$ and $\sigma_{f,i}$ the archive's flux and its error, taken as published.
 
 The second variance term is the intrinsic scatter, carried by two fitted scalars
 $\sigma_{g}$ and $\sigma_{r}$: one per band, constant in phase, and in magnitudes, which
@@ -446,13 +458,38 @@ is suppressed by $38$ percent --- at $\phase = -15$ and $+40$~d, where real epoc
 written the suppression at the edge is half a percent, indistinguishable from unity a day
 inside, and the flux is down by $e^{-1}$ at $\epsilon_{t}$ outside the window and gone at
 $2\epsilon_{t}$. The clamp needs no second scale and agrees with the model to
-$O(\epsilon)$ for $w_{i} \in [0,1]$. An epoch carried out of
-range then contributes $f_{i}^{2}/\sigma_{i}^{2}$: free if it was consistent with zero,
-expensive if it was a detection, which is the pushback wanted. The arclength needs the same
-treatment for the same reason --- $\arcmax$ bounds $\psi$, and $\xstretch$ can carry
-$\arc(\phase_{\max})$ past it --- and takes the same softplus, in $\arc$ on
-$[\arc_{\min}, \arcmax]$.
-The model should be well-conditioned outside of this range to enable convergence of the fitter.
+$O(\epsilon)$ for $w_{i} \in [0,1]$. Both then stand in for what they replace:
+$\hat\phase_{i}$ for $\phase_{i}$ in \eqref{eq:predflux}, so that the modeling functions are
+never evaluated outside the interval they are defined on, which is the point of clamping
+rather than dropping; and the tapered $\hat f_{i}$ for the untapered one in
+\eqref{eq:like}, in the variance as well as in the residual. An epoch carried out of
+range then contributes $f_{i}^{2}/\sigma_{f,i}^{2}$, its scatter term having gone with the
+flux: free if it was consistent with zero,
+expensive if it was a detection, which is the pushback wanted.
+
+The arclength interval needs its own bound, and clamping the phase does not supply one:
+$\arc(\phase)$ is finite for $\phase$ in the window but its size is set by $\xstretch$, and
+a supernova one unit of log speed above the reference covers $e$ times the median span of
+Section~\ref{sec:samples} --- already outside $[\arc_{\min}, \arcmax]$, where the turning
+basis grows as a polynomial in $u$ left of its interval. With
+$v_{i} = [\arc_{i} - \arc_{\min}]/[\arcmax - \arc_{\min}]$ and the softplus of
+\eqref{eq:soft} at width $\epsilon_{\arc} = 10^{-3}$, one part in a thousand of the
+interval, or $0.016$~mag,
+\begin{equation}
+  \hat\arc_{i} = \arc_{\min} + (\arcmax - \arc_{\min})
+    \bigl[\mathrm{sp}(v_{i}) - \mathrm{sp}(v_{i}-1)\bigr] ,
+  \label{eq:softarc}
+\end{equation}
+and $\psi$ is evaluated at $\hat\arc_{i}$. There is no second taper. The phase taper is
+for epochs the model does not claim to describe, where predicting no light is honest; an
+epoch inside the phase window whose arclength has left the interval is one the model does
+describe, and it is the parameters that are out of range. Clamping alone leaves it the
+magnitude at the interval endpoint --- a finite prediction a real epoch will not match, so
+the residual pushes back with a gradient, where a taper to zero would discard the
+information that the epoch is bright. The narrower $\epsilon_{\arc}$ is affordable for the
+same reason the interval is padded: Section~\ref{sec:samples} finds the median span well
+inside $[\arc_{\min}, \arcmax]$, so the clamp bites only on draws that are already wrong,
+and its smoothing need not be gentle.
 
 
 \section{Inference}
@@ -461,20 +498,21 @@ The model should be well-conditioned outside of this range to enable convergence
 The posterior is sampled with the no-U-turn Hamiltonian Monte Carlo sampler
 \citep{Hoffman2011} in \texttt{cmdstan} \citep{Carpenter2017}. Global coefficients, per-supernova parameters and $\sigma_{g}, \sigma_{r}$
 are sampled jointly: $2K_{\psi} + 2K_{q} - 4$ coefficients, six parameters for each
-training supernova, and two scalars. Nothing is profiled or held at a point estimate. The per-supernova parameters
-are incidental and grow in number with the sample, so a fit that maximized over them would
-return $\sigma_{g}, \sigma_{r}$ biased low \citep{Neyman1948}; marginalizing over them does
-not.
-
-
+training supernova, and two scalars. Nothing is profiled or held at a point estimate: the
+per-supernova parameters are incidental, and maximizing over them would return
+$\sigma_{g}, \sigma_{r}$ biased low \citep{Neyman1948}.
 
 The gauge is imposed by construction rather than sampled. The sampler moves on the
-unconstrained raw coefficients $(\tilde a, \tilde b, \tilde c, \tilde d)$ of
+unconstrained raw coefficients $(\tilde{\mathbf{a}}, \tilde{\mathbf{b}}, \tilde{\mathbf{c}}, \tilde{\mathbf{d}})$ of
 Section~\ref{sec:traversal}, whose normalization and orthogonalization are deterministic
 transforms of them, so \eqref{eq:gauge} holds at every iteration and no constraint enters
 the likelihood. The two sign conventions are not among these transforms, being
 discontinuous; they are applied per draw in \texttt{generated quantities}, where they
-cannot reach the gradient.
+cannot reach the gradient. Each is a joint relabeling and has to be applied as one:
+flipping $q_{1}$ carries every supernova's $x_p$ with it, and flipping $\turnone$ every
+$\shapeturn$, since it is only the products that the likelihood leaves alone. Doing this
+inside the fit rather than afterwards is what makes the saved draws comparable across
+chains, which land in either branch independently.
 The raw coefficients are given normal priors whose width decays with the mode index,
 \begin{equation}
   \tilde a_{k},\, \tilde b_{k},\, \tilde c_{k},\, \tilde d_{k}
@@ -482,34 +520,50 @@ The raw coefficients are given normal priors whose width decays with the mode in
   \qquad \alpha > \tfrac{1}{2} ,
   \label{eq:coefprior}
 \end{equation}
-with $\alpha$ and $\tau$ hyperparameters, sampled with the rest under a half-normal on
-$\tau$ and a prior on $\alpha$ supported above $\tfrac{1}{2}$; the smoothness of the global
-functions is thus inferred and not asserted. The coefficients are written non-centered,
+with $\alpha$ and $\tau$ hyperparameters, sampled with the rest under priors flat on their
+supports, $\tau > 0$ and $\alpha > \tfrac{1}{2}$; the smoothness of the global functions is
+thus inferred and not asserted. The coefficients are written non-centered,
 $\tilde a_{k} = \tau k^{-\alpha}z_{k}$ with $z_{k}$ standard normal, since a scale sampled
 jointly with the coefficients it multiplies is the geometry Hamiltonian Monte Carlo handles
 worst.
 
-A common width would make the prior a function of the
-truncation: the gauge leaves $a$ uniform on the sphere, which is equal expected power in
-every mode and so a function as rough as the basis allows and rougher with each mode added,
-while $q_{0}$ and $\turnzero$, normalized by nothing, would carry
-$\langle q_{0}, q_{0}\rangle \sim K_{q}$. Raising an order would then coarsen and inflate
-the functions as well as freeing them, and the comparison across orders below would be
-reading that rather than flexibility. A decaying width states instead that the functions are
-smooth, with $\alpha$ setting how smooth and $\tau$ the overall scale, and leaves the
-truncation to do only its own work. The remaining priors are standard normal on
-$(\xstretch, x_p, \shapeturn)$ --- the gauge fixes the scale of the latent parameters,
-which is what makes a unit normal a statement rather than an arbitrary width ---
-half-normal on $\sigma_{g}$ and $\sigma_{r}$, and normal on $\tmax$ centered on the
-archive's $t_{0}$ with a width of one day. $\peakmag$ and $\colr$ are given flat priors,
-being placement rather than shape.
+The width decays so that the prior on the functions does not move when a truncation order
+does; a common width would make it a function of the order. The remaining priors are
+standard normal on
+the departure amplitudes $x_p$ and $\shapeturn$ --- the gauge normalizes the functions they
+multiply, $\langle q_{1}, q_{1}\rangle = \langle \turnone, \turnone\rangle = 1$, which is
+what makes a unit width a statement rather than an arbitrary one ---
+flat on $\sigma_{g}, \sigma_{r} > 0$, and normal on $\tmax$ centered on the
+archive's $t_{0}$ with a width of one day. $\peakmag$, $\colr$ and $\xstretch$ are given
+flat priors. Nothing normalizes $\xstretch$: with $\bar q_{0} = 0$ it carries the mean of
+$\log\,\dd\arc/\dd\phase$ outright, so its natural value is the log of a typical speed in
+magnitudes per rest-frame day and not zero, and a unit normal would be both mis-centered
+and far wider than the spread of stretch across normal \sneia. It is well determined by
+every supernova's own epochs, and flat asserts nothing about a scale the fit is there to
+find.
 
-Chains are started from the archive's \salt\ fit: $\tmax$ at $t_{0}$, $\peakmag$ and
-$\colr$ at the magnitude and color it implies, shape parameters at zero, and the global
-coefficients at a least-squares fit to the mean template. Initialization is not use of
-\salt\ as a prior --- it sets where the chains begin and not what they converge to, and the
-run is only accepted if chains from dispersed starts agree. The number of chains, and the
-warmup and sampling iterations, are Stan's defaults. Convergence is judged from the
+The flat priors are improper, and it is the likelihood that makes the posterior proper.
+$\alpha$ is informed by all four coefficient vectors, since normalizing
+$\tilde{\mathbf{a}}$ and $\tilde{\mathbf{c}}$ removes $\tau$ but not the relative decay
+across modes; $\tau$ only by $\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$, whose norms
+are physical. Nothing bounds $\alpha$ above, so a fit that wants no high modes will let it
+run, and it is the hyperparameter to watch.
+
+Three per-supernova parameters have a counterpart in the archive's \salt\ fit and are
+started there: $\tmax$ at $t_{0}$, and $\peakmag$ and $\colr$ at the magnitude and color it
+implies. Four chains are run. The departure amplitudes $x_p$ and $\shapeturn$ start at zero, so that a chain
+begins on the reference supernova and the first modes contribute nothing. The vectors
+$\tilde{\mathbf{a}}$ and $\tilde{\mathbf{c}}$ that carry those modes cannot themselves be
+started at zero, being normalized; nor can they be started anywhere meaningful, since
+nothing outside the fit knows what the first mode of departure looks like. They, and the
+remaining global coefficients, the hyperparameters, the scatters and $\xstretch$, are left
+to Stan's own initialization. That is the least that needs saying and may not be enough: a
+random start gives global functions bearing no relation to a supernova, so every predicted
+light curve is arbitrary at the first iteration and warmup has far to travel. If it does
+not arrive, the initialization is the first thing to revisit. The number of chains, and the
+warmup and sampling iterations, are Stan's defaults; the four chains are run as four
+separate jobs rather than one job of four, so that they are independent processes and a
+chain that stalls does not hold up the rest. Convergence is judged from the
 usual statistics --- $\hat R$, effective sample size, divergent transitions --- read on the
 gauge-fixed functions and on the predicted fluxes rather than on the raw coefficients, four
 of whose directions the gauge leaves unidentified and on which those statistics carry no
@@ -522,22 +576,25 @@ Two quadratures are wanted, not three: $\psi$ is the expansion itself, a matrix 
 against \eqref{eq:basispsi}, and is never integrated for. Neither of the remaining two is
 elementary --- $\arc(\phase)$ is $\exp$ of an expansion and $\curve$ is $\cos$ of one --- so \eqref{eq:frenet2d} is still
 solved by quadratures of known integrands rather than as an initial-value problem, evaluated
-on shared nodes rather than by stepping, and the gauge \eqref{eq:gauge} does not touch
-them. Where \eqref{eq:gauge} itself is
-evaluated on nodes, those nodes must carry its measure: orthonormalizing sampled columns
-imposes $L^{2}$ of the sampling density, so the nodes are uniform in $u$ for the turning
-pair and in $\phase$ for the traversal pair, or else weighted. Nodes uniform in $\arc$ give
-$L^{2}(\dd\arc)$, which is not the gauge.
+on shared nodes rather than by stepping. The gauge does not enter: \eqref{eq:gauge} is
+algebra on the coefficients, not an integral.
 
-The same node sets serve the quadratures, shared across supernovae and fixed for the run,
-and $u$ and $\phase$ are also the coordinates the integrands are smooth in. It is $\curve$
-that sets the requirement, its integrand $\cos\psi$ oscillating where the track turns.
-Because the integrands are
-analytic in the working coordinate, a spectral rule is worth its extra structure over a
-composite one: integrating an exact expansion and comparing the recovered magnitudes, so
-that quadrature alone is measured, gives $\sim10^{-4}$~mag at a hundred nodes, where the
-trapezoid rule converges as the square of the spacing and is still at $10^{-1}$ with four
-times as many.
+Both are taken by composite Gauss--Legendre: the domain is divided into $M = 20$ equal
+panels and an $n = 8$ point rule applied in each, in $u$ for the curve and in $\phase$ for
+the traversal, the coordinates the integrands are smooth in. The change of variable carries
+its Jacobian, $\dd\arc = \delta\cosh u\,\dd u$, so the curve integrand is
+$(\cos\psi, \sin\psi)\,\delta\cosh u$; that factor spans four orders of magnitude across
+the interval, and placing the nodes in $u$ rather than in $\arc$ is what keeps the rest of
+the integrand smooth against it.
+
+The nodes are fixed for the run, so abscissae and weights are constants and only the
+integrand values change. What is wanted is the integral to each epoch rather than over the
+whole interval, and epochs do not sit on nodes: the panel integrals are summed once into a
+prefix table, and the remainder from the last completed edge to $\phase_{i}$, or to
+$\hat\arc_{i}$, is one further $n$-point panel. Against a converged reference this gives
+$10^{-5}$~mag on the traversal and $10^{-7}$ on the curve, the traversal setting the
+requirement; the error falls by some three orders for each doubling of $M$, so the count is
+not delicate.
 
 Cost follows from where the per-supernova parameters enter. The turning is linear in
 $\shapeturn$, so $\psi$ for every supernova is one matrix product and a scalar
@@ -547,22 +604,15 @@ leaving one more integral per supernova. Two sweeps of the training curves over 
 nodes, then, at every evaluation of the log-density.
 
 The sample is split into $442$ supernovae for training and $110$ for validation, drawn
-$22$ at a time from each fifth of the $x_{1}$ distribution. Stratifying on $x_{1}$ rather
-than drawing at random is deliberate: it is along $x_{1}$ that the difficulty of this model
-is known to vary, the traversal wanting $K_{q}$ near $70$ at $x_{1} = -2$ against $16$ to
-$32$ elsewhere, and a random draw would leave the number of fast decliners in validation to
-chance --- some nine of the $45$ in the sample, but a poor draw could give three. There is
-no third split: nothing here is tuned finely enough on validation to need one.
+$22$ at a time from each fifth of the $x_{1}$ distribution, since it is along $x_{1}$ that
+the difficulty of this model varies. There is no third split.
 
 What validation withholds is the global functions, which is what the truncation orders
 control. The six per-supernova parameters are not shared and cannot be withheld --- a
 supernova of which nothing has been seen cannot be predicted --- so a validation object is
 fit for its own six with $\turnzero, \turnone, q_{0}, q_{1}, \sigma_{g}, \sigma_{r}$ held
 at their training values. Those six are fit on the same epochs whose residuals are then
-scored, which makes the exercise mildly optimistic: six parameters against a median of $44$
-good epochs. Fitting them on alternate epochs and scoring on the rest removes the optimism
-at no computational cost, and is worth doing if the validation residuals come out better
-than the training ones.
+scored, which makes the exercise mildly optimistic.
 
 The truncation orders are set by running the fit over
 $K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing the normalized
@@ -577,12 +627,10 @@ the data cannot separate, and the smallest of those is taken. The residual is re
 $x_{1}$ stratum as well as pooled, since it is the fast decliners that are expected to fail
 first.
 
-The brackets straddle what Section~\ref{sec:traversal} found a \salt\ template to ask
-for. They reach above it because $K_{\psi} = 48$ buys another factor of two in template
-accuracy, and below it because a template carries no noise --- \ztf\ epochs at
-signal-to-noise of order ten cannot resolve structure at $0.02$~mag --- so the orders the
-data support should fall under the ones a template asks for; $K_{\psi} = 12$ is there to
-find that floor, reaching only $0.07$ to $0.19$~mag against the template.
+The brackets reach below what Section~\ref{sec:traversal} found a \salt\ template to ask
+for, because a template carries no noise: \ztf\ epochs at signal-to-noise of order ten
+cannot resolve structure at $0.02$~mag, so the orders the data support should fall under
+the ones a template asks for.
 
 That the turning is uniform across $x_{1}$ where the traversal is not is the asymmetry
 worth expecting in the fits. The fast decliners are the traversal's difficulty alone: near
