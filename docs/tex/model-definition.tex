@@ -433,11 +433,20 @@ that range, the phase is soft-clamped and the flux tapered,
     \bigl[\mathrm{sp}(w_{i}) - \mathrm{sp}(w_{i}-1)\bigr] ,
   \qquad
   \hat f_{i} \;\longmapsto\; \hat f_{i}\,
-    \exp\!\bigl[-\bigl(\mathrm{sp}(-w_{i}) + \mathrm{sp}(w_{i}-1)\bigr)^{2}/\epsilon^{2}\bigr] .
+    \exp\!\bigl[-\bigl(\mathrm{sp}_{t}(-w_{i}) + \mathrm{sp}_{t}(w_{i}-1)\bigr)^{2}
+      /\epsilon_{t}^{2}\bigr] ,
   \label{eq:soft}
 \end{equation}
-Both are $C^{\infty}$ in $\allpars$, agree with the model to $O(\epsilon)$ for
-$w_{i} \in [0,1]$, and send the predicted flux to zero outside. An epoch carried out of
+with $\mathrm{sp}_{t}$ the same softplus at width $\epsilon_{t}/10$ and
+$\epsilon_{t} = 0.02$, one fiftieth of the range. Both are $C^{\infty}$ in $\allpars$ and
+send the predicted flux to zero outside. The taper wants a turn-off scale distinct from its
+softplus width, which is why $\epsilon_{t}$ appears: built on one scale, its argument at
+the window edge is $O(\epsilon)$ against a denominator $\epsilon^{2}$, and the flux there
+is suppressed by $38$ percent --- at $\phase = -15$ and $+40$~d, where real epochs sit. As
+written the suppression at the edge is half a percent, indistinguishable from unity a day
+inside, and the flux is down by $e^{-1}$ at $\epsilon_{t}$ outside the window and gone at
+$2\epsilon_{t}$. The clamp needs no second scale and agrees with the model to
+$O(\epsilon)$ for $w_{i} \in [0,1]$. An epoch carried out of
 range then contributes $f_{i}^{2}/\sigma_{i}^{2}$: free if it was consistent with zero,
 expensive if it was a detection, which is the pushback wanted. The arclength needs the same
 treatment for the same reason --- $\arcmax$ bounds $\psi$, and $\xstretch$ can carry
@@ -451,9 +460,8 @@ The model should be well-conditioned outside of this range to enable convergence
 
 The posterior is sampled with the no-U-turn Hamiltonian Monte Carlo sampler
 \citep{Hoffman2011} in \texttt{cmdstan} \citep{Carpenter2017}. Global coefficients, per-supernova parameters and $\sigma_{g}, \sigma_{r}$
-are sampled jointly: $2K_{\psi} + 2K_{q} - 4$ coefficients, six parameters for each of the
-\Nanalysis\ supernovae, and
-two scalars. Nothing is profiled or held at a point estimate. The per-supernova parameters
+are sampled jointly: $2K_{\psi} + 2K_{q} - 4$ coefficients, six parameters for each
+training supernova, and two scalars. Nothing is profiled or held at a point estimate. The per-supernova parameters
 are incidental and grow in number with the sample, so a fit that maximized over them would
 return $\sigma_{g}, \sigma_{r}$ biased low \citep{Neyman1948}; marginalizing over them does
 not.
@@ -493,14 +501,15 @@ truncation to do only its own work. The remaining priors are standard normal on
 $(\xstretch, x_p, \shapeturn)$ --- the gauge fixes the scale of the latent parameters,
 which is what makes a unit normal a statement rather than an arbitrary width ---
 half-normal on $\sigma_{g}$ and $\sigma_{r}$, and normal on $\tmax$ centered on the
-archive's $t_{0}$ with a width of one day. $\peakmag$ and $\colr$ are given wide normal
-priors, being placement rather than shape.
+archive's $t_{0}$ with a width of one day. $\peakmag$ and $\colr$ are given flat priors,
+being placement rather than shape.
 
 Chains are started from the archive's \salt\ fit: $\tmax$ at $t_{0}$, $\peakmag$ and
 $\colr$ at the magnitude and color it implies, shape parameters at zero, and the global
 coefficients at a least-squares fit to the mean template. Initialization is not use of
 \salt\ as a prior --- it sets where the chains begin and not what they converge to, and the
-run is only accepted if chains from dispersed starts agree. Convergence is judged from the
+run is only accepted if chains from dispersed starts agree. The number of chains, and the
+warmup and sampling iterations, are Stan's defaults. Convergence is judged from the
 usual statistics --- $\hat R$, effective sample size, divergent transitions --- read on the
 gauge-fixed functions and on the predicted fluxes rather than on the raw coefficients, four
 of whose directions the gauge leaves unidentified and on which those statistics carry no
@@ -534,19 +543,39 @@ Cost follows from where the per-supernova parameters enter. The turning is linea
 $\shapeturn$, so $\psi$ for every supernova is one matrix product and a scalar
 combination; but $\curve$ is $\cos$ of $\psi$, and that integral is taken for each. In
 \eqref{eq:travlog} $\xstretch$ factors out as $e^{\xstretch}$ and only $x_p$ survives inside,
-leaving one more integral per supernova. Two sweeps of $\Nanalysis$ curves over the shared
+leaving one more integral per supernova. Two sweeps of the training curves over the shared
 nodes, then, at every evaluation of the log-density.
 
+The sample is split into $442$ supernovae for training and $110$ for validation, drawn
+$22$ at a time from each fifth of the $x_{1}$ distribution. Stratifying on $x_{1}$ rather
+than drawing at random is deliberate: it is along $x_{1}$ that the difficulty of this model
+is known to vary, the traversal wanting $K_{q}$ near $70$ at $x_{1} = -2$ against $16$ to
+$32$ elsewhere, and a random draw would leave the number of fast decliners in validation to
+chance --- some nine of the $45$ in the sample, but a poor draw could give three. There is
+no third split: nothing here is tuned finely enough on validation to need one.
+
+What validation withholds is the global functions, which is what the truncation orders
+control. The six per-supernova parameters are not shared and cannot be withheld --- a
+supernova of which nothing has been seen cannot be predicted --- so a validation object is
+fit for its own six with $\turnzero, \turnone, q_{0}, q_{1}, \sigma_{g}, \sigma_{r}$ held
+at their training values. Those six are fit on the same epochs whose residuals are then
+scored, which makes the exercise mildly optimistic: six parameters against a median of $44$
+good epochs. Fitting them on alternate epochs and scoring on the rest removes the optimism
+at no computational cost, and is worth doing if the validation residuals come out better
+than the training ones.
+
 The truncation orders are set by running the fit over
-$K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing residual on
-supernovae held out of it; in-sample residual falls with either order by construction and
-ranks nothing. \eqref{eq:coefprior} is what makes that comparison a comparison of
-truncations rather than of priors: a larger basis is free to leave its high modes near zero
-instead of obliged to fill them, and with $\alpha$ inferred the fit sets how fast they
-decay. That also blunts the choice, which is the point of making it this way --- a
-truncation past what the data support costs shrunken modes rather than a worse fit --- so
-the orders are expected to matter less than they would under a common width, and the grid
-above is as much a check on that as a search.
+$K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing the normalized
+residual $(f_{i} - \hat f_{i})/\sigma_{i}$ over validation epochs, whose spread is unity
+for a model whose scatter and truncation are both right. Residual within the training
+sample falls with either order by construction and so ranks nothing. \eqref{eq:coefprior}
+is what keeps the comparison about truncation rather than prior: a larger basis is free to
+leave its high modes near zero instead of obliged to fill them, and with $\alpha$ inferred
+the fit sets how fast they decay, so an order past what the data support costs shrunken
+modes rather than a worse fit. Orders the validation residual cannot separate are orders
+the data cannot separate, and the smallest of those is taken. The residual is reported by
+$x_{1}$ stratum as well as pooled, since it is the fast decliners that are expected to fail
+first.
 
 The brackets straddle what Section~\ref{sec:traversal} found a \salt\ template to ask
 for. They reach above it because $K_{\psi} = 48$ buys another factor of two in template
