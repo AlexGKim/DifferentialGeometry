@@ -318,7 +318,10 @@ peculiarity recorded only in \texttt{sub\_type}. Of the \Nselected, \Nnolc\ have
 file in the release; they are exactly those whose \salt\ $t_{0}$ is NaN, so the
 absence is of photometry rather than of shape, and \Nphot\ objects remain with light curves. Epochs are counted per
 band inside the rest-frame window $[-15,+40]$~d with signal-to-noise above five and with
-none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. 
+none of the quality bits excluded by \texttt{flag \& 31 == 0}, the archive default. That
+mask's first bit marks $\sigma_{f} = 0$, which six epochs of this sample carry; each also
+fails on \texttt{chi2dof} and limiting magnitude, so the mask removes them on their own
+merits and the likelihood never meets a zero error. 
 The analysis uses the \Nanalysis\ supernovae with at least five good epochs in \emph{each} of $g$
 and $r$; the count is \Nthree\ at three or more and \Nten\ at ten or more.
 Selection and counts are produced by \texttt{dgsn.data.sample}.
@@ -377,13 +380,13 @@ $E(B-V)$ exceeds $0.1$ for $23\%$ of the sample and reaches $1.06$.
 \label{sec:likelihood}
 
 The model is built in magnitude space and confronted with the data in flux. Magnitude space
-is where distance and reddening act as translations, to which $\curv$ is blind; flux is
+is where distance and reddening act as translations, to which $\psi$ is insensitive; flux is
 where the \ztf\ errors are Gaussian and where a non-detection is an ordinary measurement
 near zero rather than a missing one.
 
 For an epoch $i$ observed at $t_{i}$ in band $b_{i}$, \eqref{eq:modeltime} gives the
 rest-frame phase $\phase_{i}$ and \eqref{eq:travlog} the arclength
-$\arc_{i} = \arc(\phase_{i})$, both by evaluation; no inversion enters the forward model.
+$\arc_{i} = \arc(\phase_{i})$.
 The predicted flux is
 \begin{equation}
   \hat f_{i}(\allpars)
@@ -392,16 +395,11 @@ The predicted flux is
 \end{equation}
 with $\zp = 30$, the archive's zero point. It is pinned, not fitted: $\zp$ and $\peakmag$
 are exactly degenerate in \eqref{eq:modelmag} and \eqref{eq:predflux}, and this choice is
-what makes $\peakmag$ the $g$ magnitude on the archive's own scale.
-The epoch set is fixed before fitting. The window is placed by the archive's $t_{0}$ and
-$\tmax$ is free within it; anchoring instead on the fitted $\tmax$ would change which
-epochs enter as the sampler moves, and since each contributes $\ln\sigma_{i}^{2} \simeq 11$
-to \eqref{eq:like} whatever its residual, admitting or dropping one shifts the objective by
-more than a typical epoch fits it. Epochs are those inside the window passing
-\texttt{flag \& 31 == 0}, the archive's quality mask; its first bit marks
-$\sigma_{f,i} = 0$, without which \eqref{eq:like} is undefined for six epochs of this
-sample. Within that set every epoch contributes, non-detections and negative fluxes
-included:
+what makes $\peakmag$ the $g$ magnitude on the archive's scale.
+The set of data is fixed, even if they fall out of the [-15,+40]~d window for the
+sampled $\tmax$. It is the set of Section~\ref{sec:samples} without the signal-to-noise
+cut used there for counting: every epoch contributes, non-detections and negative fluxes
+included,
 \begin{equation}
   -2\ln\mathcal{L}
     = \sum_{i}\left[\frac{\bigl(f_{i} - \hat f_{i}\bigr)^{2}}{\sigma_{i}^{2}}
@@ -411,14 +409,22 @@ included:
   \label{eq:like}
 \end{equation}
 with $\sigma_{f,i}$ the archive's flux error, which already carries \texttt{err\_scale};
-\texttt{flux} already has \texttt{flux\_offset} subtracted. A low-signal epoch weights itself down
-correctly, whereas discarding one would select on the noise realization of the very
-quantity being fitted. The variance depends on $\allpars$, hence the log-determinant term.
+\texttt{flux} already has \texttt{flux\_offset} subtracted. 
 
-Epochs are selected inside the phase window, but $\tmax$ is free, so an excursion can carry
-one outside it during sampling. Dropping it would make the objective discontinuous, so the
-map is softened instead. The clamp acts on phase, whose window is fixed and the same for
-every supernova: with
+The second variance term is the intrinsic scatter, carried by two fitted scalars
+$\sigma_{g}$ and $\sigma_{r}$: one per band, constant in phase, and in magnitudes, which
+is why they enter \eqref{eq:like} through $0.4\ln 10$ as a fractional flux error scaled by
+$\hat f_{i}$. Here $\sigma_{b_{i}}$ is whichever belongs to the band of epoch $i$. The
+inclusion of these model parameters necessitates the log-determinant term in the
+likelihood.
+
+Two intervals bound where the modeling functions of Section~\ref{sec:traversal} are
+defined, and the posterior respects neither: $\tmax$ can carry an epoch's phase outside
+$[\phase_{\min}, \phase_{\max}]$, and $\xstretch$ can carry $\arc(\phase_{\max})$ past
+$\arcmax$. Both are chosen to cover most of the posterior mass, but excursions occur, and
+dropping an epoch that makes one would leave the objective discontinuous. Each bound is
+therefore softened rather than enforced. Taking the phase window first, whose bounds are
+fixed and the same for every supernova: with
 $w_{i} = [\phase_{i} - \phase_{\min}]/[\phase_{\max} - \phase_{\min}]$,
 $\mathrm{sp}(x) = \epsilon\log(1 + e^{x/\epsilon})$ and $\epsilon = 0.01$, one percent of
 that range, the phase is soft-clamped and the flux tapered,
@@ -437,18 +443,7 @@ expensive if it was a detection, which is the pushback wanted. The arclength nee
 treatment for the same reason --- $\arcmax$ bounds $\psi$, and $\xstretch$ can carry
 $\arc(\phase_{\max})$ past it --- and takes the same softplus, in $\arc$ on
 $[\arc_{\min}, \arcmax]$.
-
-The second variance term is the intrinsic scatter. Grey offsets, color shifts and time
-shifts are already free in $\peakmag$, $\colr$ and $\tmax$, so what it carries is departure
-in \emph{shape}; it is written as a fractional flux error because that departure is a
-magnitude, and scaled by $\hat f_{i}$ rather than $f_{i}$ so a downward fluctuation does not
-earn itself a smaller weight. Without it the global functions follow whichever supernovae
-have the smallest photometric errors, the per-supernova uncertainties come out too small,
-and no model comparison is trustworthy --- including the two this model exists to make. Two
-scalars $\sigma_{g}, \sigma_{r}$ are deliberately less than the scatter deserves: one
-flexible enough to follow its phase dependence is also flexible enough to absorb
-$\shapeturn$, and that $\sigma$ does not inflate when $\shapeturn$ is removed is the check
-that it has not.
+The model should be well-conditioned outside of this range to enable convergence of the fitter.
 
 
 \section{Inference}
@@ -463,13 +458,15 @@ are incidental and grow in number with the sample, so a fit that maximized over 
 return $\sigma_{g}, \sigma_{r}$ biased low \citep{Neyman1948}; marginalizing over them does
 not.
 
-The gauge is imposed by construction rather than sampled. The sampler moves on
-unconstrained raw coefficients $(\tilde a, \tilde b, \tilde c, \tilde d)$, and
-$a = \tilde a/\norm{\tilde a}$, $b = \tilde b - (\tilde b \cdot a)a$ and their turning
-counterparts are deterministic transforms of them, so \eqref{eq:gauge} holds at every
-iteration and no constraint enters the likelihood. The two sign conventions are not among
-these transforms, being discontinuous; they are applied per draw in \texttt{generated
-quantities}, after the sampler has done its work and where they cannot reach the gradient.
+
+
+The gauge is imposed by construction rather than sampled. The sampler moves on the
+unconstrained raw coefficients $(\tilde a, \tilde b, \tilde c, \tilde d)$ of
+Section~\ref{sec:traversal}, whose normalization and orthogonalization are deterministic
+transforms of them, so \eqref{eq:gauge} holds at every iteration and no constraint enters
+the likelihood. The two sign conventions are not among these transforms, being
+discontinuous; they are applied per draw in \texttt{generated quantities}, where they
+cannot reach the gradient.
 The raw coefficients are given normal priors whose width decays with the mode index,
 \begin{equation}
   \tilde a_{k},\, \tilde b_{k},\, \tilde c_{k},\, \tilde d_{k}
@@ -551,21 +548,18 @@ truncation past what the data support costs shrunken modes rather than a worse f
 the orders are expected to matter less than they would under a common width, and the grid
 above is as much a check on that as a search.
 
-Those brackets are placed by asking what it takes to reproduce a \salt\ template to
-$0.02$~mag. Expanding the turning, $K_{\psi} = 24$ comes within a tenth of that across the
-whole range $-2 \leq x_{1} \leq 1.7$, from $0.007$~mag at the sample median to $0.022$ at
-the ends, and $K_{\psi} = 48$ is inside it everywhere; $K_{\psi} = 12$ reaches only $0.07$
-to $0.19$. The traversal wants $K_{q}$ between $16$ and $32$ over the same range. The brackets reach below those
-figures because a template carries no noise --- \ztf\ epochs at signal-to-noise of order ten
-cannot resolve structure at $0.02$~mag --- so the orders the data support should fall below
-the ones a template asks for.
+The brackets straddle what Section~\ref{sec:traversal} found a \salt\ template to ask
+for. They reach above it because $K_{\psi} = 48$ buys another factor of two in template
+accuracy, and below it because a template carries no noise --- \ztf\ epochs at
+signal-to-noise of order ten cannot resolve structure at $0.02$~mag --- so the orders the
+data support should fall under the ones a template asks for; $K_{\psi} = 12$ is there to
+find that floor, reaching only $0.07$ to $0.19$~mag against the template.
 
 That the turning is uniform across $x_{1}$ where the traversal is not is the asymmetry
-worth expecting in the fits. The fast decliners are the traversal's difficulty alone, the
-speed there approaching zero and its logarithm diverging: near $x_{1} = -2$, some $8$
-percent of the sample, $K_{q}$ near $70$ would be wanted to reach $0.02$~mag. Those objects
-are expected to fit less well than the rest, and the residuals should be reported by
-$x_{1}$ rather than pooled.
+worth expecting in the fits. The fast decliners are the traversal's difficulty alone: near
+$x_{1} = -2$, some $8$ percent of the sample, $K_{q}$ near $70$ would be wanted to reach
+$0.02$~mag against a template. Those objects are expected to fit less well than the rest,
+and the residuals should be reported by $x_{1}$ rather than pooled.
 
 
 \bibliographystyle{plainnat}
