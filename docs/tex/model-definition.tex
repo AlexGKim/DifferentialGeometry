@@ -70,11 +70,11 @@ from $g$ maximum, are denoted as
 $\curve$ is a parameterized curve in the $2$-dimensional magnitude space.
 The arclength along the curve, $\arc(\phase)$ (not to be confused with ``stretch''), is defined by
 $\dd \arc = \norm{\dd\curve/\dd \phase}\,\dd \phase$ with the constant of integration
-fixed by $\arc = 0$ at $g$ maximum $s(0)=0$; wherever $\norm{\dd\curve/\dd\phase} \neq 0$ this is
+fixed by $\arc = 0$ at $g$ maximum; wherever $\norm{\dd\curve/\dd\phase} \neq 0$ this is
 strictly increasing and invertible.  The curve $\gamma(s)$ is
 unit-speed, $\norm{\curve'(\arc)} = 1$.
-The curve is defined on a fixed arclength interval $\arc \in [\arc_{\min}, \arclen]$
-with $\arc_{\min} < 0 < \arclen$, declared once for the model rather than fitted and wide
+The curve is defined on a fixed arclength interval $\arc \in [\arc_{\min}, \arcmax]$
+with $\arc_{\min} < 0 < \arcmax$, declared once for the model rather than fitted and wide
 enough to cover the modelled phase range for every supernova. A unit-speed curve in $\Rtwo$ admits a Frenet frame,
  \begin{equation}
   \curve' = \tang, \qquad
@@ -84,8 +84,8 @@ enough to cover the modelled phase range for every supernova. A unit-speed curve
 with $\tang$ the unit \emph{tangent} and $\norml$ the \emph{normal}, the counterclockwise
 $90^{\circ}$ rotation of $\tang$; the \emph{curvature} $\curv$ is correspondingly signed.
 
-We now map out the inverse: how a curve, specified by the angle of the unit tangent $\psi$  and three initial conditions,
- and the traversal over that curve 
+We now map out the inverse: how a curve, specified by the angle of the unit tangent
+$\psi$ and the position of one of its points, and the traversal over that curve,
 define light curves.
 Given $\psi(s)$, $\curve(\arc)$ is determined through the differential equations in
 Eq.~\ref{eq:frenet2d} and an initial condition for the position of $\curve$. The equations are solved with
@@ -95,8 +95,9 @@ Eq.~\ref{eq:frenet2d} and an initial condition for the position of $\curve$. The
   \norml(\arc) = \bigl(-\sin\psi(\arc),\ \cos\psi(\arc)\bigr),
   \label{eq:tangangle}
 \end{equation}
-The curvature is the rate of turning of the tangent, $\curv = \psi'$.
-Given $\psi$ ,
+The curvature is the rate of turning of the tangent, $\curv = \psi'$, so a curve is as
+well described by its tangent angle as by its curvature. Given $\psi$, the curve follows by
+one quadrature,
 \begin{equation}
   \curve(\arc) = \curve_{0} + \int_{{0}}^{\arc}
                   \bigl(\cos\psi(\zeta),\ \sin\psi(\zeta)\bigr)\,\dd\zeta .
@@ -143,7 +144,7 @@ $(\peakmag, \colr)$
 gives the $g$ magnitude and the $g-r$ color  at $\arc = p = 0$.
 
 The parameterized curves are given by $\curve(\arc;\shapeturn)$, which in turn are
-specified by the turning.  The tangent angle that is expanded,
+specified by the turning.  It is the tangent angle that is expanded,
 \begin{equation}
   \psi(\arc; \shapeturn) = -\frac{\pi}{2} + \turnzero(\arc)
                             + \shapeturn\,\turnone(\arc) ,
@@ -211,43 +212,60 @@ corresponding mean,
   \label{eq:gauge}
 \end{equation}
 four conditions for four freedoms and two for two. Each pair leaves a sign, fixed by
-$\int_{0}^{\phase_{\max}} q_{1} > 0$ and $\turnone(\arclen) > 0$, so a positive
+$\int_{0}^{\phase_{\max}} q_{1} > 0$ and $\turnone(\arcmax) > 0$, so a positive
 coefficient speeds the late traversal and turns the track further --- the second literally,
-$\turnone(\arclen)$ being the turning the departure mode accumulates over the interval.
+$\turnone(\arcmax)$ being the turning the departure mode accumulates over the interval.
 
 
 \subsection{Modeling functions}
 \label{sec:traversal}
 
+In this section, we go into detail into how the functions that describe the turning and transversal
+are modeled.
 Four global functions carry the template, on two domains. Together $\turnzero$ and $q_{0}$
 describe an ``average''  \snia: the track through magnitude space, and the rate at which a
 supernova walks along it. $\turnone$ and $q_{1}$ are the first mode of departure from it ---
 $\turnone$ perturbs where the track goes,
-$q_{1}$ how fast the supernova covers it. The turning pair are functions of arclength on
-$[\arc_{\min}, \arclen]$, the traversal pair functions of phase on
-$[\phase_{\min}, \phase_{\max}]$; each is expanded on a fixed basis, and all the
-coefficients are fit jointly with the per-supernova parameters.
+$q_{1}$ how fast the supernova covers it.
 
-$\Psi_{0}$ and $\Psi_{1}$ are carried on an arclength interval discussed in \S\ref{sec:tuning}.
-$q_{0}$ and $q_{1}$ are carried on the
-rest-frame phase window $[\phase_{\min}, \phase_{\max}] = [-15, +40]$~d, which unlike the
-arclength interval is the same for every supernova by construction; it is the window the
-sample is selected on in Section~\ref{sec:samples}. 
+These functions are modeled as truncated Legendre series,
+$f(x) = \sum_{k=1}^{K-1} c_{k}P_{k}(x)$, retaining terms through degree $K-1$, with the
+$P_{k}$ shifted to the interval of their argument and normalized there. Normalizing makes
+them orthonormal under the flat measure of that variable, which is the measure
+\eqref{eq:gauge} uses, so the gauge conditions become algebra on the coefficients. The
+constant mode is absent from both series, though for different reasons, and the two pairs
+differ in their argument and in their interval. We take them in turn.
 
-To understand the expected behavior of the modeling functions, we compute them from \salt\
-across its $x_{1}$ range. The results fix the arclength interval of
-Section~\ref{sec:samples} and the truncation brackets of Section~\ref{sec:inference}. This
-is characterization and not fitting: no template is read during the fit, and a
-two-parameter family that carries no noise bounds what the bases must represent, not what
-the data will ask of them.
+To understand the expected behavior of the modeling functions
+and estimate reasonable values for $K$ and the arclength interval, we compute them from \salt\
+across its $x_{1}$ range, and ask what it takes to reproduce a track to $\sim 0.02$~mag.
 
-\paragraph{The turning basis.} The two maxima are close in time, about a day apart in $g$
-and $r$, so the track doubles back on itself and the turn is confined to a very short
-stretch of arclength. At the median $x_{1}$ the speed at the turn falls to an eleventh of
-its median and $|\phase| < 3$~d carries under two percent of the arclength, over which
-$\psi$ swings through most of its range of some $3.4$ radians; at $x_{1} = -2$ the speed
-ratio is $84$. A polynomial in $\arc$ spreads its resolution evenly and cannot meet that
-compression, so we expand not in $\arc$ but in
+\paragraph{The traversal.} $q_{0}$ and $q_{1}$ are functions of rest-frame phase on
+$[\phase_{\min}, \phase_{\max}] = [-15, +40]$~d, the window the sample is selected on in
+Section~\ref{sec:samples} and the same for every supernova by construction. The constant mode is omitted because $\xstretch$
+already carries it, so that $\bar q_{0} = \bar q_{1} = 0$ holds identically. Writing
+\begin{equation}
+  q_{1} = \sum_{k \geq 1} a_{k}P_{k}(\phase), \qquad
+  q_{0} = \sum_{k \geq 1} b_{k}P_{k}(\phase),
+  \label{eq:basisq}
+\end{equation}
+the conditions of \eqref{eq:gauge} on this pair are $\norm{a}^{2} = 1$ and $b \cdot a = 0$,
+since $\langle q_{1}, q_{1}\rangle = \norm{a}^{2}$ and
+$\langle q_{0}, q_{1}\rangle = b \cdot a$; fitting unconstrained $\tilde a, \tilde b$ and
+setting $a = \tilde a/\norm{\tilde a}$ and $b = \tilde b - (\tilde b \cdot a)\,a$ imposes
+them to machine precision. Only $a$ is normalized: $q_{0}$ is orthogonalized against
+$q_{1}$ but keeps its own norm, which is physical. Against \salt, $K_{q}$ between $16$ and $32$ suffices over the
+three quarters of the sample with $x_{1} \gtrsim -1$, and considerably more in the
+fast-decliner tail, where the speed approaches zero and its logarithm diverges.
+
+\paragraph{The turning.} $\turnzero$ and $\turnone$ are functions of arclength, on an
+interval $[\arc_{\min}, \arcmax]$ that we want to be large enough to span the data, and
+which is measured from the sample in Section~\ref{sec:samples}. Here a change of coordinate is
+wanted. The two maxima are close in time, about a day apart in $g$ and $r$, so the track
+doubles back on itself and the turn is confined to a very short stretch of arclength: at
+the median $x_{1}$, $|\phase| < 3$~d carries under two percent of the arclength and over
+half of the $5.3$ radians through which $\psi$ turns. A polynomial in $\arc$ spreads its resolution evenly and
+cannot meet that compression, so the turning is expanded in
 \begin{equation}
   u = \asinh(\arc/\delta), \qquad \delta = 3\times10^{-4},
   \label{eq:umap}
@@ -255,113 +273,34 @@ compression, so we expand not in $\arc$ but in
 smooth and strictly increasing, linear for $|\arc| \ll \delta$ and logarithmic beyond, so
 that resolution spread evenly in $u$ is resolution in $\arc$ concentrated where the track
 turns. Too small a $\delta$ costs little and too large a $\delta$ fails, so it is set from
-the sharpest track rather than the average one. Let $\{\phi_{k}\}$ be the Legendre
-polynomials in $u$, shifted to $[u(\arc_{\min}), u(\arclen)]$ and normalized: orthonormal
-under $\int fg\,\dd u$, which is the measure \eqref{eq:gauge} uses for this pair, and with
-integrals by a coefficient recurrence. The map changes the measure the basis is orthonormal
-in, not that it is orthonormal, so the coefficient identities below remain exact. The
-turning is expanded not in the $\phi_{k}$ themselves but in the span of
-$\phi_{k} - \phi_{k}(0)$, $k \geq 1$, which is what makes
+the sharpest track rather than the average one. The constant mode is absent here because
+the basis is built to vanish at $\arc = 0$, which is what makes
 $\turnzero(0) = \turnone(0) = 0$ of \eqref{eq:curvlin} hold identically rather than by
-constraint; the constant mode is annihilated by the subtraction and drops out. Shifting
-costs orthonormality --- it adds a rank-one term,
-$\langle \phi_{j}-\phi_{j}(0), \phi_{k}-\phi_{k}(0)\rangle
-= \delta_{jk} + \phi_{j}(0)\phi_{k}(0)\,(u_{\max}-u_{\min})$ --- so the shifted functions
-are orthonormalized once, before any fitting, against the same measure. Every function in
-their span vanishes at $\arc = 0$, so orthonormalizing within it keeps that property, and
-the result $\{\tilde\phi_{k}\}$ is a fixed basis: orthonormal, vanishing at the origin, and
-computed once for the run. Against a \salt\ template the expansion reproduces the track to
-$0.022$~mag at $K_{\psi} = 24$ across the whole range $-2 \leq x_{1} \leq 1.7$, and to
-$0.011$ at $K_{\psi} = 48$.
-
-\paragraph{The traversal basis.} No such map is wanted here, and the reason is the
-direction of \eqref{eq:travlog}. The reciprocal speed $\dd\phase/\dd\arc$ is what is nearly
-singular at the turn; the speed $\dd\arc/\dd\phase$ is bounded and smooth, and it is the
-speed that is expanded. Let $\{\chi_{k}\}$ be the Legendre polynomials in $\phase$, shifted
-to $[\phase_{\min}, \phase_{\max}]$ and normalized, orthonormal under $\int fg\,\dd\phase$.
-Against a \salt\ template this reaches $0.02$~mag with $K_{q}$ between $16$ and $32$, and
-with no coordinate change, over the three quarters of the sample with
-$x_{1} \gtrsim -1$. The exception is the fast decliners: where the speed approaches zero its
-logarithm diverges, so the $\exp$ of \eqref{eq:travlog} buys structural monotonicity at the
-price of an excursion without bound wherever the track approaches a cusp. The turning meets
-no such obstacle there, so the $x_{1} \lesssim -2$ tail is expensive on this side only.
-
-\paragraph{Expansion and gauge.} Writing
+constraint: the $\tilde P_{k}$ are the Legendre polynomials in $u$, each shifted by its
+value at $\arc = 0$ and the set re-orthonormalized afterwards, the shift having cost
+orthonormality by a rank-one term. Writing
 \begin{equation}
-  q_{1} = \sum_{k \geq 1} a_{k}\chi_{k}, \quad
-  q_{0} = \sum_{k \geq 1} b_{k}\chi_{k}, \quad
-  \turnone = \sum_{k \geq 1} c_{k}\tilde\phi_{k}, \quad
-  \turnzero = \sum_{k \geq 1} d_{k}\tilde\phi_{k} ,
-  \label{eq:basis}
+  \turnone = \sum_{k \geq 1} c_{k}\tilde P_{k}(u), \qquad
+  \turnzero = \sum_{k \geq 1} d_{k}\tilde P_{k}(u),
+  \label{eq:basispsi}
 \end{equation}
-the traversal pair omitting $\chi_{0}$, which is what makes $\bar q_{0} = \bar q_{1} = 0$
-in \eqref{eq:gauge} hold identically; the turning pair omits $\phi_{0}$ because the shift
-annihilates it. The four remaining conditions of \eqref{eq:gauge} are then algebra:
-$\langle q_{1}, q_{1}\rangle = \norm{a}^{2}$ and $\langle q_{0}, q_{1}\rangle = b \cdot a$
-exactly, and likewise for $(c,d)$, each in its own measure. Fitting unconstrained
-$\tilde a, \tilde b$ and setting $a = \tilde a/\norm{\tilde a}$ and
-$b = \tilde b - (\tilde b \cdot a)\,a$ imposes \eqref{eq:gauge} to machine precision;
-$q_{0}$ is orthogonalized but not normalized, its norm being physical. The two sign
-conditions are linear inequalities on $a$ and $c$, but flipping a vector to satisfy one is
-discontinuous in the raw coefficients and so cannot sit inside the fit. It need not: the
-likelihood is invariant under $(q_{1}, x_p) \mapsto (-q_{1}, -x_p)$ and under the same
-change in $(\turnone, \shapeturn)$, so the sign is a relabeling and is applied to the
-draws afterwards.
-\salt\ has the same freedom and fixes it the other way, by normalizing $x_{1}$ over its
-training set; the difference is that a condition on functions can be built into how the
-functions are written, while a condition on a population cannot.
+the conditions of \eqref{eq:gauge} on this pair are $\norm{c}^{2} = 1$ and $d \cdot c = 0$,
+imposed as above. Against \salt, $K_{\psi} = 24$ reproduces the track across the whole
+range $-2 \leq x_{1} \leq 1.7$, from $0.007$~mag at the sample median to $0.022$ at the
+ends.
 
-Truncating the turning at $K_{\psi}$ basis functions and the traversal at $K_{q}$ gives
-$2K_{\psi} + 2K_{q} - 4$ coefficients, neither pair carrying a constant, of which those four
-conditions leave $2K_{\psi} + 2K_{q} - 8$ free. Truncation bounds the function space, so the two orders are
-modelling choices and not only a parameterization, and raising one tests whether the data
-want more freedom than it allows; they are set in Section~\ref{sec:inference}. The
-construction degenerates only when $a$ and $b$ become
-parallel, which is not a numerical nuisance to suppress but the statement that the two
-functions carry the same information.
+Each pair is left with a sign:
+the likelihood is invariant under $(q_{1}, x_p) \mapsto (-q_{1}, -x_p)$ and under the same
+change in $(\turnone, \shapeturn)$, so the sign condition is a relabeling of the draws
+after the fit.
 
-Two quadratures are wanted, not three: $\psi$ is the expansion itself, a matrix product
-against \eqref{eq:basis}, and is never integrated for. Neither of the remaining two is
-elementary --- $\arc(\phase)$ is $\exp$ of an expansion and $\curve$ is $\cos$ of one --- so \eqref{eq:frenet2d} is still
-solved by quadratures of known integrands rather than as an initial-value problem, evaluated
-on shared nodes rather than by stepping, and the gauge \eqref{eq:gauge} does not touch
-them. Where \eqref{eq:gauge} itself is
-evaluated on nodes, those nodes must carry its measure: orthonormalizing sampled columns
-imposes $L^{2}$ of the sampling density, so the nodes are uniform in $u$ for the turning
-pair and in $\phase$ for the traversal pair, or else weighted. Nodes uniform in $\arc$ give
-$L^{2}(\dd\arc)$, which is not the gauge.
-
-The same node sets serve the quadratures, shared across supernovae and fixed for the run,
-and $u$ and $\phase$ are also the coordinates the integrands are smooth in. It is $\curve$
-that sets the requirement, its integrand $\cos\psi$ oscillating where the track turns.
-Because the integrands are
-analytic in the working coordinate, a spectral rule is worth its extra structure over a
-composite one: integrating an exact expansion and comparing the recovered magnitudes, so
-that quadrature alone is measured, gives $\sim10^{-4}$~mag at a hundred nodes, where the
-trapezoid rule converges as the square of the spacing and is still at $10^{-1}$ with four
-times as many.
-
-Cost follows from where the per-supernova parameters enter. The turning is linear in
-$\shapeturn$, so $\psi$ for every supernova is one matrix product and a scalar
-combination; but $\curve$ is $\cos$ of $\psi$, and that integral is taken for each. In
-\eqref{eq:travlog} $\xstretch$ factors out as $e^{\xstretch}$ and only $x_p$ survives inside,
-leaving one more integral per supernova. Two sweeps of $\Nanalysis$ curves over the shared
-nodes, then, at every evaluation of the log-density.
-
-That the clock runs forward is not a condition here but a property of the form. Writing the
-traversal through $\log\,\dd\arc/\dd\phase$ admits no coefficients for which arclength runs
-backwards, and an object that retraced its own track partway through would not be a slow
-supernova but no supernova at all.
-
-A supernova will not lie exactly on any member of the six-parameter family, and the
-departure is not photometric noise. It is carried by an intrinsic scatter, defined with the
-likelihood in Section~\ref{sec:likelihood}.
-
-\subsection{Tuning Modeling Choices to SALT2}
-\label{sec:tuning}
-
-Satisfy earlier promise 
-$\Psi_{0}$ and $Psi_{1}$ are carried on an arclength interval discussed later.
+Truncating the turning at $K_{\psi}$ and the traversal at $K_{q}$ gives
+$2K_{\psi} + 2K_{q} - 4$ coefficients, neither pair carrying a constant, of which the four
+conditions above leave $2K_{\psi} + 2K_{q} - 8$ free. Truncation bounds the function space,
+so the two orders are modeling choices and not only a parameterization, and raising one
+tests whether the data want more freedom than it allows. The construction degenerates only
+when $a$ and $b$ become parallel, or $c$ and $d$, which is not a numerical nuisance to
+suppress but the statement that the pair's two functions carry the same information.
 
 \section{Data Sample}
 \label{sec:samples}
@@ -408,10 +347,10 @@ the $[-15,+40]$~d window, a median span of $[-4.9, +3.9]$ mag with fifth and nin
 percentiles at $-8.9$ and $+7.4$. The measurement is biased high, since noise lengthens a
 path, and moves by $0.7$ mag across a factor of ten in smoothing; the \citet{Hsiao2007}
 template, having no noise, gives $[-3.2, +3.3]$. We declare
-$[\arc_{\min}, \arclen] = [-8, +8]$, wide enough that every supernova's window maps inside
+$[\arc_{\min}, \arcmax] = [-8, +8]$, wide enough that every supernova's window maps inside
 it, and verify after fitting that it does --- the fitted traversal gives
 $\arc(\phase_{\min})$ and $\arc(\phase_{\max})$ per object, and both must fall inside
-$[\arc_{\min}, \arclen]$. Width is not free, the basis spending resolution where no
+$[\arc_{\min}, \arcmax]$. Width is not free, the basis spending resolution where no
 supernova reaches, so that check is also how the interval is tightened.
 
 Supernova light curves are not corrected for Galactic dust.
@@ -495,9 +434,9 @@ Both are $C^{\infty}$ in $\allpars$, agree with the model to $O(\epsilon)$ for
 $w_{i} \in [0,1]$, and send the predicted flux to zero outside. An epoch carried out of
 range then contributes $f_{i}^{2}/\sigma_{i}^{2}$: free if it was consistent with zero,
 expensive if it was a detection, which is the pushback wanted. The arclength needs the same
-treatment for the same reason --- $\arclen$ bounds $\psi$, and $\xstretch$ can carry
+treatment for the same reason --- $\arcmax$ bounds $\psi$, and $\xstretch$ can carry
 $\arc(\phase_{\max})$ past it --- and takes the same softplus, in $\arc$ on
-$[\arc_{\min}, \arclen]$.
+$[\arc_{\min}, \arcmax]$.
 
 The second variance term is the intrinsic scatter. Grey offsets, color shifts and time
 shifts are already free in $\peakmag$, $\colr$ and $\tmax$, so what it carries is departure
@@ -569,6 +508,37 @@ usual statistics --- $\hat R$, effective sample size, divergent transitions --- 
 gauge-fixed functions and on the predicted fluxes rather than on the raw coefficients, four
 of whose directions the gauge leaves unidentified and on which those statistics carry no
 information about the fit.
+
+\subsection{Evaluating the model}
+\label{sec:numerics}
+
+Two quadratures are wanted, not three: $\psi$ is the expansion itself, a matrix product
+against \eqref{eq:basispsi}, and is never integrated for. Neither of the remaining two is
+elementary --- $\arc(\phase)$ is $\exp$ of an expansion and $\curve$ is $\cos$ of one --- so \eqref{eq:frenet2d} is still
+solved by quadratures of known integrands rather than as an initial-value problem, evaluated
+on shared nodes rather than by stepping, and the gauge \eqref{eq:gauge} does not touch
+them. Where \eqref{eq:gauge} itself is
+evaluated on nodes, those nodes must carry its measure: orthonormalizing sampled columns
+imposes $L^{2}$ of the sampling density, so the nodes are uniform in $u$ for the turning
+pair and in $\phase$ for the traversal pair, or else weighted. Nodes uniform in $\arc$ give
+$L^{2}(\dd\arc)$, which is not the gauge.
+
+The same node sets serve the quadratures, shared across supernovae and fixed for the run,
+and $u$ and $\phase$ are also the coordinates the integrands are smooth in. It is $\curve$
+that sets the requirement, its integrand $\cos\psi$ oscillating where the track turns.
+Because the integrands are
+analytic in the working coordinate, a spectral rule is worth its extra structure over a
+composite one: integrating an exact expansion and comparing the recovered magnitudes, so
+that quadrature alone is measured, gives $\sim10^{-4}$~mag at a hundred nodes, where the
+trapezoid rule converges as the square of the spacing and is still at $10^{-1}$ with four
+times as many.
+
+Cost follows from where the per-supernova parameters enter. The turning is linear in
+$\shapeturn$, so $\psi$ for every supernova is one matrix product and a scalar
+combination; but $\curve$ is $\cos$ of $\psi$, and that integral is taken for each. In
+\eqref{eq:travlog} $\xstretch$ factors out as $e^{\xstretch}$ and only $x_p$ survives inside,
+leaving one more integral per supernova. Two sweeps of $\Nanalysis$ curves over the shared
+nodes, then, at every evaluation of the log-density.
 
 The truncation orders are set by running the fit over
 $K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing residual on
