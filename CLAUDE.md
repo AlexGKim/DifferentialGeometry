@@ -81,6 +81,30 @@ recalibration, so feed them uncorrected `mwebv`. Rescaling the map *and* using
 SF11 coefficients double-counts; the older SFD98 values over-correct. Compute
 the coefficients for ZTF's own filters rather than borrowing SDSS-like ones.
 
+## Traps in measuring, not in the data
+
+These are about the harness rather than the archive. Each has produced a wrong
+number here, and each was reported before being caught.
+
+**Measure the floor first.** Run the pipeline with the exact answer substituted
+for the thing being estimated — the true `kappa`, the true log rate — and see
+what error remains. If it does not vanish, the harness is the limit and every
+number downstream is noise about the harness. Four separate conclusions about
+basis size were withdrawn for want of this one check, including "no `delta`
+works at low `x1`", which was a phase grid too coarse to resolve the turn.
+
+**Two resolutions, always.** One number is a claim; two that agree are a
+measurement. A near-cusp defeats any uniform grid, and the grid that binds is
+rarely the one last thought about — refining the phase grid says nothing if the
+arclength grid is the limit. Report the resolution alongside the result so
+under-resolution is visible rather than inferred.
+
+**Verify the edit landed.** `str.replace` and `sed` fail silently on a mismatch,
+and a patch applied to a wrapper's source does nothing when the constant lives
+in the module it `exec`s. Twice, "refinements" reran the identical calculation.
+Results identical to many digits across a supposed change are the tell: treat
+them as evidence that nothing changed, not as evidence of convergence.
+
 ## Stack
 
 JAX · optax · numpyro (posteriors, later). No neural networks: the global
