@@ -107,9 +107,9 @@ them as evidence that nothing changed, not as evidence of convergence.
 
 ## Stack
 
-JAX · optax · numpyro (posteriors, later). No neural networks: the global
-functions are basis expansions. Training is an auto-decoder — basis coefficients
-and the per-SN latent array in one pytree, optimised jointly.
+JAX for the reference forward map and the floor tests; `cmdstan` for the
+posterior (`model-definition.tex` §5). The two share no code. No neural
+networks: the global functions are basis expansions.
 
 Two independent implementations of the geometry that must agree on `kappa`:
 quadrature of the Frenet relations, and autodiff of a directly parameterised

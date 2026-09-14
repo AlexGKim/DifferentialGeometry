@@ -14,7 +14,8 @@
 \newcommand{\curve}{\gamma}                 % the light-curve curve
 \newcommand{\arc}{s}                        % arclength
 \newcommand{\curv}{\kappa}                  % curvature
-\newcommand{\tors}{\tau}                    % torsion (n >= 3 only)
+\newcommand{\tors}{\tau}                    % torsion (n >= 3 only); unused in the note,
+                                            % where bare \tau is the coefficient-prior scale
 \newcommand{\frenet}[1]{\mathbf{E}_{#1}}    % Frenet frame vector
 \newcommand{\tang}{\mathbf{T}}              % unit tangent
 \newcommand{\norml}{\mathbf{N}}             % unit normal
@@ -49,7 +50,8 @@
 \newcommand{\dustunit}{\hat{\mathbf{e}}_{\colr}}  % reddening DIRECTION, a unit vector;
                                             % \dustdir is the phase-dependent displacement
 \newcommand{\dustdir}{\mathbf{u}}           % phase-dependent reddening
-                                            % displacement, u(s); NOT a constant
+                                            % displacement, u(s); NOT a constant, and NOT
+                                            % the scalar u = asinh(s/delta) of the note
 
 % --- Photometry ---------------------------------------------------------
 \newcommand{\magg}{m_{g}}                   % observed/predicted magnitude, band g

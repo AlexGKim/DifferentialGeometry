@@ -387,7 +387,11 @@ two bands it does not exist, and orientation is **pure gauge**. (ii) The old `R^
 are ever free. (iii) The arclength origin must therefore be anchored at an **intrinsic**
 feature of the curve. The choice is the principal `g`-maximum, `dm_g/ds|_{s=0} = 0` with
 `T(0) = (0,-1)` and `kappa(0) > 0`. It costs no generality — every turning planar curve has
-a vertical tangent — and it does **not** constrain which band peaks first. Sign check, worth
+a vertical tangent. *Corrected 2026-09-13:* it **does** constrain which band peaks first.
+`T(0) = (0,-1)` says `r` is still brightening at `g` maximum, so `r` peaks after `g`; an
+object where `r` peaks first can be held only as a loop of near-zero arclength, i.e. as an
+outlier. The note states this as physical input, and §4 now requires the sign of the `r`
+slope at `g` maximum to be counted across the sample. Sign check, worth
 keeping because it is easy to get backwards: `m_g'' = -sin(phi) kappa = kappa(0) > 0`, a
 **minimum of magnitude**, i.e. peak brightness. The mirror convention `T(0) = (0,+1)`,
 `kappa(0) < 0` is equivalent. A useful side effect: `t_max` maps to `s = 0`, so the
@@ -834,6 +838,40 @@ were expected to be quadratured. §2.3 now gives them as exact algebra on the co
 with the Gram matrix of the shifted basis in closed form as a rank-one update, so the gauge
 is never evaluated on nodes and the warning has no subject. Restore it only if some
 quantity in the gauge stops being available in closed form.
+
+### Review of 2026-09-13: what changed and why
+
+The choices are in the note; the reasoning that would not fit inline is here.
+
+- **Held-out log score, not residual spread.** With `sigma_g, sigma_r` fitted in training
+  and held in validation, the normalized residual has unit spread at every truncation
+  order, because both samples meet the same truncation error and the scatter has already
+  absorbed it. The grid would then pick the coarsest orders and report truncation as
+  intrinsic scatter. The log score `sum[r^2 + ln sigma^2]` rewards the smaller scatter a
+  better truncation earns.
+- **Modelling window wider than the data window.** The taper and clamp at `[-15,+40]` act
+  on real, bright epochs whenever the sampled `t_max` differs from the `t0` that placed the
+  data window, and the cost falls on `t_max` alone, tying it to SALT2. A five-day margin on
+  each side moves both edge effects to draws that are already wrong.
+- **Traversal in `v = asinh(p/delta_p)`.** At the anchor `M_g' = 0` by construction, so the
+  speed is `|dm_r/dp|` at `g` maximum: a dip in log rate of width equal to the `g`–`r` peak
+  separation, deepening without bound as the peaks approach. Same hairpin the `u` map
+  resolves for the turning; a basis uniform in phase cannot resolve it, which is the
+  `K_q ~ 70` at `x1 = -2`. The orders measured in `p` are stale and are to be remeasured.
+- **`t_max = t0 + Delta` with a fitted offset distribution.** `t0` is `B` maximum, `t_max`
+  is `g` maximum; a prior centred on `t0` assumed the centre this file said to measure.
+- **Proper priors.** The likelihood plateaus as `x_s -> -inf`, `m_peak -> +inf`,
+  `c -> -inf`, `alpha -> inf`, so flat priors there are improper and a chain started in a
+  tail stays. Weak proper priors cost nothing the data can speak to.
+- **Departure means `mu_p, mu_psi`.** The function gauge `<q0,q1> = 0` makes the reference
+  supernova orthogonal to the departure mode, not the population mean; a unit normal at zero
+  pulled the population toward a point with no meaning.
+- **One `(tau, alpha)` per domain.** The traversal and turning need not be equally smooth.
+- **SALT2-placed start for the global functions.** Initialization is exempt from the
+  downstream rule; a random `x_s` start is stuck, not slow, since half of `[-2, 2]` sends
+  every epoch to the arclength clamp where the gradient vanishes.
+- **Floors before fitting.** K-correction at `z = 0.05` and extinction drift at
+  `E(B-V) = 0.3` through the truncated model, per the "measure the floor first" trap.
 
 ### Deprecated: the spectral-versus-trapezoid comparison
 
