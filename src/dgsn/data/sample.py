@@ -107,6 +107,23 @@ def epoch_counts(sub: pd.DataFrame, root: Path | None = None) -> pd.DataFrame:
     return pd.DataFrame(rows, index=pd.Index(names))
 
 
+def analysis_sample(min_epochs: int = 5, root: Path | None = None) -> pd.DataFrame:
+    """The objects the analysis uses: selected, with photometry, and at least
+    ``min_epochs`` good epochs in each of ``g`` and ``r``.  Metadata rows,
+    with the per-band counts joined on."""
+    root = root or archive_root()
+    sub = select(metadata(root)).set_index("ztfname")
+    n = epoch_counts(sub.reset_index(), root)
+    keep = n.index[(n.ztfg >= min_epochs) & (n.ztfr >= min_epochs)]
+    return sub.loc[keep].join(n.loc[keep])
+
+
+def median_x1(root: Path | None = None) -> float:
+    """The sample-median SALT2 ``x1``: where the reference track of Section 5
+    is taken."""
+    return float(analysis_sample(root=root).x1.median())
+
+
 def write_tex(counts: dict[str, int], path: Path) -> None:
     """Emit the counts as LaTeX macros for ``\\input`` by the note.
 

@@ -107,15 +107,15 @@ them as evidence that nothing changed, not as evidence of convergence.
 
 ## Stack
 
-JAX for the reference forward map and the floor tests; `cmdstan` for the
-posterior (`model-definition.tex` §5). The two share no code. No neural
-networks: the global functions are basis expansions.
+Stan, and only Stan, for the model: the forward map, the likelihood and the
+sampler are one `functions` block under `stan/`, `#include`d by each program
+(`model-definition.tex` §5). Python (`src/dgsn/`) builds data, drives
+`cmdstanpy` and reads output; it evaluates no basis, quadrature or clamp.
+`sncosmo` synthesises the SALT2 and Hsiao templates that place the start of
+the fit and measure the floors. No neural networks: the global functions are
+basis expansions.
 
-Two independent implementations of the geometry that must agree on `kappa`:
-quadrature of the Frenet relations, and autodiff of a directly parameterised
-`gamma(s)`.
-
-`src/dgsn/` is empty scaffolding apart from `data/sample.py`.
+`README.md` has the environment and the stage-by-stage run instructions.
 
 ## Conventions
 

@@ -32,3 +32,7 @@ checkpoints/
 
 # OS
 .DS_Store
+
+# Compiled Stan programs (cmdstanpy writes them beside the .stan file)
+stan/*
+!stan/*.stan
