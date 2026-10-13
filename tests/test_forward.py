@@ -93,11 +93,11 @@ def test_bases_orthonormal():
 
 
 def test_turning_gram_under_ds():
-    """The Gram matrix of the turning basis under ds, exported by
-    forward.stan, against the same integral taken with a 400-point
-    Gauss-Legendre rule in u on the exported basis."""
+    """The Gram matrix of the turning basis under ds over the gauge span,
+    exported by forward.stan, against the same integral taken with a
+    400-point Gauss-Legendre rule in u on the exported basis."""
     x, w = np.polynomial.legendre.leggauss(400)
-    ulo, uhi = np.arcsinh(np.array(D.ARC_RANGE) / D.DELTA)
+    ulo, uhi = np.arcsinh(np.array(D.GAUGE_SPAN) / D.DELTA)
     u = 0.5 * (uhi + ulo) + 0.5 * (uhi - ulo) * x
     out = run_forward(s_eval=D.DELTA * np.sinh(u))
     Xu = out["Xu"]

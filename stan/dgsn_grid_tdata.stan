@@ -14,7 +14,10 @@
   vector[2 * m * J] jacw_u = w_u .* (delta * cosh(u_nodes));
   row_vector[Kpsi - 1] P0 = turning_shift(Kpsi, ulo, uhi);
   matrix[Kpsi - 1, Kpsi - 1] T = turning_transform(Kpsi, ulo, uhi, P0);
-  matrix[Kpsi - 1, Kpsi - 1] Gs = turning_gram_s(Kpsi, ulo, uhi, delta, P0, T, 200, xg, wg);
+  real gulo = u_of_s(gsmin, delta);
+  real guhi = u_of_s(gsmax, delta);
+  matrix[Kpsi - 1, Kpsi - 1] Gs = turning_gram_s(Kpsi, ulo, uhi, gulo, guhi, delta, P0, T,
+                                                 200, xg, wg);
   matrix[2 * m * J, Kq - 1] Xv_nodes;
   matrix[2 * m * J, Kpsi - 1] Xu_nodes;
   for (n in 1:(2 * m * J)) {

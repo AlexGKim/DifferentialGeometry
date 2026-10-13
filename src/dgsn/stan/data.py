@@ -14,7 +14,8 @@ DELTA = 3e-4                 # asinh scale in arclength, mag, Eq. (umap)
 DELTA_P = 1.0                # asinh scale in phase, days, Eq. (vmap)
 MODEL_WINDOW = (-20.0, 45.0)  # the modelling window, days
 DATA_WINDOW = (-15.0, 40.0)   # the selection window of Section 3, days
-ARC_RANGE = (-12.0, 5.0)     # [s_min, s_max], mag, Section 3: past the x1 = -2 template at -15 d, past every track at +40 d
+GAUGE_SPAN = (-6.0, 5.0)     # where <psi_1, psi_1> is taken, mag, Section 2.3: the arclengths the stage-3 fits reach over [-15, +40] d
+ARC_RANGE = (-12.0, 6.0)     # [s_min, s_max], mag, Section 3: past the x1 = -2 template at -15 d; past every stage-3 object at +40 d (max 5.3)
 
 # Section 4
 EPS = 0.01                   # phase clamp width, fraction of the window
@@ -47,6 +48,7 @@ def grid_data(k_psi: int = K_PSI, k_q: int = K_Q, m_per_side: int = M_PER_SIDE,
         delta=DELTA, delta_p=DELTA_P,
         pmin=MODEL_WINDOW[0], pmax=MODEL_WINDOW[1],
         smin=ARC_RANGE[0], smax=ARC_RANGE[1],
+        gsmin=GAUGE_SPAN[0], gsmax=GAUGE_SPAN[1],
         eps=EPS, eps_t=EPS_T, eps_s=EPS_S, zp=ZP,
     )
 

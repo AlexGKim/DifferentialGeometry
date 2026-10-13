@@ -124,6 +124,61 @@ def median_x1(root: Path | None = None) -> float:
     return float(analysis_sample(root=root).x1.median())
 
 
+# The training/validation split of Section 5.1: 22 per fifth of x1 withheld,
+# 110 in all, from the 552.  One seed, so that stages 3, 4 and 5 see the same
+# split; the hash printed by ``main`` is what a log is checked against.
+SPLIT_SEED = 1
+N_VALID_PER_FIFTH = 22
+
+
+def training_split(seed: int = SPLIT_SEED, root: Path | None = None) -> tuple[list[str], list[str]]:
+    """``(train, valid)`` names.  The analysis sample ordered by x1 and cut
+    into fifths; ``N_VALID_PER_FIFTH`` drawn from each without replacement."""
+    s = analysis_sample(root=root).sort_values("x1")
+    fifths = np.array_split(s.index.to_numpy(), 5)
+    rng = np.random.default_rng(seed)
+    valid: list[str] = []
+    for names in fifths:
+        valid += sorted(rng.choice(names, N_VALID_PER_FIFTH, replace=False).tolist())
+    train = sorted(set(s.index) - set(valid))
+    return train, sorted(valid)
+
+
+def split_hash(names: list[str]) -> str:
+    """A short hash of a sorted name list, for the log."""
+    import hashlib
+
+    return hashlib.sha1("\n".join(sorted(names)).encode()).hexdigest()[:10]
+
+
+def x1_fifth(sample: pd.DataFrame) -> pd.Series:
+    """Which fifth of the analysis sample's x1 distribution each object is in, 0..4."""
+    order = analysis_sample().x1.sort_values()
+    edges = np.quantile(order, [0.2, 0.4, 0.6, 0.8])
+    return pd.Series(np.searchsorted(edges, sample.x1.to_numpy()), index=sample.index)
+
+
+def stage3_sample(n_per_fifth: int = 6, seed: int = SPLIT_SEED, min_g_prepeak: int = 3,
+                  root: Path | None = None) -> list[str]:
+    """``n_per_fifth`` training objects per fifth of x1, preferring those with
+    pre-peak g coverage, as the stage-2 pick does; deterministic."""
+    from dgsn.data.epochs import likelihood_epochs
+
+    train, _ = training_split(seed, root)
+    s = analysis_sample(root=root).loc[train]
+    fifth = x1_fifth(s)
+    rng = np.random.default_rng(seed)
+    out: list[str] = []
+    for q in range(5):
+        names = s.index[fifth == q].to_numpy()
+        rng.shuffle(names)
+        good = [n for n in names
+                if likelihood_epochs(n, s.loc[n].t0, s.loc[n].redshift, root)["n_g_prepeak"] >= min_g_prepeak]
+        pick = (good + [n for n in names if n not in good])[:n_per_fifth]
+        out += pick
+    return out
+
+
 def write_tex(counts: dict[str, int], path: Path) -> None:
     """Emit the counts as LaTeX macros for ``\\input`` by the note.
 
@@ -166,6 +221,11 @@ def main() -> None:
     print(f"mwebv median {mw.median():.3f}, 90th pct {mw.quantile(0.9):.3f}, max {mw.max():.3f}")
     for t in (0.1, 0.2, 0.3):
         print(f"  fraction above {t:.1f}          {(mw > t).mean():.3f}  ({int((mw > t).sum())})")
+
+    train, valid = training_split(root=root)
+    print()
+    print(f"split (seed {SPLIT_SEED}): {len(train)} training, {len(valid)} validation; "
+          f"hash train {split_hash(train)}, valid {split_hash(valid)}")
 
     if "--tex" in sys.argv:
 

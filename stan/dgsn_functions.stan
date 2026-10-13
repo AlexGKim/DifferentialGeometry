@@ -78,16 +78,17 @@ functions {
 
   // The Gram matrix of the turning basis under ds, the measure the light
   // curve sees: G_s[j,k] = int Ptilde_j Ptilde_k delta cosh u du over the
-  // interval, by a two-sided composite rule fine enough (m panels a side,
+  // gauge span [glo, ghi] in u, which lies inside the basis interval
+  // [ulo, uhi], by a two-sided composite rule fine enough (m panels a side,
   // J points) that products of the highest modes are integrated to rounding.
   // The gauge of Section 2.3 is c' G_s c = 1, d' G_s c = 0.
-  matrix turning_gram_s(int Kpsi, real ulo, real uhi, real delta, row_vector P0, matrix T,
-                        int m, vector xg, vector wg) {
+  matrix turning_gram_s(int Kpsi, real ulo, real uhi, real glo, real ghi, real delta,
+                        row_vector P0, matrix T, int m, vector xg, vector wg) {
     int n = Kpsi - 1;
     matrix[n, n] G = rep_matrix(0, n, n);
     vector[2 * m + 1] edges;
-    for (i in 0:m) edges[i + 1] = ulo * (m - i) / m;
-    for (i in 0:m) edges[m + 1 + i] = uhi * i / m;
+    for (i in 0:m) edges[i + 1] = glo * (m - i) / m;
+    for (i in 0:m) edges[m + 1 + i] = ghi * i / m;
     for (q in 1:(2 * m)) {
       real half = 0.5 * (edges[q + 1] - edges[q]);
       real mid = 0.5 * (edges[q + 1] + edges[q]);
@@ -312,5 +313,35 @@ functions {
       total += square(f[i] - f_hat[i]) / var_i + log(var_i);
     }
     return total;
+  }
+
+  // ---- The hierarchy, Section 5: a slice of supernovae for reduce_sum ---
+  // -1/2 of Eq. (like) summed over a slice of supernovae.
+  real partial_sum(array[] int sn, int first, int last,
+                   vector dt, vector f, vector sig_f, array[] int band,
+                   array[] int start, array[] int stop, vector z,
+                   vector m_peak, vector colr, vector x_s, vector x_p, vector x_psi,
+                   vector delta_t, real sigma_g, real sigma_r,
+                   vector a, vector b, vector c, vector d,
+                   real pmin, real pmax, real smin, real smax,
+                   real eps, real eps_t, real eps_s, real zp,
+                   int Kq, real vlo, real vhi, real delta_p,
+                   int Kpsi, real ulo, real uhi, real delta,
+                   int m, int J, vector edges_v, matrix Xv_nodes, vector jacw_v,
+                   vector edges_u, matrix Xu_nodes, vector jacw_u,
+                   vector xg, vector wg, row_vector P0, matrix T) {
+    real total = 0;
+    for (n in sn) {
+      int lo = start[n];
+      int hi = stop[n];
+      matrix[hi - lo + 1, 4] lf = log_flux(dt[lo:hi], band[lo:hi], z[n],
+          m_peak[n], colr[n], x_s[n], x_p[n], x_psi[n], delta_t[n],
+          a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
+          Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
+          edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
+      total += neg2_loglike(f[lo:hi], sig_f[lo:hi], band[lo:hi], exp(lf[:, 1]),
+                            sigma_g, sigma_r);
+    }
+    return -0.5 * total;
   }
 }

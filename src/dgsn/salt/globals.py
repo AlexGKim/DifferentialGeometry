@@ -32,9 +32,9 @@ def design_at(track: dict, k_psi: int, k_q: int, m_per_side: int = D.M_PER_SIDE)
     data.update(z=0.0)
     inside = (track["s"] > D.ARC_RANGE[0]) & (track["s"] < D.ARC_RANGE[1])
     data.update(D.eval_points(p_eval=track["p"],
-                              s_eval=np.concatenate([track["s"][inside], [D.ARC_RANGE[1]]])))
+                              s_eval=np.concatenate([track["s"][inside], [D.GAUGE_SPAN[1]]])))
     out = fixed_param("forward", data)
-    return dict(inside=inside, Xu=out["Xu"][:-1], Xu_smax=out["Xu"][-1], Xv=out["Xv"],
+    return dict(inside=inside, Xu=out["Xu"][:-1], Xu_gsmax=out["Xu"][-1], Xv=out["Xv"],
                 Xv_nodes=out["Xv_nodes_out"], v_nodes=out["v_nodes_out"], w_v=out["w_v_out"],
                 Gs=out["Gs_out"])
 
@@ -105,8 +105,8 @@ def fix_gauge(a_raw, b_raw, c_raw, d_raw, design: dict) -> dict:
     right = design["v_nodes"] > 0
     if float(design["w_v"][right] @ (design["Xv_nodes"][right] @ a)) < 0:
         a, x_p = -a, -x_p
-    # Psi_1(s_max) > 0
-    if float(design["Xu_smax"] @ c) < 0:
+    # Psi_1 > 0 at the gauge span's upper edge
+    if float(design["Xu_gsmax"] @ c) < 0:
         c, x_psi = -c, -x_psi
     return dict(a=a, b=b, c=c, d=d, x_p=x_p, x_psi=x_psi)
 

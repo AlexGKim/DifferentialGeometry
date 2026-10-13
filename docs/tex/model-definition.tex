@@ -205,11 +205,18 @@ no additive constant among these, $\turnzero(0) = \turnone(0) = 0$ having alread
 it. We specify the gauge as follows:
 Writing $\langle f,g\rangle$ for $\int fg\,\dd v$ in the
 coordinate $v$ of \eqref{eq:vmap} when the arguments are $q_{0}, q_{1}$ and for
-$\int fg\,\dd\arc$ over $[\arc_{\min}, \arcmax]$ when they are $\turnzero, \turnone$ ---
+$\int fg\,\dd\arc$ over the gauge span $[\arc_{\mathrm{g}-}, \arc_{\mathrm{g}+}] = [-6, +5]$
+when they are $\turnzero, \turnone$ ---
 arclength rather than the expansion coordinate $u$ of \eqref{eq:umap}, since $u$ spends a
 third of its range inside $|\arc| < 0.01$~mag, where a mode of unit norm in $u$ can carry
-most of its power and the curve, an integral $\dd\arc$, cannot see it --- and $\bar f$ for
-the corresponding mean,
+most of its power and the curve, an integral $\dd\arc$, cannot see it; and the span rather
+than the interval $[\arc_{\min}, \arcmax]$ of Section~\ref{sec:samples} for the same reason,
+the interval reaching past where supernovae go. The span is where they go: the first
+hierarchical fits place $\arc(-15\,\mathrm{d})$ in $[-6.3, -2.3]$ and $\arc(+40\,\mathrm{d})$
+in $[3.0, 6.2]$ across thirty objects, nine in ten of the latter below $4.2$. Normed over the
+whole interval, $\turnone$ put half its norm outside the arclengths reached, and $\mu_{\psi}$
+and every $\shapeturn$ grew to compensate --- a direction the gauge was meant to have
+removed --- and $\bar f$ for the corresponding mean,
 \begin{equation}
   \bar q_{1} = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
   \bar q_{0} = 0, \quad \langle q_{0},q_{1}\rangle = 0;
@@ -219,9 +226,9 @@ the corresponding mean,
   \label{eq:gauge}
 \end{equation}
 four conditions for four freedoms and two for two. Each pair leaves a sign, fixed by
-$\int_{0}^{v_{\max}} q_{1}\,\dd v > 0$ and $\turnone(\arcmax) > 0$, so a positive
+$\int_{0}^{v_{\max}} q_{1}\,\dd v > 0$ and $\turnone(\arc_{\mathrm{g}+}) > 0$, so a positive
 coefficient speeds the late traversal and turns the track further --- the second literally,
-$\turnone(\arcmax)$ being the turning the departure mode accumulates over the interval.
+$\turnone(\arc_{\mathrm{g}+})$ being the turning the departure mode accumulates over the span.
 
 
 \subsection{Modeling functions}
@@ -335,7 +342,7 @@ the conditions of \eqref{eq:gauge} on this pair are
 $\mathbf{c}^{\mathsf T}G_{\arc}\mathbf{c} = 1$ and
 $\mathbf{d}^{\mathsf T}G_{\arc}\mathbf{c} = 0$, with
 $(G_{\arc})_{jk} = \int \tilde P_{j}\tilde P_{k}\,\dd\arc = \int \tilde P_{j}\tilde P_{k}\,\delta\cosh u\,\dd u$
-the Gram matrix of the basis under arclength, computed once for the run; imposed as
+the Gram matrix of the basis under arclength over the gauge span, computed once for the run; imposed as
 above with $G_{\arc}$ in place of the identity. The basis stays orthonormal in $u$, which
 is the measure the prior of \eqref{eq:coefprior} is written in; only the gauge inner
 product is taken in $\arc$. Against \salt, $K_{\psi} = 24$ reproduces the curve at the
@@ -424,9 +431,10 @@ path, and moves by $0.7$ mag across a factor of ten in smoothing; the \citet{Hsi
 template, having no noise, gives $[-3.2, +3.3]$, and the \salt\ tracks across
 $-2 \leq x_{1} \leq 1.7$ give $\arc(-15\,\mathrm{d})$ from $-3.7$ to $-10.1$ and
 $\arc(+40\,\mathrm{d})$ from $+2.8$ to $+3.8$ (\texttt{scripts/salt\_orders.py}). We declare
-$[\arc_{\min}, \arcmax] = [-12, +5]$, asymmetric: the negative edge past the fastest
+$[\arc_{\min}, \arcmax] = [-12, +6]$, asymmetric: the negative edge past the fastest
 decliner's $-15$~d point with margin for noise, the positive edge past every track's
-$+40$~d point with margin. The cost of width is nearly void in the coordinate the basis is
+$+40$~d point --- and past the $5.3$ a fast-declining object reached in the first
+hierarchical fit, which is what set it. The cost of width is nearly void in the coordinate the basis is
 built in, $u$ of \eqref{eq:umap} being logarithmic in $\arc$ at these scales ---
 $u(-12) - u(-8)$ is four percent of the range --- while an interval extending where no
 supernova goes is not free: it leaves the basis unconstrained there, and a fit
@@ -614,10 +622,24 @@ smooth,
 \end{equation}
 with the $\tau$ flat on $\tau > 0$ and $\alpha - \tfrac{1}{2} \sim \mathrm{Exp}(1)$, all
 sampled with the rest; the smoothness of the global functions is
-thus inferred and not asserted. The coefficients are written non-centered,
-$\tilde a_{k} = \tau_{q} k^{-\alpha_{q}}z_{k}$ with $z_{k}$ standard normal, since a scale sampled
-jointly with the coefficients it multiplies is the geometry Hamiltonian Monte Carlo handles
-worst.
+thus inferred and not asserted. How the pairs are parameterized follows from what
+identifies them. The departure coefficients are written non-centered,
+$\tilde a_{k} = k^{-\alpha_{q}}z_{k}$ with $z_{k}$ standard normal --- the gauge normalizes
+the functions they carry, so their scale is the prior's alone, and a scale sampled jointly
+with coefficients it multiplies is the geometry Hamiltonian Monte Carlo handles worst. The
+mean coefficients are written centered, $\tilde b_{k}$ sampled directly under
+\eqref{eq:coefprior}: the training sample pins them, and under strong data the non-centered
+form is the pathology rather than the cure --- the first hierarchical fit, with all four
+vectors non-centered, held $\|\tilde{\mathbf{b}}\|$ fixed while trading $\tau_{q}$ against
+$\|\mathbf{z}_{b}\|$ at correlation $-0.6$, with $88$ percent of transitions at the maximum
+treedepth of $12$ and $11$ percent divergent. The per-supernova amplitudes with sampled
+locations are likewise written as deviations about them, $x_p = \mu_{p} + u$ with $u$
+standard normal and $\tmax$'s offset as $\Delta = \mu_{\Delta} + s_{\Delta}u$: the same
+fit's longest directions were the common modes of the per-supernova block riding with
+their locations --- $\mathrm{corr}(\mu_{\psi}, \overline{\shapeturn}) = +1.0$ across
+draws, and $+0.95$ between $\log s_{\Delta}$ and the spread of the $\Delta$ --- thirty
+coordinates wide each, which a diagonal metric cannot see; written as deviations, each is
+the one coordinate its location already is. None of this changes the posterior.
 
 The width decays so that the prior on the functions does not move when a truncation order
 does; a common width would make it a function of the order. The remaining priors are as
@@ -626,7 +648,7 @@ amplitude, $x_p \sim \mathcal{N}(\mu_{p}, 1)$ and $\shapeturn \sim \mathcal{N}(\
 with $\mu_{p}, \mu_{\psi}$ flat. The width is a statement because the gauge normalizes the
 functions they multiply, $\langle q_{1}, q_{1}\rangle = \langle \turnone, \turnone\rangle = 1$,
 so a unit amplitude is a departure of root-mean-square $(v_{\max} - v_{\min})^{-1/2}$ in
-the log rate and $(\arcmax - \arc_{\min})^{-1/2}$ radians along the track in the turning. The means are free because
+the log rate and $(\arc_{\mathrm{g}+} - \arc_{\mathrm{g}-})^{-1/2}$ radians along the reached track in the turning. The means are free because
 $\langle q_{0}, q_{1}\rangle = 0$ makes the reference supernova the one orthogonal to the
 departure mode and not the population mean, so a prior centred at zero would pull the
 population toward a point with no physical meaning; $\mu_{p}$ is identified because that

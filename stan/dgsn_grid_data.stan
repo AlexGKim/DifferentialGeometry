@@ -11,6 +11,8 @@
   real pmax;
   real smin;                      // arclength interval, mag
   real smax;
+  real<upper=0> gsmin;            // gauge span, mag: where turning norms are taken
+  real<lower=0> gsmax;
   real<lower=0> eps;              // phase clamp width, fraction of range
   real<lower=0> eps_t;            // taper turn-off, fraction of range
   real<lower=0> eps_s;            // arclength clamp width, fraction of range
