@@ -100,7 +100,8 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
                 threads_per_chain: int = 1, parallel: bool = True, iter_warmup: int | None = None,
                 iter_sampling: int | None = None, max_treedepth: int | None = None,
                 metric: str | None = None, metric_file: Path | None = None,
-                adapt_delta: float | None = None, refresh: int = 100, **kw) -> CmdStanMCMC:
+                adapt_delta: float | None = None, refresh: int = 100,
+                detach: bool = False, **kw) -> CmdStanMCMC | list[int]:
     """Four chains as four separate jobs (Section 5), then combined.
 
     Each chain is its own CmdStan process with its own output file
@@ -108,7 +109,11 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
     ``sample`` calls from threads share a timestamped filename and interleave.
     ``inits`` may be one dict or a list of four.  ``metric`` is CmdStan's
     ``diag_e`` (its default) or ``dense_e``; ``metric_file`` a JSON
-    ``inv_metric`` over the unconstrained parameters to start from."""
+    ``inv_metric`` over the unconstrained parameters to start from.
+
+    ``detach`` puts each chain in its own session so that a run of days
+    outlives the process that launched it, and returns the four pids rather
+    than a fit; read such a run with ``from_csv`` when it finishes."""
     import subprocess
 
     from cmdstanpy import write_stan_json
@@ -142,10 +147,13 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
         if name in THREADED:
             cmd.append(f"num_threads={threads_per_chain}")
         log = open(out_dir / f"chain-{k}.log", "w")
-        p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
+        p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT,
+                             start_new_session=detach)
         procs.append(p)
-        if not parallel:
+        if not parallel and not detach:
             p.wait()
+    if detach:
+        return [p.pid for p in procs]
     for p in procs:
         p.wait()
     failed = [k for k, p in zip(range(1, 5), procs) if p.returncode != 0]

@@ -1,91 +1,131 @@
-"""Stage 4 of Section 5.2: the full training sample at one pair of orders.
-The same program as stage 3 on the 442 training objects, run detached.
+"""Stage 4 of Section 5.2: the hierarchy on the training sample.
 
-    python scripts/stage4_full.py --check-only     projected wall time from stage 3
-    python scripts/stage4_full.py                  launch four chains, three threads each
-    python scripts/stage4_full.py --report         diagnostics of whatever CSVs exist
+The same program as stage 3 on more objects, launched detached so that a run
+of days outlives the shell that started it.
+
+    python scripts/stage4_full.py --n-sn 100 --check-only   cost and gradient check
+    python scripts/stage4_full.py --n-sn 100 --iter 300 --max-treedepth 10
+    python scripts/stage4_full.py --iter 300 --max-treedepth 8
+    python scripts/stage4_full.py --report --out runs/stage4-smoke
+
+On capping and short runs.  A dense metric, which is what made stage 3
+converge, does not scale here: the full sample carries 442 * 6 + 36 + 10
+parameters, so a dense metric is a matrix of order 2700 squared, costs that
+many flops in a matrix-vector product every leapfrog, and cannot be estimated
+from fewer warmup draws than it has rows.  Stage 4 therefore runs on the
+diagonal metric, under which thirty objects already spent most transitions at
+maximum treedepth, and the cost of a fit is leapfrogs times the cost of a
+gradient --- of order a second at the full sample.  A converged stage 4 is not
+reachable that way, so the runs below are capped in treedepth and short, and
+their purpose is to show the program works at full size and to measure the
+geometry there.  Read R-hat and the effective sample sizes they print as
+descriptions of a truncated sampler, not as convergence.
 """
 
 import argparse
-import subprocess
 import sys
 import time
 from pathlib import Path
 
-import numpy as np
 from cmdstanpy import from_csv
 
-from dgsn.data.sample import analysis_sample, median_x1, training_split
+from dgsn.data.sample import analysis_sample, median_x1, training_split, x1_fifth
 from dgsn.salt.globals import fit_globals
 from dgsn.stan.hier_data import build, inits
-from dgsn.stan.run import log_prob, model
+from dgsn.stan.run import sample_four
 
 sys.path.insert(0, str(Path(__file__).parent))
-from stage3_hier import cost, report  # noqa: E402
+from stage3_hier import cost, gradient_check, report  # noqa: E402
 
-K_PSI, K_Q = 24, 16
-THREADS = 3
+K_PSI, K_Q = 12, 8          # the smallest orders, as stage 3; raise only once a fit is healthy
+
+
+def stratified(names: list[str], n: int, sample) -> list[str]:
+    """``n`` of ``names`` taken round-robin across the fifths of ``x1``, so a
+    subsample spans the range along which the difficulty of this model varies
+    (Section 5.1) rather than whatever the name order gives."""
+    if n >= len(names):
+        return names
+    fifth = x1_fifth(sample.loc[names])
+    buckets = [[nm for nm in names if fifth[nm] == q] for q in range(5)]
+    out: list[str] = []
+    i = 0
+    while len(out) < n:
+        b = buckets[i % 5]
+        j = i // 5
+        if j < len(b):
+            out.append(b[j])
+        i += 1
+        if i > 5 * max(len(b) for b in buckets):
+            break
+    return out[:n]
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check-only", action="store_true")
     ap.add_argument("--report", action="store_true")
-    ap.add_argument("--out", default="runs/stage4")
-    ap.add_argument("--leapfrogs", type=float, default=None,
-                    help="leapfrogs per iteration to project with (default: read from runs/stage3)")
-    ap.add_argument("--iter", type=int, default=1000)
+    ap.add_argument("--out", default=None, help="default runs/stage4 or runs/stage4-<n_sn>")
+    ap.add_argument("--n-sn", type=int, default=None, help="objects, stratified in x1 (default: all 442)")
+    ap.add_argument("--k-psi", type=int, default=K_PSI)
+    ap.add_argument("--k-q", type=int, default=K_Q)
+    ap.add_argument("--threads", type=int, default=3)
+    ap.add_argument("--iter", type=int, default=300, help="warmup and sampling iterations each")
+    ap.add_argument("--max-treedepth", type=int, default=8)
+    ap.add_argument("--adapt-delta", type=float, default=None)
+    ap.add_argument("--dense", action="store_true", help="dense_e; see the note at the top of this file")
+    ap.add_argument("--wait", action="store_true", help="block until the chains finish, then report")
     args = ap.parse_args()
 
     sample = analysis_sample()
-    names, _ = training_split()
-    x1_ref = median_x1()
-    G = fit_globals(K_PSI, K_Q, x1_ref)
-    data = build(names, K_PSI, K_Q, grainsize=max(1, len(names) // (4 * THREADS)), sample=sample)
-    ini = inits(names, K_PSI, K_Q, x1_ref, sample=sample, globals_=G)
-    print(f"{len(names)} training objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}), grainsize {data['grainsize']}")
+    train, _ = training_split()
+    names = stratified(train, args.n_sn, sample) if args.n_sn else train
+    out = Path(args.out or (f"runs/stage4-{len(names)}" if args.n_sn else "runs/stage4"))
 
-    out = Path(args.out)
+    # grainsize: one slice per thread per chain, so reduce_sum splits the
+    # sample rather than handing one worker everything
+    grain = max(1, len(names) // max(1, args.threads))
+    data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample)
+    print(f"{len(names)} objects, {data['N']} epochs, K = ({args.k_psi}, {args.k_q}), "
+          f"grainsize {grain}, x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
+
     if args.report:
         csvs = sorted(out.glob("hier-?.csv"))
-        print(f"{len(csvs)} chain files")
-        fit = from_csv([str(c) for c in csvs])
-        report(fit, names, sample, data)
+        print(f"{len(csvs)} chain files in {out}")
+        report(from_csv([str(c) for c in csvs]), names, sample, data)
         return
 
+    x1_ref = median_x1()
+    G = fit_globals(args.k_psi, args.k_q, x1_ref)
+    ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G)
+
+    lp0, worst = gradient_check(data, ini)
+    print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")
     full, nodes = cost(data, ini)
-    per_grad = full - 0.03            # process launch, measured ~30 ms at stage 3
-    leap = args.leapfrogs
-    if leap is None:
-        s3 = sorted(Path("runs/stage3").glob("hier-?.csv"))
-        if s3:
-            d = from_csv([str(c) for c in s3]).draws_pd()
-            leap = float(d["n_leapfrog__"].mean())
-        else:
-            leap = 31.0
-    hours = per_grad * leap * 2 * args.iter / 3600
-    print(f"log_prob {full:.2f} s per call single-threaded -> ~{per_grad:.2f} s per gradient; "
-          f"{leap:.0f} leapfrogs per iteration -> {hours:.0f} h per chain single-threaded, "
-          f"~{hours / THREADS * 1.3:.0f} h at {THREADS} threads (reduce_sum efficiency ~75%)")
+    per_grad = full - 0.03                      # process launch, ~30 ms
+    leap = 2 ** args.max_treedepth - 1
+    print(f"log_prob {full:.3f} s per call ({nodes:.3f} s at one epoch per object) -> ~{per_grad:.2f} s "
+          f"per gradient single-threaded; at most {leap} leapfrogs per draw and {2 * args.iter} iterations, "
+          f"that is up to {per_grad * leap * 2 * args.iter / 3600:.0f} h per chain, "
+          f"~{per_grad * leap * 2 * args.iter / 3600 / (args.threads * 0.8):.0f} h at {args.threads} threads")
     if args.check_only:
         return
 
-    out.mkdir(parents=True, exist_ok=True)
-    import json
-    from cmdstanpy import write_stan_json
-    write_stan_json(str(out / "data.json"), data)
-    write_stan_json(str(out / "inits.json"), ini)
-    exe = model("hier").exe_file
-    procs = []
-    for k in range(1, 5):
-        cmd = [str(exe), "sample", f"num_warmup={args.iter}", f"num_samples={args.iter}",
-               "data", f"file={out / 'data.json'}", f"init={out / 'inits.json'}",
-               "random", "seed=1", f"id={k}", "output", f"file={out / f'hier-{k}.csv'}",
-               "sig_figs=10", "refresh=10", f"num_threads={THREADS}"]
-        log = open(out / f"chain-{k}.log", "w")
-        procs.append(subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True))
-        print("launched chain", k, "pid", procs[-1].pid)
-    print(f"logs under {out}/chain-*.log; python scripts/stage4_full.py --report while it runs")
+    t = time.time()
+    res = sample_four("hier", data, ini, out, seed=1, threads_per_chain=args.threads,
+                      iter_warmup=args.iter, iter_sampling=args.iter,
+                      max_treedepth=args.max_treedepth,
+                      metric="dense_e" if args.dense else None,
+                      adapt_delta=args.adapt_delta, refresh=10, detach=not args.wait)
+    if not args.wait:
+        print(f"launched four chains, pids {res}; logs {out}/chain-*.log")
+        print(f"progress: grep -h Iteration {out}/chain-*.log | tail -4")
+        print(f"when done: python scripts/stage4_full.py --report --out {out}"
+              + (f" --n-sn {args.n_sn}" if args.n_sn else "")
+              + f" --k-psi {args.k_psi} --k-q {args.k_q}")
+        return
+    print(f"\nfour chains in {time.time() - t:.0f} s wall")
+    report(res, names, sample, data)
 
 
 if __name__ == "__main__":
