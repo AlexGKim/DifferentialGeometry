@@ -104,10 +104,16 @@ def main():
     full, nodes = cost(data, ini)
     per_grad = full - 0.03                      # process launch, ~30 ms
     leap = 2 ** args.max_treedepth - 1
+    # Threading buys far less than its thread count once four chains contend for
+    # six performance cores: measured at 100 objects, a lone single-threaded
+    # chain ran at 5.7 gradients/s and four concurrent three-thread chains at
+    # 6.9 each, so the wall-clock factor over this single-call timing is ~1.2,
+    # not threads * 0.8.  reduce_sum waits on its slowest slice.
+    contend = 1.2 if args.threads > 1 else 1.0
     print(f"log_prob {full:.3f} s per call ({nodes:.3f} s at one epoch per object) -> ~{per_grad:.2f} s "
           f"per gradient single-threaded; at most {leap} leapfrogs per draw and {2 * args.iter} iterations, "
-          f"that is up to {per_grad * leap * 2 * args.iter / 3600:.0f} h per chain, "
-          f"~{per_grad * leap * 2 * args.iter / 3600 / (args.threads * 0.8):.0f} h at {args.threads} threads")
+          f"that is up to {per_grad * leap * 2 * args.iter / 3600:.0f} h per chain single-threaded, "
+          f"~{per_grad * leap * 2 * args.iter / 3600 / contend:.0f} h with four chains at {args.threads} threads each")
     if args.check_only:
         return
 
