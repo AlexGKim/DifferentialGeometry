@@ -881,3 +881,32 @@ with four times as many. This justified "a spectral rule", which names no rule; 
 since taken is to start with composite Gauss-Legendre. The measurement stands as evidence
 that a low-order composite rule is wasteful here, and should be redone against whatever rule
 is adopted.
+
+### The dispersed-start check has not passed (2026-10-12)
+
+Section 5 and `CLAUDE.md`'s third commitment make dispersed-start agreement the evidence
+that \salt\ initialization "sets where chains start, not what they converge to". It has
+been run once and it failed, and the failure is a defect of the clamp rather than evidence
+about the posterior.
+
+Dispersing the global coefficients by half a prior width (`runs/stage3-dense-dispersed/`)
+sent the chains to `s(+40 d)` of order 100 to 1000 mag. The arclength clamp's derivative
+there is `exp(-(w-1)/eps_arc)` with `w ~ 54` and `eps_arc = 1e-3`, so the gradient in
+`x_s`, `x_p` and the coefficients is zero to machine precision: the clamp is a plateau with
+no path back. `sigma_g` inflated to 0.31 mag, a fifth of all epochs sat clamped, E-BFMI was
+0.00, and R-hat reached 3.3. The chains did not find a second mode --- their log density
+sat 2100 below the converged run and the four disagreed among themselves by 1300 --- they
+failed to arrive, so the run carries no information about \salt\ dependence either way.
+
+Section 4 argues that the arclength clamp needs no taper because "the residual pushes back
+with a gradient". That holds in flux and fails in parameter space once the clamp saturates,
+since `d s_hat / d s` vanishes. Two candidate repairs, neither taken yet: a prior penalty on
+`s(p_min)` and `s(p_max)` outside the interval, which restores a gradient without ever
+evaluating the basis outside its interval and leaves the converged posterior untouched,
+which never visits the clamp (`frac_clamped` 3e-6); or a leaky clamp, which does evaluate
+the basis slightly outside and is the less clean of the two. A weaker test that can run
+today is four starts from \salt\ fits at different `x_1`, every one a plausible track:
+it tests independence of which track rather than of \salt\ itself.
+
+Until one of these is done, no result may be claimed to be independent of the
+initialization, and Section 5's sentence describes an intention rather than a measurement.
