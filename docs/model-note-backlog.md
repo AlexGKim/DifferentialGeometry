@@ -910,3 +910,29 @@ it tests independence of which track rather than of \salt\ itself.
 
 Until one of these is done, no result may be claimed to be independent of the
 initialization, and Section 5's sentence describes an intention rather than a measurement.
+
+### The arclength interval, measured on the training sample (2026-10-14)
+
+Section 3 declares `[s_min, s_max] = [-12, +6]` and says the fitted traversal is how the
+interval is tightened or widened: `s(p_min)` and `s(p_max)` per object must fall inside it.
+The capped stage-4 run (`runs/stage4-smoke/`, 442 training objects) gives the first
+measurement at full sample, as posterior means per object:
+
+- `s(-15 d)` spans `[-6.99, -3.64]` (median, 1st percentile `-6.17`), against a declared
+  floor of `-12`. Five magnitudes of the interval below `-7` hold no supernova at all.
+- `s(+40 d)` spans up to `+7.35` (median `+3.49`, 99th percentile `+4.58`), against a
+  declared ceiling of `+6`. One object passes the ceiling and three pass the gauge span's
+  `+5`; ten pass `-6` below.
+
+So the interval is misplaced rather than too narrow: over-wide by a factor of two below,
+and short above. Nothing clamped in this run (`frac_clamped` 0) because `s_pmax` is the
+unclamped track at `+40` d and the objects reaching it have no epoch that late, but an
+object that did would clamp, and the basis spends resolution across five magnitudes that
+nothing reaches --- the same defect that inflated `x_psi` before the gauge span was
+introduced.
+
+The numbers suggest `[-7.5, +7.5]` for the interval and a gauge span widened to match what
+the fits reach. Both are declarations in Sections 2.3 and 3 and both change the basis, so
+neither should be changed on a capped run's evidence alone; the measurement should be
+repeated once a stage-4 fit runs without a treedepth cap. Recorded here so that the
+declared values are known to be contradicted by the first full-sample fit.
