@@ -26,9 +26,20 @@ transformed data {
 #include dgsn_grid_tdata.stan
   vector[Kq - 1] kq;
   vector[Kpsi - 1] kpsi;
+  // The prior scale is log sd_k = log tau - alpha log k: an intercept read at
+  // k = 1, where no mode of either series lives, and a slope against log k.
+  // Intercept and slope correlate exactly as they do in any uncentred
+  // regression -- measured at +0.55 for the traversal pair, +0.81 on the
+  // training sample -- so log k is centred on its mean, which is what the
+  // prior's own information matrix picks out, and tau becomes the scale of a
+  // mid-range mode rather than of a mode nothing constrains.
+  real kbar_q;
+  real kbar_psi;
   array[N_sn] int sn_index;
   for (k in 1:(Kq - 1)) kq[k] = k;
   for (k in 1:(Kpsi - 1)) kpsi[k] = k;
+  kbar_q = exp(mean(log(kq)));
+  kbar_psi = exp(mean(log(kpsi)));
   for (n in 1:N_sn) sn_index[n] = n;
 }
 parameters {
@@ -87,8 +98,8 @@ model {
   z_c ~ std_normal();
   // Eq. (coefprior) on the centred pair; tau_q appears nowhere else for a,
   // whose scale the gauge removes, so it is b_til and d_til that inform it.
-  b_til ~ normal(0, tau_q * pow(kq, -(alpha_q_m + 0.5)));
-  d_til ~ normal(0, tau_psi * pow(kpsi, -(alpha_psi_m + 0.5)));
+  b_til ~ normal(0, tau_q * pow(kq / kbar_q, -(alpha_q_m + 0.5)));
+  d_til ~ normal(0, tau_psi * pow(kpsi / kbar_psi, -(alpha_psi_m + 0.5)));
   alpha_q_m ~ exponential(1);      // Section 5: alpha - 1/2 ~ Exp(1)
   alpha_psi_m ~ exponential(1);
   // tau, sigma, mu, s_delta flat on their supports

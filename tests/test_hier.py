@@ -72,7 +72,8 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
     # likelihoods agree.
     extra = -0.5 * sum(float(np.sum(np.square(ini[k]))) for k in ("z_a", "z_c"))
     for k, tau, K in (("b_til", ini["tau_q"], K_Q), ("d_til", ini["tau_psi"], K_PSI)):
-        w = tau * np.arange(1, K) ** -2.0
+        kk = np.arange(1, K)
+        w = tau * (kk / np.exp(np.log(kk).mean())) ** -2.0
         extra += float(np.sum(-np.log(w) - 0.5 * (ini[k] / w) ** 2))
     extra += -(ini["alpha_q_m"] + ini["alpha_psi_m"])
     print(f"single_sn lp {lp2:.6f}, hier lp - extras {lph - extra:.6f}")

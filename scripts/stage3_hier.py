@@ -199,8 +199,9 @@ def main():
             for kk in ("z_a", "z_c"):
                 s[kk] += 0.5 * rng.normal(size=len(s[kk]))
             # the centred pair in coefficient units: half the prior width at the start
-            s["b_til"] += 0.5 * ini["tau_q"] * np.arange(1, K_Q) ** -2.0 * rng.normal(size=K_Q - 1)
-            s["d_til"] += 0.5 * ini["tau_psi"] * np.arange(1, K_PSI) ** -2.0 * rng.normal(size=K_PSI - 1)
+            for key, tau, K in (("b_til", ini["tau_q"], K_Q), ("d_til", ini["tau_psi"], K_PSI)):
+                kk = np.arange(1, K)
+                s[key] += 0.5 * tau * (kk / np.exp(np.log(kk).mean())) ** -2.0 * rng.normal(size=K - 1)
             for kk, w in (("m_peak", 0.3), ("colr", 0.3), ("x_s", 0.3),
                           ("u_p", 1.0), ("u_psi", 1.0), ("u_del", 1.0)):
                 s[kk] += w * rng.normal(size=len(s[kk]))

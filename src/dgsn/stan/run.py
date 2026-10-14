@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import logging
+import sys
 
 import numpy as np
 from cmdstanpy import CmdStanMCMC, CmdStanModel, from_csv
@@ -26,13 +27,31 @@ _models: dict[str, CmdStanModel] = {}
 THREADED = {"hier"}   # programs compiled with STAN_THREADS, for reduce_sum
 
 
+def _cpp_options(name: str) -> dict | None:
+    """Make variables for the build.
+
+    On macOS the compiler is the system one rather than the environment's.
+    The conda toolchain ships a linker that cannot read the libSystem stub in
+    recent SDKs --- after an OS upgrade to Darwin 27 it failed to resolve
+    ``printf`` in a three-line program, so no Stan model would build, while
+    ``/usr/bin/clang++`` built them unchanged.  Models already compiled keep
+    working, which is why this surfaces only on the first edit after an
+    upgrade."""
+    opts: dict = {}
+    if name in THREADED:
+        opts["STAN_THREADS"] = True
+    if sys.platform == "darwin" and Path("/usr/bin/clang++").exists():
+        opts["CXX"] = "/usr/bin/clang++"
+    return opts or None
+
+
 def model(name: str) -> CmdStanModel:
     """The compiled program ``stan/<name>.stan``; compiled on first use."""
     if name not in _models:
         _models[name] = CmdStanModel(
             stan_file=STAN_DIR / f"{name}.stan",
             stanc_options={"include-paths": [str(STAN_DIR)]},
-            cpp_options={"STAN_THREADS": True} if name in THREADED else None,
+            cpp_options=_cpp_options(name),
         )
     return _models[name]
 

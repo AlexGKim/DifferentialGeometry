@@ -622,7 +622,15 @@ smooth,
 \end{equation}
 with the $\tau$ flat on $\tau > 0$ and $\alpha - \tfrac{1}{2} \sim \mathrm{Exp}(1)$, all
 sampled with the rest; the smoothness of the global functions is
-thus inferred and not asserted. How the pairs are parameterized follows from what
+thus inferred and not asserted. The mode index is referred to its geometric mean,
+$\bar k = \exp\langle \log k\rangle$, the width reading
+$\tau^{2}(k/\bar k)^{-2\alpha}$: written against $k$ itself, \eqref{eq:coefprior} is a
+line in $\log k$ whose intercept is read at $k = 1$, a mode neither series carries, and
+intercept and slope then correlate as in any uncentered regression --- measured at $+0.55$
+between $\log\tau_{q}$ and $\log(\alpha_{q} - \tfrac12)$ on thirty objects and $+0.81$ on
+the training sample, falling to $-0.07$ at the pivot. It is the centering the prior's own
+information matrix picks out, and it makes $\tau$ the scale of a mid-range mode. What is
+flat is then $\tau$ at the pivot. How the pairs are parameterized follows from what
 identifies them. The departure coefficients are written non-centered,
 $\tilde a_{k} = k^{-\alpha_{q}}z_{k}$ with $z_{k}$ standard normal --- the gauge normalizes
 the functions they carry, so their scale is the prior's alone, and a scale sampled jointly

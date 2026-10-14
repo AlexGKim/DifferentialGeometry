@@ -54,7 +54,9 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
     sample = analysis_sample() if sample is None else sample
     G = globals_ if globals_ is not None else fit_globals(k_psi, k_q, x1_ref)
     kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
-    wq, wp = kq ** -INIT_ALPHA, kp ** -INIT_ALPHA
+    # the pivot of hier.stan: tau is the scale at the geometric-mean mode
+    wq = (kq / np.exp(np.log(kq).mean())) ** -INIT_ALPHA
+    wp = (kp / np.exp(np.log(kp).mean())) ** -INIT_ALPHA
     if tau is None:
         # the width the centred prior wants at the start: tau^2 = mean((b_k / k^-alpha)^2);
         # a and c do not enter, the gauge having removed their scale
