@@ -69,7 +69,8 @@ def fixed_param(name: str, data: dict) -> dict[str, np.ndarray]:
     return {k: np.asarray(fit.stan_variable(k))[0] for k in fit.metadata.stan_vars}
 
 
-def optimize(name: str, data: dict, inits: dict, polish: bool = True, **kw) -> dict[str, float]:
+def optimize(name: str, data: dict, inits: dict, polish: bool = True,
+             jacobian: bool = False, **kw) -> dict[str, float]:
     """Mode of the log density; the fitter of the stage-1 tests and floors.
 
     L-BFGS, restarted from its own result while the restart still moves it:
@@ -77,7 +78,12 @@ def optimize(name: str, data: dict, inits: dict, polish: bool = True, **kw) -> d
     resolve a direction the light curve is nearly flat along (x_psi).
     Newton is not used --- its step along that direction is enormous and it
     diverges to NaN.  Written back at 18 significant figures: CmdStan's
-    default of 6 quantises the mode."""
+    default of 6 quantises the mode.
+
+    ``jacobian`` selects which density is maximized: ``False`` gives the mode
+    on the constrained scale, which is what a point estimate means, and
+    ``True`` the mode of the density the sampler moves on, which is the point
+    whose curvature can precondition it."""
     opts = dict(tol_rel_grad=1e3, tol_grad=1e-12, tol_param=1e-12, tol_obj=1e-14,
                 tol_rel_obj=1e2, iter=5000, history_size=20, require_converged=False)
     opts.update(kw)
@@ -86,7 +92,7 @@ def optimize(name: str, data: dict, inits: dict, polish: bool = True, **kw) -> d
         # A line search that cannot decrease further is convergence at the
         # tolerances asked for, not an error.
         fit = model(name).optimize(
-            data=data, inits=start, algorithm="lbfgs", jacobian=False, sig_figs=18,
+            data=data, inits=start, algorithm="lbfgs", jacobian=jacobian, sig_figs=18,
             show_console=False, **opts,
         )
         return {k: float(v) for k, v in fit.optimized_params_dict.items()}
@@ -94,9 +100,24 @@ def optimize(name: str, data: dict, inits: dict, polish: bool = True, **kw) -> d
     out = run(inits)
     if polish:
         params = list(model(name).src_info()["parameters"].keys())
+
+        def as_inits(flat: dict) -> dict:
+            """CmdStan reports a vector parameter flat, as ``x[1]``, ``x[2]``,
+            ...; a restart needs it whole again."""
+            ini = {}
+            for p in params:
+                if p in flat:
+                    ini[p] = flat[p]
+                else:
+                    keys = sorted((k for k in flat if k.startswith(p + "[")),
+                                  key=lambda k: int(k[len(p) + 1:-1]))
+                    ini[p] = np.array([flat[k] for k in keys])
+            return ini
+
         for _ in range(4):
-            nxt = run({k: out[k] for k in params})
-            moved = max(abs(nxt[k] - out[k]) for k in params)
+            nxt = run(as_inits(out))
+            moved = max(float(np.max(np.abs(np.asarray(nxt[k]) - np.asarray(out[k]))))
+                        for k in out if k != "lp__")
             if not np.isfinite(nxt["lp__"]) or nxt["lp__"] < out["lp__"]:
                 break
             out = nxt
