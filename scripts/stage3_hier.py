@@ -161,6 +161,9 @@ def main():
     ap.add_argument("--warm-from", default=None,
                     help="probe: start each chain at the last draw of a previous run's chain, with that "
                          "run's within-chain covariance as a fixed dense metric (step size alone adapted)")
+    ap.add_argument("--precondition-from", default=None, metavar="DIR",
+                    help="rotate the coefficients by the Fisher information at the posterior "
+                         "mean of the run in DIR; built at a start instead it makes things worse")
     args = ap.parse_args()
 
     K_PSI, K_Q = args.k_psi, args.k_q
@@ -168,8 +171,16 @@ def main():
     names = stage3_sample()
     x1_ref = median_x1()
     G = fit_globals(K_PSI, K_Q, x1_ref)
-    data = build(names, K_PSI, K_Q, sample=sample)
-    ini = inits(names, K_PSI, K_Q, x1_ref, sample=sample, globals_=G)
+    k_psi, k_q = args.k_psi, args.k_q
+    data = build(names, k_psi, k_q, sample=sample)
+    R = None
+    if args.precondition_from:
+        from dgsn.stan.precondition import from_run
+        R = from_run(args.precondition_from, data, k_psi, k_q)
+        data = build(names, k_psi, k_q, sample=sample, R=R)
+        print(f"preconditioned from {args.precondition_from}: "
+              f"rotation condition {np.linalg.cond(R):.1e}")
+    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R)
     print(f"{len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
     print(f"start: tau_q {ini['tau_q']:.2f} tau_psi {ini['tau_psi']:.2f}, "
           f"|z_a| {np.linalg.norm(ini['z_a']):.2f} |z_c| {np.linalg.norm(ini['z_c']):.2f}, "

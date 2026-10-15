@@ -21,6 +21,15 @@ data {
   vector[N_sn] m_bright;
   real xs_bar;
   int<lower=1> grainsize;
+  // A fixed rotation of the coefficient coordinates, identity unless a
+  // preconditioner has been built.  All of the posterior's stiffness lives
+  // in these: of the 226 coordinates of a thirty-object fit the seven
+  // stiffest directions put 96 to 100 percent of their weight here, and
+  // whitening them takes the condition number from 2.4e5 to 7.0e3 -- the
+  // steps a diagonal metric needs from 485 to 84 -- while whitening the
+  // per-object blocks changes nothing.  R is constant, so its Jacobian is
+  // constant and the posterior is untouched: this is a reparameterization.
+  matrix[2 * (Kq - 1) + 2 * (Kpsi - 1), 2 * (Kq - 1) + 2 * (Kpsi - 1)] R;
 }
 transformed data {
 #include dgsn_grid_tdata.stan
@@ -49,10 +58,7 @@ parameters {
   // the first hierarchical fit showed the non-centred form trading tau
   // against ||z_b|| at correlation -0.6, with 88 percent of transitions at
   // maximum treedepth.
-  vector[Kq - 1] z_a;
-  vector[Kq - 1] b_til;
-  vector[Kpsi - 1] z_c;
-  vector[Kpsi - 1] d_til;
+  vector[2 * (Kq - 1) + 2 * (Kpsi - 1)] w_coef;
   real<lower=0> tau_q;
   real<lower=0> tau_psi;
   real<lower=0> alpha_q_m;         // alpha - 1/2, Eq. (coefprior)
@@ -79,11 +85,25 @@ transformed parameters {
   vector[N_sn] x_p = mu_p + u_p;
   vector[N_sn] x_psi = mu_psi + u_psi;
   vector[N_sn] delta_t = mu_delta + s_delta * u_del;
+  // the coefficients the priors are written on, read out of the rotation
+  vector[Kq - 1] z_a;
+  vector[Kq - 1] b_til;
+  vector[Kpsi - 1] z_c;
+  vector[Kpsi - 1] d_til;
   // Eq. (gauge): a, b under the flat measure in v; c, d under ds through G_s.
   vector[Kq - 1] a;
   vector[Kq - 1] b;
   vector[Kpsi - 1] c;
   vector[Kpsi - 1] d;
+  {
+    vector[2 * (Kq - 1) + 2 * (Kpsi - 1)] raw = R * w_coef;
+    int n1 = Kq - 1;
+    int n3 = Kpsi - 1;
+    z_a = raw[1:n1];
+    b_til = raw[(n1 + 1):(2 * n1)];
+    z_c = raw[(2 * n1 + 1):(2 * n1 + n3)];
+    d_til = raw[(2 * n1 + n3 + 1):(2 * n1 + 2 * n3)];
+  }
   {
     vector[Kq - 1] at = pow(kq, -(alpha_q_m + 0.5)) .* z_a;
     vector[Kpsi - 1] ct = pow(kpsi, -(alpha_psi_m + 0.5)) .* z_c;

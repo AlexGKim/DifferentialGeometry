@@ -75,6 +75,9 @@ def main():
     ap.add_argument("--adapt-delta", type=float, default=None)
     ap.add_argument("--dense", action="store_true", help="dense_e; see the note at the top of this file")
     ap.add_argument("--wait", action="store_true", help="block until the chains finish, then report")
+    ap.add_argument("--precondition-from", default=None, metavar="DIR",
+                    help="rotate the coefficients by the Fisher information at the posterior "
+                         "mean of the run in DIR; built at a start instead it makes things worse")
     args = ap.parse_args()
 
     sample = analysis_sample()

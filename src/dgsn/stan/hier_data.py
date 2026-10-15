@@ -22,7 +22,7 @@ INIT_SIGMA = 0.05       # mag; a scatter the first iterations can live with
 
 
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
-          sample=None) -> dict:
+          sample=None, R=None) -> dict:
     """The data block of ``hier.stan`` for the objects ``names``."""
     sample = analysis_sample() if sample is None else sample
     dt, f, sig_f, band, z, m_bright, start, stop = [], [], [], [], [], [], [], []
@@ -40,12 +40,29 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         dt=np.concatenate(dt), f=np.concatenate(f), sig_f=np.concatenate(sig_f),
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), xs_bar=D.XS_BAR, grainsize=int(grainsize),
+        R=np.eye(n_coef(k_psi, k_q)) if R is None else np.asarray(R, dtype=float),
     )
     return data
 
 
+def n_coef(k_psi: int, k_q: int) -> int:
+    """The rotated block: z_a, b_til, z_c, d_til laid end to end."""
+    return 2 * (k_q - 1) + 2 * (k_psi - 1)
+
+
+def pack(z_a, b_til, z_c, d_til) -> np.ndarray:
+    """The coefficient coordinates in the order ``hier.stan`` slices them."""
+    return np.concatenate([np.asarray(v, dtype=float) for v in (z_a, b_til, z_c, d_til)])
+
+
+def unpack(raw, k_psi: int, k_q: int) -> dict:
+    n1, n3 = k_q - 1, k_psi - 1
+    raw = np.asarray(raw, dtype=float)
+    return dict(z_a=raw[:n1], b_til=raw[n1:2*n1], z_c=raw[2*n1:2*n1+n3], d_til=raw[2*n1+n3:])
+
+
 def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None,
-          tau: dict | None = None) -> dict:
+          tau: dict | None = None, R=None) -> dict:
     """Initial values: per-supernova from SALT2 and the sample, global
     functions from the SALT2 fits.  ``tau`` defaults to the norm the SALT2
     coefficients imply at ``INIT_ALPHA``, so that ``z`` starts near unit scale
@@ -63,9 +80,11 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         tau = dict(q=float(np.sqrt(np.mean((G["b"] / wq) ** 2))),
                    psi=float(np.sqrt(np.mean((G["d"] / wp) ** 2))))
     per = [per_sn_start(sample.loc[n]) for n in names]
+    raw = pack(G["a"] / wq, G["b"], G["c"] / wp, G["d"])
     return dict(
-        z_a=G["a"] / wq, b_til=np.asarray(G["b"], dtype=float),
-        z_c=G["c"] / wp, d_til=np.asarray(G["d"], dtype=float),
+        # w = R^-1 raw, so that the start is the same point whatever rotation
+        # is in force
+        w_coef=raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw),
         tau_q=tau["q"], tau_psi=tau["psi"],
         alpha_q_m=INIT_ALPHA - 0.5, alpha_psi_m=INIT_ALPHA - 0.5,
         sigma_g=INIT_SIGMA, sigma_r=INIT_SIGMA,
