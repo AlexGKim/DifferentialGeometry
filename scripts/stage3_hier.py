@@ -183,7 +183,7 @@ def main():
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R)
     print(f"{len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
     print(f"start: tau_q {ini['tau_q']:.2f} tau_psi {ini['tau_psi']:.2f}, "
-          f"|z_a| {np.linalg.norm(ini['z_a']):.2f} |z_c| {np.linalg.norm(ini['z_c']):.2f}, "
+          f"|w_coef| {np.linalg.norm(ini['w_coef']):.2f}, "
           f"mu_p {ini['mu_p']:.2f} mu_psi {ini['mu_psi']:.2f}")
 
     if args.report is not None:
