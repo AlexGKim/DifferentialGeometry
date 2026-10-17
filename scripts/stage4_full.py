@@ -27,6 +27,7 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 from cmdstanpy import from_csv
 
 from dgsn.data.sample import analysis_sample, median_x1, training_split, x1_fifth
@@ -101,6 +102,23 @@ def main():
     x1_ref = median_x1()
     G = fit_globals(args.k_psi, args.k_q, x1_ref)
     ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G)
+
+    R = None
+    if args.precondition_from:
+        from dgsn.stan.precondition import from_run, source_size
+        # The source run knows nothing of objects it never saw, so the point
+        # at which the sensitivities are taken uses its globals and this
+        # fit's own start for the per-supernova parameters.
+        per = {k: np.asarray(ini[k], dtype=float) for k in ("m_peak", "colr", "x_s")}
+        per["x_p"] = ini["mu_p"] + np.asarray(ini["u_p"], dtype=float)
+        per["x_psi"] = ini["mu_psi"] + np.asarray(ini["u_psi"], dtype=float)
+        per["delta_t"] = ini["mu_delta"] + ini["s_delta"] * np.asarray(ini["u_del"], dtype=float)
+        R = from_run(args.precondition_from, data, args.k_psi, args.k_q, per_sn=per)
+        data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample, R=R)
+        ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G, R=R)
+        print(f"preconditioned from {args.precondition_from} "
+              f"({source_size(args.precondition_from)} objects -> {len(names)}), "
+              f"rotation condition {np.linalg.cond(R):.1e}")
 
     lp0, worst = gradient_check(data, ini)
     print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")

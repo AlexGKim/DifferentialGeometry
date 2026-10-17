@@ -136,7 +136,39 @@ def point_from_run(out_dir, k_psi: int, k_q: int, n_sn: int) -> tuple[np.ndarray
     return raw, hyper, per_sn
 
 
-def from_run(out_dir, data: dict, k_psi: int, k_q: int) -> np.ndarray:
-    """``R`` built at the posterior mean of the run in ``out_dir``."""
-    raw, hyper, per_sn = point_from_run(out_dir, k_psi, k_q, int(data["N_sn"]))
-    return rotation(fisher(data, raw, hyper, per_sn, k_psi, k_q))
+def source_size(out_dir) -> int:
+    """How many supernovae the run in ``out_dir`` held."""
+    from pathlib import Path
+
+    csv = sorted(Path(out_dir).glob("hier-?.csv"))[0]
+    for line in open(csv):
+        if line.startswith("#"):
+            continue
+        names = line.strip().split(",")
+        return sum(1 for c in names if c.startswith("m_peak."))
+    raise ValueError(f"no header in {out_dir}")
+
+
+def from_run(out_dir, data: dict, k_psi: int, k_q: int, per_sn: dict | None = None) -> np.ndarray:
+    """``R`` built at the posterior mean of the run in ``out_dir``.
+
+    A rotation may be reused across sample sizes: the coefficients it turns
+    are the same 36 however many supernovae there are, and the Fisher
+    information over them grows close to proportionally with the sample, a
+    uniform scaling that Stan's diagonal metric absorbs by itself.  What
+    might not carry is the *shape*, more objects constraining different
+    combinations, and that is a question for measurement.
+
+    When the source is smaller than the fit being built, its globals are
+    used and the per-supernova point must be supplied by the caller --- the
+    source knows nothing of the objects it never saw."""
+    n_src = source_size(out_dir)
+    raw, hyper, src_per = point_from_run(out_dir, k_psi, k_q, n_src)
+    n = int(data["N_sn"])
+    if n != n_src:
+        if per_sn is None:
+            raise ValueError(
+                f"{out_dir} holds {n_src} supernovae and this fit has {n}; "
+                "pass per_sn for the objects the source never saw")
+        src_per = per_sn
+    return rotation(fisher(data, raw, hyper, src_per, k_psi, k_q))
