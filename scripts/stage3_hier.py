@@ -161,6 +161,9 @@ def main():
     ap.add_argument("--warm-from", default=None,
                     help="probe: start each chain at the last draw of a previous run's chain, with that "
                          "run's within-chain covariance as a fixed dense metric (step size alone adapted)")
+    ap.add_argument("--precondition-optimize", action="store_true",
+                    help="build the rotation at the optimize mode, which needs no previous run; "
+                         "the only option after a change of basis")
     ap.add_argument("--precondition-from", default=None, metavar="DIR",
                     help="rotate the coefficients by the Fisher information at the posterior "
                          "mean of the run in DIR; built at a start instead it makes things worse")
@@ -173,8 +176,17 @@ def main():
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
     data = build(names, k_psi, k_q, sample=sample)
+    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G)
     R = None
-    if args.precondition_from:
+    if args.precondition_optimize:
+        from dgsn.stan.precondition import from_optimize
+        import time as _t
+        t0 = _t.time()
+        R = from_optimize(data, ini, k_psi, k_q)
+        data = build(names, k_psi, k_q, sample=sample, R=R)
+        print(f"preconditioned at the optimize mode in {_t.time()-t0:.0f} s, "
+              f"rotation condition {np.linalg.cond(R):.1e}")
+    elif args.precondition_from:
         from dgsn.stan.precondition import from_run
         R = from_run(args.precondition_from, data, k_psi, k_q)
         data = build(names, k_psi, k_q, sample=sample, R=R)

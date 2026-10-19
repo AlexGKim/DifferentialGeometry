@@ -136,6 +136,32 @@ def point_from_run(out_dir, k_psi: int, k_q: int, n_sn: int) -> tuple[np.ndarray
     return raw, hyper, per_sn
 
 
+def from_optimize(data: dict, inits: dict, k_psi: int, k_q: int, name: str = "hier") -> np.ndarray:
+    """``R`` built at the mode of the unadjusted density, found by ``optimize``.
+
+    A rotation needs a point where the model fits the data, not a stationary
+    point of the sampler's density: the Fisher information is positive
+    semi-definite wherever it is evaluated, and only the *location* decides
+    whether it describes the posterior.  ``optimize`` reaches the bulk in
+    minutes where a pilot fit takes hours, which matters most after a change
+    of basis, when no previous run's rotation is valid any more.
+    """
+    from dgsn.stan.run import optimize
+
+    mode = optimize(name, data, inits, jacobian=False)
+    def vec(nm, n):
+        return np.array([mode[f"{nm}[{i}]"] for i in range(1, n + 1)])
+    raw = vec("w_coef", n_coef(k_psi, k_q))      # identity rotation while building one
+    hyper = {k: float(mode[k]) for k in
+             ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi", "sigma_g", "sigma_r")}
+    n = int(data["N_sn"])
+    per_sn = {v: vec(v, n) for v in ("m_peak", "colr", "x_s")}
+    per_sn["x_p"] = float(mode["mu_p"]) + vec("u_p", n)
+    per_sn["x_psi"] = float(mode["mu_psi"]) + vec("u_psi", n)
+    per_sn["delta_t"] = float(mode["mu_delta"]) + float(mode["s_delta"]) * vec("u_del", n)
+    return rotation(fisher(data, raw, hyper, per_sn, k_psi, k_q))
+
+
 def source_size(out_dir) -> int:
     """How many supernovae the run in ``out_dir`` held."""
     from pathlib import Path
