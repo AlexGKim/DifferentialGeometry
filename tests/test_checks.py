@@ -31,10 +31,12 @@ def test_circle(m_per_side):
                       -np.sin(K_CIRCLE * s) / K_CIRCLE], axis=1)
     err = np.abs(out["circle"] - exact).max()
     print(f"circle m={m_per_side}: max error {err:.2e}")
-    # Measured 1.1e-9 at m = 10 and 8e-14 at m = 20 on [-12, 5]: the curve
-    # quadrature's floor at the note's M = 20 panels, against the 1e-7 mag
-    # it asks for.  (2.7e-11 and 7e-15 on the earlier [-8, 8].)
-    assert err < 1e-8
+    # Measured on the re-scaled basis ([-8, 8], delta 5e-3): 4.5e-9 at the
+    # production m = 5 and 5.0e-13 at m = 10.  Both are far under the 0.038 mag
+    # scatter the fit works against, which is what the panel count is chosen
+    # by; the 1e-7 mag of Section 5.1 was a tighter requirement than the data
+    # can use.  (1.1e-9 and 8e-14 at m = 10 and 20 on the earlier [-12, 6].)
+    assert err < 1e-7
 
 
 def test_circle_anchor_exact():

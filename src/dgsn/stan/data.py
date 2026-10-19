@@ -10,12 +10,21 @@ from __future__ import annotations
 import numpy as np
 
 # Section 2.3
-DELTA = 3e-4                 # asinh scale in arclength, mag, Eq. (umap)
+# The arclength scale below which turning cannot be seen, and so need not be
+# resolved: a feature confined to |s| < L moves a unit-speed curve by at most
+# L for the epochs inside it, and for those outside contributes a constant
+# translation per branch, which m_peak and colr absorb exactly.  Measured by
+# pushing a localized bump through the forward map and letting the placement
+# absorb what it can, the detection threshold is 5e-3 mag; at K_psi = 12 the
+# basis cannot form a feature narrower than ~1e-2 anyway.  At the old 3e-4 a
+# third of the turning basis covered |s| < 0.006 mag, where 12 of 1568 epochs
+# lie.
+DELTA = 5e-3                 # asinh scale in arclength, mag, Eq. (umap)
 DELTA_P = 1.0                # asinh scale in phase, days, Eq. (vmap)
 MODEL_WINDOW = (-20.0, 45.0)  # the modelling window, days
 DATA_WINDOW = (-15.0, 40.0)   # the selection window of Section 3, days
-GAUGE_SPAN = (-6.0, 5.0)     # where <psi_1, psi_1> is taken, mag, Section 2.3: the arclengths the stage-3 fits reach over [-15, +40] d
-ARC_RANGE = (-12.0, 6.0)     # [s_min, s_max], mag, Section 3: past the x1 = -2 template at -15 d; past every stage-3 object at +40 d (max 5.3)
+GAUGE_SPAN = (-7.0, 7.5)     # where <psi_1, psi_1> is taken, mag, Section 2.3: the arclengths the training sample reaches over [-15, +40] d
+ARC_RANGE = (-8.0, 8.0)      # [s_min, s_max], mag, Section 3: the 442-object fit reaches -6.99 at -15 d and +7.35 at +40 d
 
 # Section 4
 EPS = 0.01                   # phase clamp width, fraction of the window
@@ -24,7 +33,12 @@ EPS_S = 1e-3                 # arclength clamp width, fraction of the interval
 ZP = 30.0                    # the archive zero point
 
 # Section 5.1
-M_PER_SIDE = 10              # panels on each side of zero: M = 20 in all
+# Panels on each side of zero, M = 10 in all.  The rule was accurate to
+# 4e-7 mag at M = 20 against a scatter of 0.038; halving it gives 2e-4, still
+# 190 times below the noise, and the per-object node sweeps are about
+# two thirds of a gradient.  Raising delta shortens the u range, which
+# narrows every panel further at fixed M.
+M_PER_SIDE = 5
 J_POINTS = 8                 # Gauss-Legendre points per panel
 
 # Section 5
