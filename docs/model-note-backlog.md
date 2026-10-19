@@ -936,3 +936,34 @@ the fits reach. Both are declarations in Sections 2.3 and 3 and both change the 
 neither should be changed on a capped run's evidence alone; the measurement should be
 repeated once a stage-4 fit runs without a treedepth cap. Recorded here so that the
 declared values are known to be contradicted by the first full-sample fit.
+
+### Preconditioning the hierarchy: what a rotation can and cannot carry (2026-10-19)
+
+The sampler's difficulty is concentrated in the coefficients. Of the 226 coordinates of a
+thirty-supernova fit, the seven stiffest directions put 96 to 100 percent of their weight
+on the 46 global ones, and of those the 36 coefficients carry all of it: whitening them
+takes the standardized condition number from `2.4e5` to `7.0e3`, where whitening the
+per-object blocks changes nothing. The block is 36 coordinates whatever the sample size,
+which is why a rotation there scales where a dense metric cannot.
+
+The metric to rotate by is the Fisher information `J' Sigma^-1 J` with the prior precision
+added, not the Hessian: the Hessian of this posterior is indefinite at the \salt\ start, at
+the posterior mean, and at both optimize modes, so it is nowhere locally Gaussian, while
+`J' Sigma^-1 J` is positive semi-definite by construction and needs no mode.
+
+Where it is built decides whether it helps at all. Built at the posterior mean of a
+finished fit it takes the whole posterior from 485 steps to 88, against 84 for perfect
+whitening, and a real fit then ran at 1023 leapfrogs with one transition in a thousand at
+the treedepth cap, where the same diagonal metric without it sat at the cap 60 percent of
+the time. Built at the \salt\ start, whose log density is ten thousand below the bulk, the
+same construction makes the conditioning seven orders of magnitude *worse*.
+
+That sensitivity is what limits reuse. A rotation taking its coefficients from a converged
+thirty-object posterior but its per-supernova point from the start of a hundred objects it
+had never seen drove every chain to the treedepth cap at step sizes thirty to fifty times
+smaller than the fit it came from. This is the start-point failure again rather than
+evidence about sample size, since the two were confounded; what it establishes is the
+practical rule, that a rotation must be built where the model fits the data, per-supernova
+parameters included. A rotation is therefore not a portable artifact: each fit wants a
+short pilot of its own, and whether the *shape* of the rotation survives a change of sample
+size is still unmeasured, needing a pilot at the larger size to answer.
