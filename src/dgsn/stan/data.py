@@ -23,7 +23,15 @@ DELTA = 5e-3                 # asinh scale in arclength, mag, Eq. (umap)
 DELTA_P = 1.0                # asinh scale in phase, days, Eq. (vmap)
 MODEL_WINDOW = (-20.0, 45.0)  # the modelling window, days
 DATA_WINDOW = (-15.0, 40.0)   # the selection window of Section 3, days
-GAUGE_SPAN = (-7.0, 7.5)     # where <psi_1, psi_1> is taken, mag, Section 2.3: the arclengths the training sample reaches over [-15, +40] d
+# Where <psi_1, psi_1> is taken, mag, Section 2.3.  The span must be CONTAINED
+# WITHIN the arclengths the sample reaches, never contain them: amplitude Psi_1
+# puts inside the span but beyond the data counts toward the norm and costs the
+# likelihood nothing, so the normalization is spent on invisible structure and
+# x_psi grows to compensate.  Measured both ways -- a span inside the reach put
+# 95% of the norm where supernovae are and gave x_psi a posterior sd of 0.67; a
+# span 1.2 mag wider than the reach put 28% there, Psi_1 spiking at the unseen
+# edge, and x_psi's sd rose to 1.42, wider than its own prior.
+GAUGE_SPAN = (-6.0, 5.0)
 ARC_RANGE = (-8.0, 8.0)      # [s_min, s_max], mag, Section 3: the 442-object fit reaches -6.99 at -15 d and +7.35 at +40 d
 
 # Section 4
