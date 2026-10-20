@@ -24,7 +24,7 @@ import numpy as np
 
 from dgsn.data.sample import analysis_sample, stage3_sample
 from dgsn.stan.hier_data import build
-from dgsn.stan.precondition import fisher, point_from_run, rotation
+from dgsn.stan.precondition import fisher, pieces, posterior_mean, rotation, source_rotation
 from dgsn.stan.run import sample_four
 
 K_PSI, K_Q = 12, 8
@@ -42,7 +42,8 @@ def main():
     sample = analysis_sample()
     names = stage3_sample()
     data = build(names, K_PSI, K_Q, sample=sample)
-    raw, hyper, per_sn = point_from_run(args.src, K_PSI, K_Q, len(names))
+    raw, hyper, per_sn = pieces(posterior_mean(args.src), K_PSI, K_Q,
+                               source_rotation(args.src, K_PSI, K_Q))
 
     R = None if args.no_rotation else rotation(fisher(data, raw, hyper, per_sn, K_PSI, K_Q))
     data = build(names, K_PSI, K_Q, sample=sample, R=R)
