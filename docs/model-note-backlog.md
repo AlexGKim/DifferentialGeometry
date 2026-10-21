@@ -967,3 +967,48 @@ practical rule, that a rotation must be built where the model fits the data, per
 parameters included. A rotation is therefore not a portable artifact: each fit wants a
 short pilot of its own, and whether the *shape* of the rotation survives a change of sample
 size is still unmeasured, needing a pilot at the larger size to answer.
+
+### The gauge span, and where a rotation's cost actually lies (2026-10-20)
+
+Two fits of thirty supernovae at `K = (12, 8)`, on the re-scaled basis with the gauge span
+returned to `[-6, +5]`, differing only in whether the coefficients were rotated: 300 warmup
+and 300 sampling iterations each, run concurrently so that they met identical contention.
+
+The span revert did what it was predicted to. The per-supernova posterior width of `x_psi`,
+which had risen to 1.42 --- wider than its own unit prior, so the mode was not identified
+--- came back to 0.91 unrotated and 0.82 rotated, and the fit was unchanged at 17.14 in
+`-2 lp` per epoch. The objects reach `s(-15 d)` in `[-6.89, -2.71]` and `s(+40 d)` in
+`[+2.96, +6.13]`, so the span now sits inside the reach at both ends, as the rule requires.
+It did not come all the way back to the 0.67 of the fit that first measured 95 percent of
+`Psi_1`'s norm where the supernovae are. That fit had the same span but the old `delta`, so
+the residual belongs to the other three re-scaling constants and not to the span; which of
+them is unmeasured, and the direction says the re-scaled basis resolves `Psi_1` less
+sharply than the one it replaced.
+
+The rotation's effect splits in a way the leapfrog count alone conceals:
+
+|                          | unrotated | rotated |
+|--------------------------|-----------|---------|
+| leapfrogs a draw, median | 2047      | 1023    |
+| step size over chains    | 2.92--4.03e-3 | 4.07--5.52e-3 |
+| sampling                 | 16154 s   | 8835 s  |
+| warmup                   | 24231 s   | 27897 s |
+| total                    | 40384 s   | 36732 s |
+| divergent                | 1.9%      | 4.0%    |
+| `R-hat` max on `d`       | 1.025     | 1.065   |
+
+Sampling is 1.83 times faster, matching the halved leapfrogs, and the *total* is 1.10 times
+faster, because warmup is slower rotated and is three quarters of the wall. The reason is
+not the rotation's geometry but its start: the \salt\ start sits 5.4 posterior standard
+deviations from the posterior in rotated coordinates, rms over the 36, against 2.9
+unrotated, with worst coordinates at 11.9 and 7.2. Whitening the posterior moves the start
+twice as far away from it in the posterior's own units, and warmup pays for the journey
+before it can adapt. A rotation built by `carry` from a previous posterior comes with that
+posterior, so the obvious remedy is to start there rather than at \salt\.
+
+Both runs are *under*-converged, which is the result that matters for the debugging cycle.
+At 500 warmup iterations the unrotated fit on this basis reached `R-hat` at most 1.007 on
+every relabeled function with step sizes within 1.16 across chains; at 300 it reaches 1.025
+and 1.065 and the step sizes spread by 1.37. Halving the iterations does not buy a faster
+converged fit, it buys a fit that has stopped converging, and the four-hour cycle has to
+come from a cheaper warmup rather than a shorter one.
