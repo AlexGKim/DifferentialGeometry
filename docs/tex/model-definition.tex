@@ -345,12 +345,21 @@ $(G_{\arc})_{jk} = \int \tilde P_{j}\tilde P_{k}\,\dd\arc = \int \tilde P_{j}\ti
 the Gram matrix of the basis under arclength over the gauge span, computed once for the run; imposed as
 above with $G_{\arc}$ in place of the identity. The basis stays orthonormal in $u$, which
 is the measure the prior of \eqref{eq:coefprior} is written in; only the gauge inner
-product is taken in $\arc$. Against \salt, $K_{\psi} = 24$ reproduces the curve at the
-track's own arclengths to $0.012$~mag at $x_{1} = 0$, $0.014$ at $-1$, and $0.027$ and
-$0.030$ at $+1$ and $+1.7$, halving at $K_{\psi} = 48$; at $x_{1} = -2$ it is $0.19$ at
-every order tried, a plateau and not a truncation --- the early rise, where the template
-nears zero flux and $\arc$ reaches $-10$ by $-15$~d, is what the fit does not reproduce,
-and that track is not fit at any pair of orders.
+product is taken in $\arc$. Against \salt, $K_{\psi} = 24$ reproduces the curve at the track's own arclengths to
+$0.011$~mag at $x_{1} = 0$, $0.026$ at $-1$, and $0.019$ and $0.032$ at $+1$ and $+1.7$;
+$K_{\psi} = 48$ halves the first two and gains a quarter to a third on the others, and at
+$K_{\psi} = 12$ the same errors are $0.100$, $0.132$, $0.086$ and $0.096$, several times
+the intrinsic scatter the fits of Section~\ref{sec:inference} find. Two things the
+comparison does not say. The curve error is taken only at arclengths inside the declared
+interval, where the basis is defined, so it is silent about a track that leaves it; and the
+$x_{1} = -2$ track does leave it, reaching $\arc = -10.06$ by $-15$~d against a lower edge
+of $-8$. Inside the interval its curve error is $0.056$~mag, while its light-curve error
+over the data window exceeds a magnitude at every pair of orders tried, the two quadrature
+resolutions disagreeing on how much: the early rise, where the template nears zero flux, is
+clamped rather than fitted. That track is not fit at any pair of orders, and what prevents
+it is the interval and not the truncation --- the interval is set by where the fits reach
+and not by the template, so this is a systematic of the two-band model against \salt\ and
+not a defect of the basis.
 
 Each pair is left with a sign:
 the likelihood is invariant under $(q_{1}, x_p) \mapsto (-q_{1}, -x_p)$ and under the same
