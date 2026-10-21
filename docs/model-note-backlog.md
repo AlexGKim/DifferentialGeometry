@@ -1012,3 +1012,40 @@ every relabeled function with step sizes within 1.16 across chains; at 300 it re
 and 1.065 and the step sizes spread by 1.37. Halving the iterations does not buy a faster
 converged fit, it buys a fit that has stopped converging, and the four-hour cycle has to
 come from a cheaper warmup rather than a shorter one.
+
+### A heavy-tailed likelihood, declined on measurement (2026-10-21)
+
+Catastrophic outliers slow samplers, and a Cauchy or Student-t in place of the Gaussian of
+Eq. (like) is the usual remedy. Measured on the thirty-object fit, the premise does not hold
+here and the remedy would buy nothing it is wanted for.
+
+The residuals are heavy-tailed but not catastrophic. Standardized by Eq. (like)'s own
+variance at a draw and taken as medians over draws, 88 epochs of 1568 lie beyond `2` where
+71 are expected, 16 beyond `3` against 4.2, three beyond `4` against 0.10, and none beyond
+`5`. The worst epoch in the sample is `4.87` and carries 1.5 percent of the total `chi2`,
+which is 1.036 per epoch.
+
+The tail does not set the step size. The Hessian of the log density at a draw, from central
+differences of Stan's gradient over the 219 unbounded coordinates, has `max |lambda|`
+`1.894e6`, a step-size limit of `1.45e-3` against the chains' adapted `2.9` to `4.0e-3`, so
+it binds; inflating the worst 3, 16 and 50 epochs' errors out of the fit moves it to
+`1.889e6`, `1.880e6` and `1.857e6`, a 2 percent change in curvature and 1 percent in the
+limit. The reason is that an epoch contributes `(df/dtheta)^2/var` whatever its residual,
+and only the `r d2f/dtheta^2 / sigma` term carries the residual; with `chi2` per epoch at
+1.036 the second is subdominant to 1568 of the first. Eq. (like) is also already half robust
+by construction, since the variance carries `(k sigma_b fhat)^2`: a bright epoch's leverage
+is capped, and the unbounded leverage is at faint flux, where the variance reduces to the
+archive's own and which is 35 percent of epochs.
+
+What the tail does cost is the intrinsic scatter. `sigma_g` and `sigma_r` are fitted, so the
+tail is absorbed by inflating the scatter of every epoch: epochs beyond `3` carry 214 of the
+total `chi2` of 1624 where a Gaussian would put 46 there, an excess of about a tenth of
+`chi2`, so the pair is inflated by roughly 5 percent --- `0.0357` against about `0.034`.
+That is a known bias to carry, not a reason to change the likelihood, and the naive version
+of the estimate is wrong: dropping the worst 50 epochs takes `chi2` per epoch to 0.785, but
+a true Gaussian falls to 0.824 under the same selection, so most of that drop is the
+selection.
+
+The model therefore keeps the Gaussian. A Student-t with `nu` fitted would nest it and let
+the data set the tail, where a Cauchy asserts `nu = 1`; but it is not log-concave, each
+outlier can open a local mode, and the one thing it was wanted for is measurably absent.
