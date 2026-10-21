@@ -1049,3 +1049,36 @@ selection.
 The model therefore keeps the Gaussian. A Student-t with `nu` fitted would nest it and let
 the data set the tail, where a Cauchy asserts `nu = 1`; but it is not log-concave, each
 outlier can open a local mode, and the one thing it was wanted for is measurably absent.
+
+### A diagnostic whose domain moved with the constant it measured (2026-10-21)
+
+Candidate for the traps list in `CLAUDE.md`, being a wrong number that was reported before
+it was caught.
+
+`track_error` takes the curve error at the track's own arclengths, but only at those
+*inside* `ARC_RANGE`, since outside it the basis is not defined:
+
+    ins = inw & (s > D.ARC_RANGE[0]) & (s < D.ARC_RANGE[1])
+
+The re-scaling narrowed that interval from `(-12, +6)` to `(-8, +8)`. The `x1 = -2` track
+reaches `-10.06` in arclength by `-15` d, so the old interval contained the region the track
+is not fit in and the new one excludes it. Section 2.3's quoted `0.19` mag duly fell to
+`0.056`, and it was reported as the re-scaling having broken a plateau that the note called
+"a plateau and not a truncation". It had not. The diagnostic had stopped looking at the part
+that fails, and the light-curve error, which is taken over the phase window and not the
+arclength interval, still exceeds a magnitude at every pair of orders tried.
+
+The general shape: a figure of merit whose *evaluation domain* is a function of the constant
+being changed cannot be compared across that change, and will appear to improve whenever the
+constant shrinks the domain around the defect. The comparison is only sound against a
+diagnostic whose domain is fixed by the data --- here the phase window, which the light-curve
+error uses --- and the two disagreed by a factor of twenty.
+
+Two smaller things from the same table, recorded so they are not re-derived. The turning
+error at `x1 = -2` is non-monotone in order, `0.362` at `K_psi = 12`, `0.056` at `24` and
+`0.075` at `48`, which is the least-squares fit reaching its own conditioning limit rather
+than the basis failing; `scripts/visible_modes.py` puts the Jacobian's condition near `1e10`
+at these orders. And the light-curve and traversal halves of the table are not measurements
+at all: the refinement in `track_fit.stan` diverges at `K_q >= 32` and at `x1 = -2`, giving
+entries of `1e52`, and the two quadrature resolutions disagree by up to sevenfold. The grid
+over `K_psi` and `K_q` that Section 5.2 still owes cannot be run until that is fixed.
