@@ -20,8 +20,24 @@
 \file{model-definition.tex} says what the model should be. This says what the code does. It
 is written from \file{stan/} and \file{src/dgsn/stan/data.py} and not from that note, so
 that the two can be compared and any divergence seen rather than assumed away. Every
-statement below names the file and function it comes from. Section~\ref{sec:differ} collects
-the places where the two disagree.
+statement below names the file and function it comes from.
+
+\paragraph{How to read the correspondence.} Each implemented piece is tagged with where it
+comes from in the note. Equation and section numbers are the note's own.
+\begin{itemize}
+\item[\textbf{[=]}] \emph{As written.} The code evaluates the note's equation directly.
+\item[\textbf{[+]}] \emph{Fused.} The code evaluates a single expression that the note states
+  across two or more places --- usually a defining equation in Section~2 together with a
+  change of variable or a Jacobian recorded in Section~5.1. These are not divergences, but
+  they are where a reader of one section alone can form the wrong expectation, and
+  Section~\ref{sec:fused} says so explicitly.
+\item[\textbf{[c]}] \emph{Construction.} The note states a property; the code obtains it by
+  how it builds the basis rather than by imposing a condition, so the property holds
+  identically and there is nothing to check at run time.
+\item[\textbf{[!]}] \emph{Divergent.} The code and the note disagree. Collected in
+  Section~\ref{sec:differ}.
+\item[\textbf{[0]}] \emph{Not in the note.} Machinery with no counterpart there.
+\end{itemize}
 
 \section{The programs}
 
@@ -30,17 +46,17 @@ program; the grid declarations are \file{dgsn\_grid\_data.stan} in a \code{data}
 \file{dgsn\_grid\_tdata.stan} in a \code{transformed data} block. Nothing per-supernova is
 hard-coded: every constant arrives as data from \file{src/dgsn/stan/data.py}.
 
-\begin{tabular}{lll}
+\begin{tabular}{llll}
 \toprule
-program & samples & purpose \\
+program & samples & purpose & \\
 \midrule
-\file{hier.stan}        & the hierarchy & stages 3 and 4 \\
-\file{hier\_nomode.stan} & the hierarchy with $\shapeturn \equiv 0$ & whether the mode earns its place \\
-\file{single\_sn.stan}  & one supernova, globals as data & stage 2 \\
-\file{track\_fit.stan}  & one track, no priors & \salt\ floors \\
-\file{forward.stan}     & nothing (\code{fixed\_param}) & the forward map for diagnostics \\
-\file{jacobian.stan}    & nothing (\code{fixed\_param}) & log fluxes, for the Fisher information \\
-\file{checks.stan}      & nothing (\code{fixed\_param}) & closed-form quadrature tests \\
+\file{hier.stan}        & the hierarchy & Section~5, stages 3 and 4 & \textbf{[=]} \\
+\file{hier\_nomode.stan} & the hierarchy with $\shapeturn \equiv 0$ & whether the mode earns its place & \textbf{[0]} \\
+\file{single\_sn.stan}  & one supernova, globals as data & Section~5.2, stage 2 & \textbf{[=]} \\
+\file{track\_fit.stan}  & one track, no priors & \salt\ floors, Section~5.2 & \textbf{[=]} \\
+\file{forward.stan}     & nothing (\code{fixed\_param}) & the forward map for diagnostics & \textbf{[=]} \\
+\file{jacobian.stan}    & nothing (\code{fixed\_param}) & log fluxes, for the Fisher information & \textbf{[0]} \\
+\file{checks.stan}      & nothing (\code{fixed\_param}) & closed-form quadrature tests & \textbf{[=]} \\
 \bottomrule
 \end{tabular}
 
@@ -48,38 +64,56 @@ program & samples & purpose \\
 
 \code{log\_flux} in \file{dgsn\_functions.stan} takes an epoch's $\Delta t$ and band and
 returns four columns: log flux, log taper, arclength before the clamp, arclength after. It
-runs in four steps.
+runs in four steps, which assemble Eqs.~(7), (8), (10), (17) and (19)--(20) of the note.
 
-\paragraph{Phase, clamped.} With $\Delta$ the offset and $\zred$ known,
+\paragraph{Phase, clamped. [+] Eq.~(7) with Eq.~(19).} With $\Delta$ the offset and
+$\zred$ known,
 \begin{equation}
   w_{i} = \frac{(\Delta t_{i} - \Delta)/(1 + \zred) - \phase_{\min}}
                {\phase_{\max} - \phase_{\min}} , \qquad
   \hat\phase_{i} = \phase_{\min} + (\phase_{\max} - \phase_{\min})\,
     \mathrm{clamp01}(w_{i}, \epsilon) ,
 \end{equation}
-with $\mathrm{clamp01}(w, \epsilon) = \mathrm{softplus}(w, \epsilon) -
-\mathrm{softplus}(w - 1, \epsilon)$ and $\mathrm{softplus}(x, \epsilon) =
-\epsilon\log(1 + e^{x/\epsilon})$, written branch-free. The taper is
+which is Eq.~(7)'s $\phase = (t - \tmax)/(1 + \zred)$ with $\tmax = t_{0} + \Delta$,
+composed with the clamp of Eq.~(19): $\mathrm{clamp01}(w, \epsilon) =
+\mathrm{softplus}(w, \epsilon) - \mathrm{softplus}(w - 1, \epsilon)$ and
+$\mathrm{softplus}(x, \epsilon) = \epsilon\log(1 + e^{x/\epsilon})$, written branch-free so
+that neither limb overflows --- an implementation detail with no counterpart in the note,
+and algebraically identical to it. The taper is
 $\log\mathcal{T}_{i} = -[e_{i}/\epsilon_{t}]^{2}$ with
 $e_{i} = \mathrm{softplus}(-w_{i}, \epsilon_{t}/10) +
 \mathrm{softplus}(w_{i} - 1, \epsilon_{t}/10)$, so it is evaluated at the \emph{unclamped}
 $w$ and turns the flux off outside the window.
 
-\paragraph{Arclength, clamped.} \code{arclength} integrates
+\paragraph{Arclength, clamped. [+] Eq.~(10) with Eq.~(12), Section~5.1's Jacobian, and
+Eq.~(20).} \code{arclength} integrates
 \begin{equation}
   \arc(\phase) = e^{\xstretch}\!\int_{0}^{\phase}
     \exp[q_{0} + x_p q_{1}]\,\delta_{p}\cosh v\,\dd v ,
 \end{equation}
-so $\xstretch$ leaves the integral as a multiplicative $e^{\xstretch}$ and the coefficient
-vector passed in is $\mathbf{b} + x_p\mathbf{a}$. Then the same clamp with $\epsilon_{s}$
-onto $[\arc_{\min}, \arcmax]$.
+which is the \emph{one} place three of the note's statements are fused, and the fusion is
+worth naming. Eq.~(10) gives $\dd\arc/\dd\phase = \exp[\xstretch + q_{0} + x_p q_{1}]$ with
+$\arc(\phase) = \int_{0}^{\phase}$, an integral in $\dd\phase$. Eq.~(12) gives
+$v = \asinh(\phase/\delta_{p})$ with $\delta_{p} = 1$~d. And Section~5.1 --- four sections
+later, in prose rather than an equation --- supplies $\dd\phase = \delta_{p}\cosh v\,\dd v$.
+The code integrates over fixed $v$ nodes with the weights already multiplied by that
+Jacobian, \code{jacw\_v}, so the expression above is what it evaluates and no single
+equation of the note matches it. $\xstretch$ leaves the integral as a multiplicative
+$e^{\xstretch}$, and the coefficient vector passed in is
+$\mathbf{b} + x_p\mathbf{a}$. Then the clamp of Eq.~(20) with $\epsilon_{s}$ onto
+$[\arc_{\min}, \arcmax]$.
 
-\paragraph{The curve.} \code{curve} integrates
+\paragraph{The curve. [+] Eq.~(5) with Eqs.~(9), (14) and Section~5.1's Jacobian.}
+\code{curve} integrates
 $\curve(\arc) = \int_{0}^{\arc}(\cos\psi, \sin\psi)\,\delta\cosh u\,\dd u$ with
 $\psi(u) = -\pi/2 + \tilde{\mathbf{P}}(u)\cdot(\mathbf{d} + \shapeturn\mathbf{c})$, at the
-clamped $\hat\arc$.
+clamped $\hat\arc$. The same three-way fusion as the traversal: Eq.~(5) for the integral,
+Eq.~(9) for $\psi$, Eq.~(14) for $u = \asinh(\arc/\delta)$, and Section~5.1 for
+$\dd\arc = \delta\cosh u\,\dd u$. Here, and unlike the traversal, the note's gauge is
+written in the same measure the integral carries --- see Section~\ref{sec:gauge}.
 
-\paragraph{Magnitudes and flux.} Band $1$ is $g$, band $2$ is $r$:
+\paragraph{Magnitudes and flux. [=] Eqs.~(8) and (17).} Band $1$ is $g$, band $2$ is
+$r$:
 \begin{equation}
   \magg = \curve_{1} + \peakmag , \qquad \magr = \curve_{2} + \peakmag - \colr ,
   \qquad
@@ -89,25 +123,39 @@ The two basis vectors of magnitude space are therefore $(1,1)$ for $\peakmag$ an
 for $\colr$, as coefficients and not as a rotation.
 
 \section{The two bases}
+\label{sec:bases}
+
+Eqs.~(13) and (15) of the note give the expansions; the orthonormality each one satisfies is
+a property of how the code builds it.
 
 \code{legendre\_row} returns degrees $0$ to $n-1$ on $[lo, hi]$, each scaled by
 $\sqrt{(2k+1)/(hi-lo)}$, so the set is orthonormal under $\int fg\,\dd x$ over that
 interval.
 
-\paragraph{Traversal.} \code{traversal\_row} is \code{legendre\_row(v, Kq, vlo, vhi)[2:Kq]}:
+\paragraph{Traversal. [c] Eq.~(13).} \code{traversal\_row} is
+\code{legendre\_row(v, Kq, vlo, vhi)[2:Kq]}:
 degrees $1$ to $K_{q}-1$ in $v$, the constant dropped. Orthonormality in $v$ and the absence
 of a constant are therefore properties of the basis, so $\bar q_{0} = \bar q_{1} = 0$ and
-$\langle q_{j}, q_{k}\rangle = \delta_{jk}$ hold identically and are not imposed.
+$\langle q_{j}, q_{k}\rangle = \delta_{jk}$ hold identically and are not imposed. Eq.~(11)
+lists four gauge conditions; two of them, $\bar q_{0} = 0$ and $\bar q_{1} = 0$, are these,
+so the code imposes two and inherits two. One consequence: $q_{0}$ \emph{cannot} carry a
+constant, which is why the mean log rate has to live in $\xstretch$ --- Eq.~(22).
 
-\paragraph{Turning.} \code{turning\_row} is
+\paragraph{Turning. [c] Eq.~(15) with Eq.~(9)'s condition at the anchor.}
+\code{turning\_row} is
 $[\mathbf{P}(u)_{1:K_{\psi}-1} - \mathbf{P}(0)_{1:K_{\psi}-1}]\,T$: Legendre in $u$ with the
 constant dropped, shifted to vanish at $u = 0$, then re-orthonormalized by $T$, the
 transpose-inverse of the Cholesky factor of $I + (u_{\mathrm{hi}} - u_{\mathrm{lo}})
 \mathbf{P}(0)^{\mathsf T}\mathbf{P}(0)$. $T$ is upper triangular, so mode $k$ mixes degrees
-at most $k$. Hence $\turnzero(0) = \turnone(0) = 0$ by construction, and the basis is
-orthonormal in $u$ --- \emph{not} in $\arc$.
+at most $k$. Hence $\turnzero(0) = \turnone(0) = 0$ --- Eq.~(9)'s own side condition --- holds by
+construction rather than by a fitted constraint, and the basis is orthonormal in $u$,
+\emph{not} in $\arc$. That last fact is where the gauge and the basis part company, below.
 
 \section{The gauge}
+\label{sec:gauge}
+
+Eq.~(11) of the note. Four conditions for four freedoms, of which the code imposes two per
+pair and inherits the means from the bases of Section~\ref{sec:bases}.
 
 In \file{hier.stan}, \code{transformed parameters}:
 \begin{equation}
@@ -122,19 +170,38 @@ In \file{hier.stan}, \code{transformed parameters}:
   \mathbf{d} = \tilde{\mathbf{d}} - (\tilde{\mathbf{d}}^{\mathsf T}G_{\arc}\mathbf{c})\,
     \mathbf{c} .
 \end{equation}
-The traversal pair uses the plain Euclidean inner product on coefficients, which is
-$\int fg\,\dd v$ because the basis is orthonormal in $v$. The turning pair uses
-$G_{\arc}$, built by \code{turning\_gram\_s} as
-$\int \tilde P_{j}\tilde P_{k}\,\delta\cosh u\,\dd u$ over the gauge span --- on its own
-two-sided rule of $200$ panels a side, not the $m$ of the run. So $\lVert\mathbf{a}\rVert = 1$
-exactly while $\lVert\mathbf{c}\rVert$ is not, and $\mathbf{b}, \mathbf{d}$ carry whatever norm
-the data give them.
+\paragraph{The traversal pair. [=] Eq.~(11) as written.} The code uses the plain Euclidean
+inner product on coefficients, which \emph{is} $\int fg\,\dd v$ because the basis is
+orthonormal in $v$. So $\langle q_{1},q_{1}\rangle = 1$ reads
+$\lVert\mathbf{a}\rVert = 1$, and the fits give $1.0000 \pm 0.0000$.
+
+\paragraph{The turning pair. [=] Eq.~(11), in the measure Eq.~(11) asks for.} $G_{\arc}$ is
+built by \code{turning\_gram\_s} as
+$\int \tilde P_{j}\tilde P_{k}\,\delta\cosh u\,\dd u$ over the gauge span, on its own
+two-sided rule of $200$ panels a side rather than the $m$ of the run. Because the basis is
+orthonormal in $u$ and not in $\arc$, $G_{\arc} \neq I$: measured, its eigenvalues run
+$4.55$ down to $1.65\times10^{-5}$. So $\mathbf{c}^{\mathsf T}G_{\arc}\mathbf{c} = 1$ fixes
+$\lVert\mathbf{c}\rVert$ only through its direction, and the fits give $1.353 \pm 0.213$ at
+$(12, 8)$ and $0.806 \pm 0.171$ at $(24, 16)$. $\mathbf{b}$ and $\mathbf{d}$ carry whatever
+norm the data give them, there being no parameter beside them to absorb a rescaling.
+
+\paragraph{The asymmetry this leaves.} The note argues in Section~2.3 that the turning
+product must be taken in $\arc$ and not in the expansion coordinate $u$, since a mode of
+unit $u$-norm can carry its power where $\dd\arc$ is small and the curve, an integral
+$\dd\arc$, cannot see it. The same argument applies to the traversal with $\phase$ for
+$\arc$ and $v$ for $u$ --- Eq.~(10) integrates in $\dd\phase$ --- but Eq.~(11) specifies
+that pair in $\dd v$. The two measures disagree by a factor of $45$ in Jacobian, and
+measured on the fitted mode at a single draw, $\int q_{1}^{2}\,\dd v = 1.000$ against
+$\int q_{1}^{2}\,\dd\phase = 12.6$ to $15.2$. The code follows Eq.~(11) exactly; the
+asymmetry is the note's, and is recorded here because the code is where it shows.
 
 In \file{hier\_nomode.stan} there is no $\mathbf{c}$: $\mathbf{d} = \tilde{\mathbf{d}}$, the
 turning pair has no gauge, and $\mathbf{c} = \mathbf{0}$ and $\shapeturn = 0$ are
 \code{transformed data} constants.
 
 \section{The grid}
+
+Section~5.1 of the note. \textbf{[=]} in structure, \textbf{[!]} in one constant.
 
 \file{dgsn\_grid\_tdata.stan} lays, in each of $u$ and $v$, $m$ equal panels on $[lo, 0]$ and
 $m$ on $[0, hi]$, a $J$-point Gauss--Legendre rule in each, so zero is edge $m+1$ of
@@ -146,6 +213,8 @@ by a comparison loop rather than \code{floor}, which Stan will not cast when the
 depends on parameters.
 
 \section{The likelihood}
+
+Eq.~(18) of the note, with the tapered flux of Eq.~(17). \textbf{[=]}
 
 \code{neg2\_loglike}, over all epochs with $k = 0.4\ln 10$ and $\sigma_{b}$ the band's
 scatter:
@@ -159,6 +228,9 @@ the window has both residual and intrinsic variance suppressed. In \file{hier.st
 is a \code{reduce\_sum} over supernovae with the slice width passed as \code{grainsize}.
 
 \section{The hierarchy}
+
+Section~5 of the note. The priors are its Eq.~(21) on the coefficients and the per-supernova
+statements of Section~5; Eq.~(22) is the parameterization of $\xstretch$.
 
 \begin{tabular}{llll}
 \toprule
@@ -221,21 +293,46 @@ From \file{src/dgsn/stan/data.py}. The third column is what
 \toprule
  & code & note & \\
 \midrule
-$\delta$                  & $5\times10^{-3}$ mag & $3\times10^{-4}$ mag & \textcolor{red}{differs} \\
-$\delta_{p}$              & $1.0$ d & $1.0$ d & \\
+$\delta$, Eq.~(14)        & $5\times10^{-3}$ mag & $3\times10^{-4}$ mag & \textcolor{red}{differs} \\
+$\delta_{p}$, Eq.~(12)    & $1.0$ d & $1.0$ d & \\
 $[\phase_{\min}, \phase_{\max}]$ & $[-20, +45]$ d & $[-20, +45]$ d & \\
-$[\arc_{\min}, \arcmax]$  & $[-8, +8]$ mag & $[-12, +6]$ mag & \textcolor{red}{differs} \\
-gauge span                & $[-6, +5]$ mag & $[-6, +5]$ mag & \\
+$[\arc_{\min}, \arcmax]$, Section~3 & $[-8, +8]$ mag & $[-12, +6]$ mag & \textcolor{red}{differs} \\
+gauge span, Eq.~(11)      & $[-6, +5]$ mag & $[-6, +5]$ mag & \\
 $\epsilon$                & $0.01$ & $0.01$ & \\
 $\epsilon_{t}$            & $0.02$ & $0.02$ & \\
 $\epsilon_{s}$            & $10^{-3}$ & $10^{-3}$ & \\
 $\zp$                     & $30$ & $30$ & \\
-$m$ (panels a side)       & $5$, so $M = 10$ & $10$, so $M = 20$ & \textcolor{red}{differs} \\
+$m$, Section~5.1          & $5$, so $M = 10$ & $10$, so $M = 20$ & \textcolor{red}{differs} \\
 $J$                       & $8$ & $8$ & \\
 $K_{\psi}, K_{q}$         & $24, 16$ & $24, 16$ & \\
-$\bar x_{s}$              & kept for \file{single\_sn.stan} only & withdrawn & \\
+$\bar x_{s}$, Eq.~(22)    & kept for \file{single\_sn.stan} only & withdrawn & \\
 \bottomrule
 \end{tabular}
+
+\section{Where one expression spans several statements}
+\label{sec:fused}
+
+These are not divergences. They are the places where the code evaluates in one line what the
+note states in two or three, so that reading one section of the note alone can set a wrong
+expectation.
+
+\paragraph{The two integrals.} Eq.~(10) and Eq.~(5) are written as integrals in $\dd\phase$
+and $\dd\arc$. Eqs.~(12) and (14) give the coordinates. The Jacobians
+$\dd\phase = \delta_{p}\cosh v\,\dd v$ and $\dd\arc = \delta\cosh u\,\dd u$ appear only in
+Section~5.1, in prose, where the subject is quadrature accuracy. A reader of Section~2.3
+meets the bases and the gauge with no measure in view but $\dd v$ and $\dd u$, which is how
+the gauge asymmetry of Section~\ref{sec:gauge} survives: Section~2.3 argues carefully for
+$\dd\arc$ over $\dd u$ for the turning, specifies the traversal in $\dd v$ on the facing
+page, and the fact that Eq.~(10) carries $\delta_{p}\cosh v$ is four sections away.
+
+\paragraph{Two of Eq.~(11)'s four conditions are free.} $\bar q_{0} = \bar q_{1} = 0$ hold
+because \code{traversal\_row} drops the constant Legendre term. The code imposes the other
+two. Counting four conditions suggests four things to check; there are two.
+
+\paragraph{The anchor conditions.} $\turnzero(0) = \turnone(0) = 0$ of Eq.~(9), and
+$\arc(0) = 0$ and $\curve(0) = 0$, are all structural: the first pair from the shift in
+\code{turning\_row}, the second pair from the prefix table being laid outward from zero so
+that zero is a panel edge. None is a constraint the sampler respects; all hold to rounding.
 
 \section{Where the code and the note differ}
 \label{sec:differ}

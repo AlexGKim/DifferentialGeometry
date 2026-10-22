@@ -281,8 +281,12 @@ def main():
               f"rotation condition {np.linalg.cond(R):.1e}")
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode)
     if args.init_optimize:
-        # the SALT2 fit starts the optimizer; the optimum starts the chains
-        ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode)
+        # the SALT2 fit starts the optimizer; the optimum starts the chains.
+        # polish=False: its restarts cannot terminate in s_delta, flat in
+        # likelihood and rising in prior, so they walk the ridge for four
+        # passes and the re-placement discards the distance -- 182 s against
+        # fifteen minutes, at the same point.
+        ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode, polish=False)
     print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
     print(f"start: tau_q {ini['tau_q']:.2f} tau_psi {ini['tau_psi']:.2f}, "
           f"|w_coef| {np.linalg.norm(ini['w_coef']):.2f}, "
