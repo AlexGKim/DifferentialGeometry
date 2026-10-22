@@ -1,0 +1,264 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\input{macros}
+
+\newcommand{\file}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{What the Code Implements}
+\author{read out of \file{stan/} and \file{src/dgsn/stan/}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\noindent
+\file{model-definition.tex} says what the model should be. This says what the code does. It
+is written from \file{stan/} and \file{src/dgsn/stan/data.py} and not from that note, so
+that the two can be compared and any divergence seen rather than assumed away. Every
+statement below names the file and function it comes from. Section~\ref{sec:differ} collects
+the places where the two disagree.
+
+\section{The programs}
+
+One \code{functions} block, \file{stan/dgsn\_functions.stan}, is \code{\#include}d by every
+program; the grid declarations are \file{dgsn\_grid\_data.stan} in a \code{data} block and
+\file{dgsn\_grid\_tdata.stan} in a \code{transformed data} block. Nothing per-supernova is
+hard-coded: every constant arrives as data from \file{src/dgsn/stan/data.py}.
+
+\begin{tabular}{lll}
+\toprule
+program & samples & purpose \\
+\midrule
+\file{hier.stan}        & the hierarchy & stages 3 and 4 \\
+\file{hier\_nomode.stan} & the hierarchy with $\shapeturn \equiv 0$ & whether the mode earns its place \\
+\file{single\_sn.stan}  & one supernova, globals as data & stage 2 \\
+\file{track\_fit.stan}  & one track, no priors & \salt\ floors \\
+\file{forward.stan}     & nothing (\code{fixed\_param}) & the forward map for diagnostics \\
+\file{jacobian.stan}    & nothing (\code{fixed\_param}) & log fluxes, for the Fisher information \\
+\file{checks.stan}      & nothing (\code{fixed\_param}) & closed-form quadrature tests \\
+\bottomrule
+\end{tabular}
+
+\section{The forward map}
+
+\code{log\_flux} in \file{dgsn\_functions.stan} takes an epoch's $\Delta t$ and band and
+returns four columns: log flux, log taper, arclength before the clamp, arclength after. It
+runs in four steps.
+
+\paragraph{Phase, clamped.} With $\Delta$ the offset and $\zred$ known,
+\begin{equation}
+  w_{i} = \frac{(\Delta t_{i} - \Delta)/(1 + \zred) - \phase_{\min}}
+               {\phase_{\max} - \phase_{\min}} , \qquad
+  \hat\phase_{i} = \phase_{\min} + (\phase_{\max} - \phase_{\min})\,
+    \mathrm{clamp01}(w_{i}, \epsilon) ,
+\end{equation}
+with $\mathrm{clamp01}(w, \epsilon) = \mathrm{softplus}(w, \epsilon) -
+\mathrm{softplus}(w - 1, \epsilon)$ and $\mathrm{softplus}(x, \epsilon) =
+\epsilon\log(1 + e^{x/\epsilon})$, written branch-free. The taper is
+$\log\mathcal{T}_{i} = -[e_{i}/\epsilon_{t}]^{2}$ with
+$e_{i} = \mathrm{softplus}(-w_{i}, \epsilon_{t}/10) +
+\mathrm{softplus}(w_{i} - 1, \epsilon_{t}/10)$, so it is evaluated at the \emph{unclamped}
+$w$ and turns the flux off outside the window.
+
+\paragraph{Arclength, clamped.} \code{arclength} integrates
+\begin{equation}
+  \arc(\phase) = e^{\xstretch}\!\int_{0}^{\phase}
+    \exp[q_{0} + x_p q_{1}]\,\delta_{p}\cosh v\,\dd v ,
+\end{equation}
+so $\xstretch$ leaves the integral as a multiplicative $e^{\xstretch}$ and the coefficient
+vector passed in is $\mathbf{b} + x_p\mathbf{a}$. Then the same clamp with $\epsilon_{s}$
+onto $[\arc_{\min}, \arcmax]$.
+
+\paragraph{The curve.} \code{curve} integrates
+$\curve(\arc) = \int_{0}^{\arc}(\cos\psi, \sin\psi)\,\delta\cosh u\,\dd u$ with
+$\psi(u) = -\pi/2 + \tilde{\mathbf{P}}(u)\cdot(\mathbf{d} + \shapeturn\mathbf{c})$, at the
+clamped $\hat\arc$.
+
+\paragraph{Magnitudes and flux.} Band $1$ is $g$, band $2$ is $r$:
+\begin{equation}
+  \magg = \curve_{1} + \peakmag , \qquad \magr = \curve_{2} + \peakmag - \colr ,
+  \qquad
+  \log \hat f_{i} = -0.4\ln 10\,(m_{b_{i}} - \zp) + \log\mathcal{T}_{i} .
+\end{equation}
+The two basis vectors of magnitude space are therefore $(1,1)$ for $\peakmag$ and $(0,-1)$
+for $\colr$, as coefficients and not as a rotation.
+
+\section{The two bases}
+
+\code{legendre\_row} returns degrees $0$ to $n-1$ on $[lo, hi]$, each scaled by
+$\sqrt{(2k+1)/(hi-lo)}$, so the set is orthonormal under $\int fg\,\dd x$ over that
+interval.
+
+\paragraph{Traversal.} \code{traversal\_row} is \code{legendre\_row(v, Kq, vlo, vhi)[2:Kq]}:
+degrees $1$ to $K_{q}-1$ in $v$, the constant dropped. Orthonormality in $v$ and the absence
+of a constant are therefore properties of the basis, so $\bar q_{0} = \bar q_{1} = 0$ and
+$\langle q_{j}, q_{k}\rangle = \delta_{jk}$ hold identically and are not imposed.
+
+\paragraph{Turning.} \code{turning\_row} is
+$[\mathbf{P}(u)_{1:K_{\psi}-1} - \mathbf{P}(0)_{1:K_{\psi}-1}]\,T$: Legendre in $u$ with the
+constant dropped, shifted to vanish at $u = 0$, then re-orthonormalized by $T$, the
+transpose-inverse of the Cholesky factor of $I + (u_{\mathrm{hi}} - u_{\mathrm{lo}})
+\mathbf{P}(0)^{\mathsf T}\mathbf{P}(0)$. $T$ is upper triangular, so mode $k$ mixes degrees
+at most $k$. Hence $\turnzero(0) = \turnone(0) = 0$ by construction, and the basis is
+orthonormal in $u$ --- \emph{not} in $\arc$.
+
+\section{The gauge}
+
+In \file{hier.stan}, \code{transformed parameters}:
+\begin{equation}
+  \tilde{\mathbf{a}} = k^{-(\alpha_{q}-\frac12+\frac12)}\mathbf{z}_{a} , \quad
+  \mathbf{a} = \frac{\tilde{\mathbf{a}}}{\lVert\tilde{\mathbf{a}}\rVert} , \quad
+  \mathbf{b} = \tilde{\mathbf{b}} - (\tilde{\mathbf{b}}\!\cdot\!\mathbf{a})\,\mathbf{a} ,
+\end{equation}
+\begin{equation}
+  \tilde{\mathbf{c}} = k^{-(\alpha_{\psi}-\frac12+\frac12)}\mathbf{z}_{c} , \quad
+  \mathbf{c} = \frac{\tilde{\mathbf{c}}}{\sqrt{\tilde{\mathbf{c}}^{\mathsf T}
+    G_{\arc}\tilde{\mathbf{c}}}} , \quad
+  \mathbf{d} = \tilde{\mathbf{d}} - (\tilde{\mathbf{d}}^{\mathsf T}G_{\arc}\mathbf{c})\,
+    \mathbf{c} .
+\end{equation}
+The traversal pair uses the plain Euclidean inner product on coefficients, which is
+$\int fg\,\dd v$ because the basis is orthonormal in $v$. The turning pair uses
+$G_{\arc}$, built by \code{turning\_gram\_s} as
+$\int \tilde P_{j}\tilde P_{k}\,\delta\cosh u\,\dd u$ over the gauge span --- on its own
+two-sided rule of $200$ panels a side, not the $m$ of the run. So $\lVert\mathbf{a}\rVert = 1$
+exactly while $\lVert\mathbf{c}\rVert$ is not, and $\mathbf{b}, \mathbf{d}$ carry whatever norm
+the data give them.
+
+In \file{hier\_nomode.stan} there is no $\mathbf{c}$: $\mathbf{d} = \tilde{\mathbf{d}}$, the
+turning pair has no gauge, and $\mathbf{c} = \mathbf{0}$ and $\shapeturn = 0$ are
+\code{transformed data} constants.
+
+\section{The grid}
+
+\file{dgsn\_grid\_tdata.stan} lays, in each of $u$ and $v$, $m$ equal panels on $[lo, 0]$ and
+$m$ on $[0, hi]$, a $J$-point Gauss--Legendre rule in each, so zero is edge $m+1$ of
+$2m+1$. Weights are stored already multiplied by their Jacobians,
+$\delta\cosh u$ and $\delta_{p}\cosh v$. \code{prefix\_from\_zero} accumulates panel
+integrals outward from zero, giving $C[m+1] = 0$ exactly; an epoch's remainder past the last
+edge is one further fresh $J$-point panel on $[e_{0}, x]$. \code{panel\_of} finds the panel
+by a comparison loop rather than \code{floor}, which Stan will not cast when the argument
+depends on parameters.
+
+\section{The likelihood}
+
+\code{neg2\_loglike}, over all epochs with $k = 0.4\ln 10$ and $\sigma_{b}$ the band's
+scatter:
+\begin{equation}
+  -2\ln\mathcal{L} = \sum_{i}\left[
+    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}}
+    + \ln\!\left(\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}\right)\right] .
+\end{equation}
+The scatter enters the variance through the \emph{tapered} $\hat f_{i}$, so an epoch outside
+the window has both residual and intrinsic variance suppressed. In \file{hier.stan} the sum
+is a \code{reduce\_sum} over supernovae with the slice width passed as \code{grainsize}.
+
+\section{The hierarchy}
+
+\begin{tabular}{llll}
+\toprule
+sampled & shape & prior & reaches the map as \\
+\midrule
+\code{w\_coef}      & $2(K_{q}{-}1) + 2(K_{\psi}{-}1)$ & see below & $\mathbf{raw} = R\,\code{w\_coef}$ \\
+\code{tau\_q}, \code{tau\_psi}       & scalar $>0$ & flat & scale of $\tilde{\mathbf{b}}, \tilde{\mathbf{d}}$ \\
+\code{alpha\_q\_m}, \code{alpha\_psi\_m} & scalar $>0$ & $\mathrm{Exp}(1)$ & $\alpha - \frac12$ \\
+\code{sigma\_g}, \code{sigma\_r}     & scalar $>0$ & flat & the scatters \\
+\code{mu\_p}, \code{mu\_psi}, \code{mu\_delta} & scalar & flat & locations \\
+\code{s\_delta}     & scalar $>0$ & flat & scale of $\Delta$ \\
+\code{s\_bar}       & scalar & $\mathcal{N}(0, 10^{2})$ & mean of $\xstretch$ \\
+\code{x\_s\_dev}    & \code{sum\_to\_zero\_vector}$[N]$ & $\mathcal{N}(0,1)$ & $\xstretch = \code{s\_bar} + \code{x\_s\_dev}$ \\
+\code{m\_peak}      & $N$ & $\mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$ & $\peakmag$ \\
+\code{colr}         & $N$ & $\mathcal{N}(0,1)$ & $\colr$ \\
+\code{u\_p}         & $N$ & $\mathcal{N}(0,1)$ & $x_p = \code{mu\_p} + \code{u\_p}$ \\
+\code{u\_psi}       & $N$ & $\mathcal{N}(0,1)$ & $\shapeturn = \code{mu\_psi} + \code{u\_psi}$ \\
+\code{u\_del}       & $N$ & $\mathcal{N}(0,1)$ & $\Delta = \code{mu\_delta} + \code{s\_delta}\,\code{u\_del}$ \\
+\bottomrule
+\end{tabular}
+
+\medskip\noindent
+\code{w\_coef} is sliced, after the rotation, into
+$\mathbf{z}_{a}, \tilde{\mathbf{b}}, \mathbf{z}_{c}, \tilde{\mathbf{d}}$, with
+$\mathbf{z}_{a}, \mathbf{z}_{c}$ standard normal and
+\begin{equation}
+  \tilde b_{k} \sim \mathcal{N}\!\left(0,\;
+    \tau_{q}\,(k/\bar k_{q})^{-(\alpha_{q}-\frac12+\frac12)}\right) ,
+\end{equation}
+and likewise $\tilde{\mathbf{d}}$, where $\bar k = \exp[\overline{\ln k}]$ is the
+geometric-mean mode. So $\tau$ is the scale of a mid-range mode, and it informs only the
+centred pair: the gauge removes the scale of $\mathbf{a}$ and $\mathbf{c}$ entirely.
+
+\code{hier\_nomode.stan} drops \code{mu\_psi}, \code{u\_psi} and the
+$K_{\psi}-1$ entries of $\mathbf{z}_{c}$, so \code{w\_coef} is
+$2(K_{q}{-}1) + (K_{\psi}{-}1)$ long. \code{tau\_psi} and \code{alpha\_psi\_m} remain,
+being $\turnzero$'s own scale and decay.
+
+\paragraph{The rotation.} $R$ is a square \code{data} matrix over the coefficient block,
+identity unless a preconditioner has been built. Since it is constant its Jacobian is
+constant, so it changes no posterior. \file{src/dgsn/stan/precondition.py} builds it as
+$R = L^{-\mathsf T}$ with $LL^{\mathsf T}$ the Fisher information
+$J^{\mathsf T}\Sigma^{-1}J$ plus the prior precision, $J$ differenced from
+\file{jacobian.stan} so that the gauge is the fit's own.
+
+\paragraph{Relabeling.} \code{generated quantities} reports the sign branches
+$\code{flip\_q} = [\int_{0}^{v_{\max}} q_{1}\,\dd v < 0]$ and
+$\code{flip\_psi} = [\turnone(\arc_{\mathrm{g}+}) < 0]$, and the relabeled
+$\mathbf{a}_{\mathrm{rel}}, \mathbf{c}_{\mathrm{rel}}, x_{p,\mathrm{rel}},
+x_{\psi,\mathrm{rel}}$. It also reports \code{lp\_sn} per supernova,
+$\arc$ at the window ends, and the tapered and clamped fractions.
+
+\section{The declared constants}
+\label{sec:constants}
+
+From \file{src/dgsn/stan/data.py}. The third column is what
+\file{model-definition.tex} states.
+
+\begin{tabular}{llll}
+\toprule
+ & code & note & \\
+\midrule
+$\delta$                  & $5\times10^{-3}$ mag & $3\times10^{-4}$ mag & \textcolor{red}{differs} \\
+$\delta_{p}$              & $1.0$ d & $1.0$ d & \\
+$[\phase_{\min}, \phase_{\max}]$ & $[-20, +45]$ d & $[-20, +45]$ d & \\
+$[\arc_{\min}, \arcmax]$  & $[-8, +8]$ mag & $[-12, +6]$ mag & \textcolor{red}{differs} \\
+gauge span                & $[-6, +5]$ mag & $[-6, +5]$ mag & \\
+$\epsilon$                & $0.01$ & $0.01$ & \\
+$\epsilon_{t}$            & $0.02$ & $0.02$ & \\
+$\epsilon_{s}$            & $10^{-3}$ & $10^{-3}$ & \\
+$\zp$                     & $30$ & $30$ & \\
+$m$ (panels a side)       & $5$, so $M = 10$ & $10$, so $M = 20$ & \textcolor{red}{differs} \\
+$J$                       & $8$ & $8$ & \\
+$K_{\psi}, K_{q}$         & $24, 16$ & $24, 16$ & \\
+$\bar x_{s}$              & kept for \file{single\_sn.stan} only & withdrawn & \\
+\bottomrule
+\end{tabular}
+
+\section{Where the code and the note differ}
+\label{sec:differ}
+
+\paragraph{Three constants.} $\delta$ is seventeen times larger than the note states, the
+arclength interval is $[-8, +8]$ rather than $[-12, +6]$, and the quadrature uses half the
+panels. The first two were changed together when the basis was re-scaled onto the data; the
+third was taken as free on an accuracy budget. All three are recorded with their
+measurements in \file{docs/model-note-backlog.md}, and none has been written back into
+Sections~2.3 or~3.
+
+\paragraph{Two programs the note does not describe.} \file{hier\_nomode.stan} removes
+$\shapeturn\turnone$ from Eq.~(curvlin) of \file{model-definition.tex} entirely, and with it the turning pair's gauge
+and one of the two sign conventions. \file{jacobian.stan} exists only to supply $J$ for the
+preconditioner.
+
+\paragraph{One parameter the note does not describe.} The rotation $R$ is a
+reparameterization and so changes nothing inferentially, but the note's
+Section~5 does not mention it, and a reader of \file{hier.stan} meets it in the
+\code{data} block.
+
+\paragraph{Orders in use.} The constants declare $K_{\psi}, K_{q} = 24, 16$, but every fit
+run so far has passed $(12, 8)$ or $(24, 16)$ on the command line. The note's grid over
+$K_{\psi}$ and $K_{q}$ is still outstanding.
+
+\end{document}
