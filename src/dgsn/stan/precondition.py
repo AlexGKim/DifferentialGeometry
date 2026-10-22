@@ -108,7 +108,11 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
     w = np.atleast_1d(np.asarray(point["w_coef"], dtype=float))
     raw = w if R_src is None else np.asarray(R_src, dtype=float) @ w
     hyper = {k: float(point[k]) for k in HYPER}
-    per = {k: np.asarray(point[k], dtype=float) for k in ("m_peak", "colr", "x_s")}
+    per = {k: np.asarray(point[k], dtype=float) for k in ("m_peak", "colr")}
+    # x_s is a transformed parameter in a finished run's output, but has to be
+    # assembled from its pieces in an inits dict
+    per["x_s"] = (np.asarray(point["x_s"], dtype=float) if "x_s" in point
+                  else float(point["s_bar"]) + np.asarray(point["x_s_dev"], dtype=float))
     per["x_p"] = float(point["mu_p"]) + np.asarray(point["u_p"], dtype=float)
     per["x_psi"] = float(point["mu_psi"]) + np.asarray(point["u_psi"], dtype=float)
     per["delta_t"] = (float(point["mu_delta"])

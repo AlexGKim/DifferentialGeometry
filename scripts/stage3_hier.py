@@ -34,12 +34,21 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     lp0, grad = log_prob(name, data, point)
     # flatten the parameter dict in Stan's order to index the gradient
     names = list(model(name).src_info()["parameters"].keys())
+    # Stan's gradient is on the unconstrained scale, where a sum_to_zero_vector
+    # of length N carries N - 1 coordinates though it is reported as N.  Index
+    # by the constrained length and every block after it is off by one, which
+    # showed up here as a finite-difference mismatch of 87.
+    short = {"x_s_dev": 1}
     flat = []
     for n in names:
         v = np.atleast_1d(np.asarray(point[n], dtype=float))
-        flat += [(n, i) for i in range(len(v))]
+        flat += [(n, i) for i in range(len(v) - short.get(n, 0))]
     rng = np.random.default_rng(seed)
-    idx = rng.choice(len(flat), min(n_coords, len(flat)), replace=False)
+    # x_s_dev is a sum_to_zero_vector: moving one element alone leaves the
+    # constraint violated and Stan rejects the point.  x_s reaches the forward
+    # map as s_bar + x_s_dev and s_bar is checked, so the path is covered.
+    movable = [j for j, (nm, _) in enumerate(flat) if nm != "x_s_dev"]
+    idx = rng.choice(movable, min(n_coords, len(movable)), replace=False)
     worst = 0.0
     for j in idx:
         n, i = flat[j]
@@ -197,7 +206,12 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, n: int = 4, seed:
         # about them: mu_p and mu_delta are the slowest-mixing directions
         # measured, so four chains sharing them would leave the check
         # blind to exactly what it is meant to test.
-        for key, w in (("mu_p", 1.0), ("mu_psi", 1.0), ("mu_delta", 0.5)):
+        if "x_s_dev" in s:
+            # stay on the sum-to-zero hyperplane, or the start is invalid
+            j = 0.3 * rng.normal(size=len(s["x_s_dev"]))
+            s["x_s_dev"] = s["x_s_dev"] + j - j.mean()
+        for key, w in (("mu_p", 1.0), ("mu_psi", 1.0), ("mu_delta", 0.5),
+                       ("s_bar", 0.3)):
             if key in s:
                 s[key] = s[key] + w * float(rng.normal())
         for key, w in (("m_peak", 0.3), ("colr", 0.3), ("x_s", 0.3),

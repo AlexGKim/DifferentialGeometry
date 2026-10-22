@@ -43,7 +43,7 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         N_sn=len(names), N=pos - 1,
         dt=np.concatenate(dt), f=np.concatenate(f), sig_f=np.concatenate(sig_f),
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
-        z=np.array(z), m_bright=np.array(m_bright), xs_bar=D.XS_BAR, grainsize=int(grainsize),
+        z=np.array(z), m_bright=np.array(m_bright), grainsize=int(grainsize),
         R=np.eye(n_coef(k_psi, k_q, mode)) if R is None else np.asarray(R, dtype=float),
     )
     return data
@@ -100,7 +100,8 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         mu_p=G["x_p"], mu_delta=0.0, s_delta=1.0,
         m_peak=np.array([p["m_peak"] for p in per]),
         colr=np.array([p["colr"] for p in per]),
-        x_s=np.full(len(names), G["x_s"]),
+        s_bar=G["x_s"],                # the mean log rate; the deviations carry the rest
+        x_s_dev=np.zeros(len(names)),  # sums to zero, as sum_to_zero_vector requires
         u_p=np.zeros(len(names)),      # x_p starts at mu_p = the SALT2 reference
         u_del=np.zeros(len(names)),
     )

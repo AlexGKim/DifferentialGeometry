@@ -674,20 +674,41 @@ The scatters are flat on $\sigma_{g}, \sigma_{r} > 0$. The time origin is writte
 $\tmax = t_{0} + \Delta$ with $\Delta \sim \mathcal{N}(\mu_{\Delta}, s_{\Delta}^{2})$,
 $\mu_{\Delta}$ flat and $s_{\Delta}$ flat on $s_{\Delta} > 0$: $t_{0}$ is $B$ maximum and
 $\tmax$ is $g$ maximum, and the offset between them is measured by the fit, centre and
-sign included, rather than assumed. $\xstretch \sim \mathcal{N}(\bar x_{s}, 1)$ with
-$\bar x_{s}$ the mean of $\log\,\dd\arc/\dd\phase$ in $v$ of the \salt\ track at the
-sample-median $x_{1}$, $-3.0$, produced by the same fit that supplies the start below:
-with $\bar q_{0} = 0$ in $v$ it is that mean $\xstretch$ carries outright, and not the log of
-a mean speed --- the $v$ measure weights the anchor, where the rate is smallest, so the two
-differ by more than a unit ($-1.8$ for the log of the median span over the window against
-$-3.0$ here, the same to $0.1$ across $x_{1}$ and for the \citet{Hsiao2007} template).
-A unit width is far wider than the spread of stretch across normal \sneia. $\peakmag \sim \mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$
+sign included, rather than assumed. The traversal basis of \eqref{eq:basisq} drops the constant Legendre term, so
+$\bar q_{0} = 0$ identically and $q_{0}$ cannot carry the mean log rate: it is $\xstretch$
+that carries it outright, and not the log of a mean speed --- the $v$ measure weights the
+anchor, where the rate is smallest, so the two differ by more than a unit ($-1.8$ for the log
+of the median span over the window against $-3.0$ here, the same to $0.1$ across $x_{1}$ and
+for the \citet{Hsiao2007} template). That mean is written as a parameter of its own,
+\begin{equation}
+  x_{s,n} = \bar s + \delta_{n} , \qquad \sum_{n} \delta_{n} = 0 ,
+  \label{eq:xsmean}
+\end{equation}
+with $\bar s$ flat. The constraint is what fixes the split, and nothing is assumed about how
+the $\xstretch$ are distributed: a fitted mean with a normal population prior would instead
+assume them Gaussian, which a sum over the realized values does not. The two
+parameterizations span the same thirty coordinates and, under flat priors, the same
+posterior; writing the mean separately makes the common mode of the block one coordinate
+rather than thirty, for the reason the deviations of $x_p$ and $\Delta$ are written the same
+way.
+
+An earlier version of this section centred $\xstretch$ on $\bar x_{s}$, the mean of
+$\log\,\dd\arc/\dd\phase$ in $v$ of the \salt\ track at the sample-median $x_{1}$, $-3.0$.
+That was a template-derived constant inside the prior rather than the start, and it was
+misplaced: the first hierarchical fits put the population mean at $-2.85$ and $-2.70$ at
+$K_{\psi} = 12$ and $24$, $2.3$ and $3.1$ standard deviations away, while the realized
+spread of $\xstretch$ across thirty objects was $0.12$ to $0.25$ against a prior width of
+unity, and no object drew as much as a tenth of its precision from it. $\peakmag \sim \mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$
 with $m_{g}^{\mathrm{bright}}$ the magnitude of the brightest good $g$ epoch, the SED-free
 anchor of Section~\ref{sec:samples}, and $\colr \sim \mathcal{N}(0, 1)$, a magnitude wide.
 
 None of these is informative against the data, and each is there to make the posterior
 proper. With flat priors the likelihood tends to a positive constant as
-$\xstretch \to -\infty$, where the supernova freezes at peak; as $\peakmag \to +\infty$ or
+$\xstretch \to -\infty$, where the supernova freezes at peak, so \eqref{eq:xsmean} cannot be
+left flat however uninformative a prior would be where the data are: $\bar s$ is given
+$\mathcal{N}(0, 10^{2})$ and the deviations $\mathcal{N}(0, 1)$, the first against a mean the
+data pin to $0.07$ and the second four to eight times wider than the spread it bounds, so
+each is a propriety condition and neither is a population model; as $\peakmag \to +\infty$ or
 $\colr \to -\infty$, where the predicted flux vanishes; and as $\alpha \to \infty$, where
 every mode but the first has gone and the fit is poor but finite. A chain started in any of
 those tails would stay there, and a flat prior over them integrates to infinity.

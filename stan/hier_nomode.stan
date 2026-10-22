@@ -33,7 +33,6 @@ data {
   array[N_sn] int<lower=1> stop;
   vector[N_sn] z;
   vector[N_sn] m_bright;
-  real xs_bar;
   int<lower=1> grainsize;
   // As hier.stan, but over the shorter block: z_a, b_til, d_til, with no z_c.
   matrix[2 * (Kq - 1) + (Kpsi - 1), 2 * (Kq - 1) + (Kpsi - 1)] R;
@@ -69,11 +68,27 @@ parameters {
   real<lower=0> s_delta;
   vector[N_sn] m_peak;
   vector[N_sn] colr;
-  vector[N_sn] x_s;
+  // The mean log rate as a named global, and the per-supernova part summing
+  // to zero.  The traversal basis drops the constant Legendre term, so
+  // qbar_0 = 0 identically and q_0 cannot carry the mean: it has to live in
+  // x_s, and Section 5 used to centre x_s's prior on a \salt\ track's value,
+  // -3.0.  Measured, that prior was both misplaced and idle --- the
+  // population mean came out -2.85 and -2.70 at the two orders, 2.3 and 3.1
+  // sigma away, while the realized spread of x_s was 0.12 to 0.25 against a
+  // prior sd of 1, and no object of thirty drew as much as a tenth of its
+  // precision from it.  Naming the mean and constraining the deviations to
+  // sum to zero removes the template constant and assumes nothing about how
+  // the population is distributed, where a fitted mean with a normal prior
+  // would assume it is Gaussian.  sum_to_zero_vector is an orthogonal
+  // transform carrying N_sn - 1 unconstrained coordinates, so it adds no
+  // degeneracy of its own.
+  real s_bar;
+  sum_to_zero_vector[N_sn] x_s_dev;
   vector[N_sn] u_p;                // x_p = mu_p + u_p
   vector[N_sn] u_del;              // delta_t = mu_delta + s_delta u_del
 }
 transformed parameters {
+  vector[N_sn] x_s = s_bar + x_s_dev;
   vector[N_sn] x_p = mu_p + u_p;
   vector[N_sn] delta_t = mu_delta + s_delta * u_del;
   vector[Kq - 1] z_a;
@@ -106,7 +121,18 @@ model {
   alpha_psi_m ~ exponential(1);
   u_p ~ std_normal();              // x_p ~ N(mu_p, 1)
   u_del ~ std_normal();            // delta_t ~ N(mu_delta, s_delta)
-  x_s ~ normal(xs_bar, 1);
+  // Propriety, not population structure.  Section 5 records that with a flat
+  // prior the likelihood tends to a positive constant as x_s -> -infinity,
+  // where the supernova freezes at peak, so some proper prior in that
+  // direction is required however uninformative it is in the bulk.  Neither of
+  // these is a population model: no distribution over the x_s is inferred, and
+  // the widths are deliberately far looser than the data -- s_bar is pinned to
+  // about 0.07 and the realized spread of the deviations is 0.12 to 0.25, so
+  // the normal below is four to eight times too wide to shape either.  What
+  // they replace is a prior centred on a \salt\ track's -3.0, which was 2.3
+  // to 3.1 sigma from where the data put the mean.
+  s_bar ~ normal(0, 10);
+  x_s_dev ~ normal(0, 1);
   m_peak ~ normal(m_bright, 1);
   colr ~ normal(0, 1);
   target += reduce_sum(partial_sum, sn_index, grainsize,

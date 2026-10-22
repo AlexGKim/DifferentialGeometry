@@ -59,7 +59,8 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
     d2.update(D.prior_data(prior_on=True, mu_p=ini["mu_p"], mu_psi=ini["mu_psi"], mu_delta=0.0,
                            s_delta=1.0, xs_bar=D.XS_BAR, m_bright=ep["m_bright"]))
     p2 = dict(m_peak=float(ini["m_peak"][0]), colr=float(ini["colr"][0]),
-              x_s=float(ini["x_s"][0]), x_p=ini["mu_p"] + float(ini["u_p"][0]),
+              x_s=float(ini["s_bar"]) + float(ini["x_s_dev"][0]),
+              x_p=ini["mu_p"] + float(ini["u_p"][0]),
               x_psi=ini["mu_psi"] + float(ini["u_psi"][0]),
               delta_t=ini["mu_delta"] + ini["s_delta"] * float(ini["u_del"][0]))
     lp2, _ = log_prob("single_sn", d2, p2)
@@ -79,8 +80,17 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
         w = tau * (kk / np.exp(np.log(kk).mean())) ** -2.0
         extra += float(np.sum(-np.log(w) - 0.5 * (ini[k] / w) ** 2))
     extra += -(ini["alpha_q_m"] + ini["alpha_psi_m"])
-    print(f"single_sn lp {lp2:.6f}, hier lp - extras {lph - extra:.6f}")
-    assert abs((lph - extra) - lp2) < 1e-6
+    # single_sn keeps x_s ~ normal(xs_bar, 1); the hierarchy dropped it when the
+    # mean log rate became s_bar with the deviations summing to zero, so that
+    # term has to come off single_sn's side of the comparison.
+    x_s1 = float(ini["s_bar"]) + float(ini["x_s_dev"][0])
+    p_xs = -0.5 * (x_s1 - D.XS_BAR) ** 2
+    # and hier's own propriety priors, which single_sn has no counterpart for
+    extra += -0.5 * (float(ini["s_bar"]) / 10.0) ** 2
+    extra += -0.5 * float(np.sum(np.square(ini["x_s_dev"])))
+    print(f"single_sn lp {lp2:.6f} (x_s prior {p_xs:.6f}), "
+          f"hier lp - extras {lph - extra:.6f}")
+    assert abs((lph - extra) - (lp2 - p_xs)) < 1e-6
 
 
 def test_gauge_and_signs(sample, names, G):

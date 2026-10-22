@@ -50,7 +50,11 @@ M_PER_SIDE = 5
 J_POINTS = 8                 # Gauss-Legendre points per panel
 
 # Section 5
-XS_BAR = -3.0                # mean log rate in v of the sample-median SALT2 track (dgsn.salt.globals.fit_globals gives -3.04)
+# A \salt\-derived mean log rate in v, at the sample-median x_1.  No longer a
+# prior centre for the hierarchy, which names the mean as s_bar and constrains
+# the per-supernova deviations to sum to zero; kept for single_sn.stan, where
+# one object has no population to sum over, and as a starting value.
+XS_BAR = -3.0
 K_PSI = 24                   # turning order, Section 2.3
 K_Q = 16                     # traversal order at stage 2, remeasured in v by scripts/salt_orders.py
 
