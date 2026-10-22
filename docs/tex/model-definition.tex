@@ -860,6 +860,98 @@ the same way: without it, a disagreement between prediction and data has two can
 sources rather than one.
 
 
+\appendix
+
+\section{The scale of the time offset}
+\label{app:sdelta}
+
+Section~\ref{sec:inference} writes the time origin as $\tmax = t_{0} + \Delta$ with
+$\Delta_{n} = \mu_{\Delta} + s_{\Delta}u_{n}$ over $N$ supernovae, $u_{n}$ standard normal
+and $s_{\Delta}$ flat on $s_{\Delta} > 0$. The likelihood reaches this pair only through
+$\Delta_{n}$, which leaves a one-parameter redundancy: for any $\lambda > 0$ the map
+\begin{equation}
+  (s_{\Delta},\, \mathbf{u}) \longmapsto (\lambda s_{\Delta},\, \mathbf{u}/\lambda)
+  \label{eq:deltaridge}
+\end{equation}
+fixes every $\Delta_{n}$, and so the likelihood exactly, while the log prior changes by
+\begin{equation}
+  \tfrac{1}{2}\bigl(1 - \lambda^{-2}\bigr)\sum_{n} u_{n}^{2} ,
+  \label{eq:ridgegain}
+\end{equation}
+which increases monotonically to $\tfrac{1}{2}\sum_{n}u_{n}^{2}$. The joint density has no
+stationary point along \eqref{eq:deltaridge}: its supremum is at $s_{\Delta} \to \infty$,
+$\mathbf{u} \to \mathbf{0}$. At the thirty-supernova posterior $\sum_{n}u_{n}^{2} = 14.6$,
+so \eqref{eq:ridgegain} predicts $7.31$ nats against $7.3$ measured by walking
+\eqref{eq:deltaridge} out from that posterior, flat to machine precision by
+$\lambda = 30$ --- which is where an optimizer stops, returning $s_{\Delta} = 5.48$ against
+a posterior $0.186$.
+
+This is a property of the coordinates and not of the posterior. Changing variables from
+$\mathbf{u}$ to $\boldsymbol{\Delta}$ at fixed $(\mu_{\Delta}, s_{\Delta})$ carries a
+Jacobian $s_{\Delta}^{N}$, so the same posterior reads
+\begin{equation}
+  p(\mu_{\Delta}, s_{\Delta}, \boldsymbol{\Delta}) \propto
+  s_{\Delta}^{-N}\exp\Bigl(-\frac{1}{2s_{\Delta}^{2}}
+  \sum_{n}(\Delta_{n}-\mu_{\Delta})^{2}\Bigr)\,
+  \mathcal{L}(\boldsymbol{\Delta}) ,
+  \label{eq:deltacentred}
+\end{equation}
+whose derivative in $s_{\Delta}$ vanishes at
+\begin{equation}
+  \hat{s}_{\Delta}^{2} = \frac{1}{N}\sum_{n}(\Delta_{n}-\mu_{\Delta})^{2} ,
+  \label{eq:sdeltahat}
+\end{equation}
+which is finite. The $s_{\Delta}^{-N}$ that bounds it is the Jacobian that the
+$\mathbf{u}$ parameterization carries in its measure instead; the posterior is the same
+either way and is proper, the volume of $\mathbf{u}$ holding $\mathcal{L}$ up shrinking as
+$\lambda^{-N}$ along \eqref{eq:deltaridge}. A mode is not invariant under
+reparameterization where a distribution is, so an optimizer run in $\mathbf{u}$ reports a
+divergence the posterior does not have, and the sampler of
+Section~\ref{sec:inference} is not affected by it.
+
+It also gives the correction exactly. Moving along \eqref{eq:deltaridge} with
+$\lambda = \lVert\mathbf{u}\rVert/\sqrt{N}$ takes $\mathbf{u}$ to unit root-mean-square and
+$s_{\Delta}$ to
+\begin{equation}
+  s_{\Delta}\sqrt{\frac{1}{N}\sum_{n}u_{n}^{2}}
+    = \sqrt{\frac{1}{N}\sum_{n}(s_{\Delta}u_{n})^{2}} = \hat{s}_{\Delta} ,
+  \label{eq:replace}
+\end{equation}
+so re-placing a mode this way is not a heuristic rescaling: it lands on
+\eqref{eq:sdeltahat}, the conditional mode in $\boldsymbol{\Delta}$, and leaves every
+$\Delta_{n}$ untouched. That is what makes an optimum usable as a starting point.
+
+\section{A catalogued floor on the offset}
+\label{app:t0floor}
+
+$t_{0}$ enters the fit as data through \eqref{eq:modeltime} and \ztf\ DR2 reports an
+uncertainty for it per object, which a single fitted $s_{\Delta}$ discards. Writing
+$\sigma_{n}$ for that uncertainty,
+\begin{equation}
+  \Delta_{n} = \mu_{\Delta} + w_{n}u_{n} , \qquad
+  w_{n} = \sqrt{\sigma_{n}^{2} + s_{*}^{2}} ,
+  \label{eq:deltafloor}
+\end{equation}
+lets no object's offset scatter by less than the error already reported for it, and leaves
+$s_{*}$ to measure what is left over. The present prior is $\sigma_{n} = 0$ and a
+catalogue-only prior is $s_{*} = 0$, so \eqref{eq:deltafloor} contains both. Over the
+thirty the catalogued uncertainties have root-mean-square $0.160$~d and range across a
+factor of $8.2$, where the fit returns one $s_{\Delta}$ of $0.187$; over the training
+sample the root-mean-square is $0.194$~d and the range a factor of a hundred. Equating
+$s_{\Delta}^{2} = \overline{\sigma^{2}} + s_{*}^{2}$ on the thirty predicts
+$s_{*} \simeq 0.10$~d, so the catalogue accounts for most of the fitted scatter and not
+all of it.
+
+What \eqref{eq:deltafloor} does not do is remove \eqref{eq:deltaridge}. Taking
+$u_{n}' = u_{n}w_{n}(s_{*})/w_{n}(s_{*}')$ fixes every $\Delta_{n}$ as before, and the log
+prior still gains, tending to $\tfrac{1}{2}\sum_{n}u_{n}^{2}$ as $s_{*}' \to \infty$
+because $w_{n} \to s_{*}'$ for every $n$ whatever the $\sigma_{n}$ are. The redundancy
+belongs to a free scale multiplying a standard normal and survives any floor; what bounds
+it is a proper prior on $s_{*}$, or reading the mode in $\boldsymbol{\Delta}$ as above.
+The case for \eqref{eq:deltafloor} is therefore that it uses a per-object measurement the
+present prior averages over, not that it repairs the geometry. It does bring a
+\salt-derived uncertainty into the prior, where $t_{0}$ itself is already in the data.
+
 \bibliographystyle{plainnat}
 \bibliography{refs}
 
