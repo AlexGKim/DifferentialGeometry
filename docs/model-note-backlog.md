@@ -1082,3 +1082,48 @@ at these orders. And the light-curve and traversal halves of the table are not m
 at all: the refinement in `track_fit.stan` diverges at `K_q >= 32` and at `x1 = -2`, giving
 entries of `1e52`, and the two quadrature resolutions disagree by up to sevenfold. The grid
 over `K_psi` and `K_q` that Section 5.2 still owes cannot be run until that is fixed.
+
+### The turning mode and the mean turning do not have the same information budget (2026-10-22)
+
+The first hierarchical fit at the declared orders, $K_{\psi} = 24$, $K_q = 16$, on thirty
+supernovae, 500 warmup and 500 sampling, unrotated: 64327 s, 2047 leapfrogs a draw, 1.7
+percent at the treedepth cap, 2.25 percent divergent.
+
+It fits better than $(12, 8)$ and it does not converge. Better: `-2 lp` per epoch 16.98
+against 17.05, and the intrinsic scatter falls from `0.0357` and `0.0407` to `0.0337` and
+`0.0346`, the extra freedom absorbing structure the smaller basis left in the residual ---
+so the scatter this model reports is a function of the order and cannot be quoted without
+it. Not converged: `R-hat` reaches 1.44 on `d` and 1.33 on `c_rel` with effective sample
+sizes of 8 and 10, and the step sizes split 1.93--2.09e-3 against 2.92--2.97e-3, a spread of
+1.54 where the pace criterion wants 1.2.
+
+The two are the same fact, and the failure is confined to one object. All four chains are in
+the bulk and agree on everything the epochs constrain: `lp` within 17 nats of 13300, the two
+scatters within 1 to 4 percent, and the mean turning `d` agreeing in direction to a pairwise
+cosine of 0.924 to 0.999 at norms 5.35 to 5.73. The turning *mode* does not agree at all ---
+`c_rel` has pairwise cosines from 0.134 to 0.996 and norms from 0.289 to 0.684. Each chain
+picked a different mode direction, scaled its amplitudes to match, and earned the same
+likelihood.
+
+The reason is in the structure. With $\psi = \bar\Psi(d) + x_{\psi}\Psi_1(c)$, one
+supernova's epochs see only the combination, so `d` and `c` are separated by the variation of
+$x_{\psi}$ *across* objects. `d` is therefore informed by all 1568 epochs and `c` only by
+that spread, which is thirty numbers however many epochs there are. Measured:
+
+| | $\Psi_1$ components | $x_{\psi}$ width per object | spread of object means | ratio |
+|---|---|---|---|---|
+| $K_{\psi} = 12$ | 11 | 0.91 | 0.76 | 0.83 |
+| $K_{\psi} = 24$ | 23 | 1.52 | 0.62 | 0.41 |
+
+At the declared order the across-object signal is less than half the per-object uncertainty,
+so the objects cannot be told apart in $x_{\psi}$ and the mode direction has no leverage;
+both quantities move the wrong way at once as the order rises.
+
+Three consequences. A preconditioning rotation will not fix this: whitening is a
+reparameterization and adds no information, so it cannot identify a direction the data do
+not constrain. The orders for the mode and for the mean turning are separate modelling
+choices that the model currently ties together, and separating them is the change this
+measurement argues for. And the test of whether $K_{\psi} = 24$ is identifiable at all is
+sample size, not sampler: at 442 objects the across-object spread is informed by 442 numbers
+rather than 30, so stage 4 decides it. Until then the mean turning, the scatters and the fit
+quality of this run are usable and $\Psi_1$ and $x_{\psi}$ are not.
