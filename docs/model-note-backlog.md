@@ -1105,10 +1105,26 @@ cosine of 0.924 to 0.999 at norms 5.35 to 5.73. The turning *mode* does not agre
 picked a different mode direction, scaled its amplitudes to match, and earned the same
 likelihood.
 
-The reason is in the structure. With $\psi = \bar\Psi(d) + x_{\psi}\Psi_1(c)$, one
-supernova's epochs see only the combination, so `d` and `c` are separated by the variation of
-$x_{\psi}$ *across* objects. `d` is therefore informed by all 1568 epochs and `c` only by
-that spread, which is thirty numbers however many epochs there are. Measured:
+The reason is in the spectrum, and an earlier version of this record had it wrong. With
+\eqref{eq:curvlin}'s $\psi = -\pi/2 + \Psi_0 + x_{\psi}\Psi_1$ one supernova's epochs see
+only the combination, from which that version concluded that $\Psi_1$ is informed by the
+thirty across-object values of $x_{\psi}$ alone, however many epochs there are. That is
+false. $\hat e_c$ is a single phase-independent direction and the epochs do bear on it: the
+Fisher information on the `z_c` block, Schur-complemented against every other coefficient so
+that the rest of the basis absorbs what it can, has trace `1181` with the across-object
+spread removed *entirely*, the gauge conditions preventing $\Psi_0$ from absorbing
+$\bar x_{\psi}\Psi_1$. It rises to `5332` at the fitted spread of `0.229` and `18700` at
+double it, so the spread multiplies the information roughly quadratically rather than
+supplying it.
+
+What fails is the steepness. Those 23 eigenvalues are `4283`, `864`, `103`, `40.7`, `8.7`,
+`6.6`, `3.05`, `2.83`, `2.45`, `2.03`, `1.63` and then twelve more down to `1.00`, against a
+prior precision of 1: four directions are informed, nineteen lie within a factor of ten of
+the prior, and from the eleventh they *are* the prior to two digits. The posterior agrees
+independently, concentrating $\hat e_c$ on 4.1 effective dimensions where $K_{\psi} = 12$
+gives 1.3 --- a prior damped as $k^{-1.33}$ over four informed directions. Asking 23
+coefficients to carry four directions' worth of information is what leaves the rest
+wandering. The per-supernova amplitudes degrade with it:
 
 | | $\Psi_1$ components | $x_{\psi}$ width per object | spread of object means | ratio |
 |---|---|---|---|---|
@@ -1116,14 +1132,22 @@ that spread, which is thirty numbers however many epochs there are. Measured:
 | $K_{\psi} = 24$ | 23 | 1.52 | 0.62 | 0.41 |
 
 At the declared order the across-object signal is less than half the per-object uncertainty,
-so the objects cannot be told apart in $x_{\psi}$ and the mode direction has no leverage;
-both quantities move the wrong way at once as the order rises.
+so the objects are barely resolved from one another in $x_{\psi}$ and the quadratic factor
+the spread contributes is small; both quantities move the wrong way at once as the order
+rises.
 
 Three consequences. A preconditioning rotation will not fix this: whitening is a
 reparameterization and adds no information, so it cannot identify a direction the data do
 not constrain. The orders for the mode and for the mean turning are separate modelling
 choices that the model currently ties together, and separating them is the change this
-measurement argues for. And the test of whether $K_{\psi} = 24$ is identifiable at all is
-sample size, not sampler: at 442 objects the across-object spread is informed by 442 numbers
-rather than 30, so stage 4 decides it. Until then the mean turning, the scatters and the fit
-quality of this run are usable and $\Psi_1$ and $x_{\psi}$ are not.
+measurement argues for; the spectrum puts the mode's content at four directions here, which
+is a $K_{c}$ between six and twelve, and $12$ is the value already shown to work.
+
+A forecast for stage 4, which the spectrum supports and a count of objects does not.
+Information adds over supernovae and the prior precision on `z_c` is the identity, so
+scaling the measured eigenvalues' data part by $442/30$ gives 11 of 23 directions above ten
+times the prior and 18 above twice it, against 4 and 10 at thirty objects. So the training
+sample should identify about as many turning directions as $K_{\psi} = 12$ supplies, and
+not all 23: the full sample improves the mode but does not by itself justify the declared
+order for it. Until stage 4 runs, the mean turning, the scatters and the fit quality of this
+run are usable and $\Psi_1$ and $x_{\psi}$ are not.
