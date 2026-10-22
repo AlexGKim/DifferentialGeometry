@@ -212,11 +212,26 @@ def from_optimize(data: dict, inits: dict, k_psi: int, k_q: int, name: str = "hi
     rotation needs only a point where the model fits the data, which
     ``optimize`` reaches in minutes where a pilot fit takes hours.  Measured,
     it is worse than no rotation at all: 4095 leapfrogs a draw against 2047
-    unpreconditioned, and 48 percent of transitions divergent.  A
-    hierarchical joint mode sits where the variances collapse, so the weights
-    ``(f/sigma)^2`` and the prior precision are both wrong there, and the
-    Fisher information describes a posterior that is not this one.  Use
-    ``from_run``, which carries a previous posterior across a change of basis.
+    unpreconditioned, and 48 percent of transitions divergent.
+
+    The reason is not that the variances collapse there, which is what this
+    docstring said until it was measured: ``sigma_g`` and ``sigma_r`` land
+    within a fifth of their posteriors and the taus within a factor of 1.7.
+    What runs away is ``s_delta``, at 5.48 against a posterior 0.186.  It is
+    the one non-centred pair left --- the gauge removes ``a``'s and ``c``'s
+    scale, so the taus are informed by the centred ``b_til`` and ``d_til`` ---
+    and scaling ``s_delta`` by any factor while dividing ``u_del`` by it
+    leaves ``delta_t``, and so the likelihood, untouched while the prior
+    ``-1/2 sum u_del^2`` rises toward zero.  Measured along that ridge the log
+    density gains 7.3 nats monotonically and plateaus by a factor of 30, which
+    is where the optimizer stopped: the constrained-scale mode is not finite
+    in ``s_delta``.  A Fisher built there mis-scales the per-supernova timing
+    block by thirty.
+
+    Use ``from_run``, which carries a previous posterior across a change of
+    basis.  To start a *sampler* from this mode instead, re-place it on the
+    ridge first --- ``s_delta`` to sd(``delta_t`` - ``mu_delta``) and ``u_del``
+    to match --- which keeps the fit and fixes the scaling.
     """
     from dgsn.stan.run import optimize
 

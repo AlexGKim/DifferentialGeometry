@@ -22,8 +22,12 @@ INIT_SIGMA = 0.05       # mag; a scatter the first iterations can live with
 
 
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
-          sample=None, R=None) -> dict:
-    """The data block of ``hier.stan`` for the objects ``names``."""
+          sample=None, R=None, mode: bool = True) -> dict:
+    """The data block of ``hier.stan`` for the objects ``names``.
+
+    ``mode=False`` is for ``hier_nomode.stan``, where Eq. (curvlin) carries no
+    ``x_psi Psi_1`` term, so the coefficient block is shorter by ``Kpsi - 1``
+    and ``R`` with it."""
     sample = analysis_sample() if sample is None else sample
     dt, f, sig_f, band, z, m_bright, start, stop = [], [], [], [], [], [], [], []
     pos = 1
@@ -40,29 +44,33 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         dt=np.concatenate(dt), f=np.concatenate(f), sig_f=np.concatenate(sig_f),
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), xs_bar=D.XS_BAR, grainsize=int(grainsize),
-        R=np.eye(n_coef(k_psi, k_q)) if R is None else np.asarray(R, dtype=float),
+        R=np.eye(n_coef(k_psi, k_q, mode)) if R is None else np.asarray(R, dtype=float),
     )
     return data
 
 
-def n_coef(k_psi: int, k_q: int) -> int:
-    """The rotated block: z_a, b_til, z_c, d_til laid end to end."""
-    return 2 * (k_q - 1) + 2 * (k_psi - 1)
+def n_coef(k_psi: int, k_q: int, mode: bool = True) -> int:
+    """The rotated block: z_a, b_til, z_c, d_til laid end to end, or without
+    z_c when the turning mode is absent."""
+    return 2 * (k_q - 1) + (2 if mode else 1) * (k_psi - 1)
 
 
-def pack(z_a, b_til, z_c, d_til) -> np.ndarray:
-    """The coefficient coordinates in the order ``hier.stan`` slices them."""
-    return np.concatenate([np.asarray(v, dtype=float) for v in (z_a, b_til, z_c, d_til)])
+def pack(*vectors) -> np.ndarray:
+    """The coefficient coordinates in the order the program slices them:
+    ``z_a, b_til, z_c, d_til``, or ``z_a, b_til, d_til`` without the mode."""
+    return np.concatenate([np.asarray(v, dtype=float) for v in vectors])
 
 
-def unpack(raw, k_psi: int, k_q: int) -> dict:
+def unpack(raw, k_psi: int, k_q: int, mode: bool = True) -> dict:
     n1, n3 = k_q - 1, k_psi - 1
     raw = np.asarray(raw, dtype=float)
+    if not mode:
+        return dict(z_a=raw[:n1], b_til=raw[n1:2*n1], d_til=raw[2*n1:2*n1+n3])
     return dict(z_a=raw[:n1], b_til=raw[n1:2*n1], z_c=raw[2*n1:2*n1+n3], d_til=raw[2*n1+n3:])
 
 
 def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None,
-          tau: dict | None = None, R=None) -> dict:
+          tau: dict | None = None, R=None, mode: bool = True) -> dict:
     """Initial values: per-supernova from SALT2 and the sample, global
     functions from the SALT2 fits.  ``tau`` defaults to the norm the SALT2
     coefficients imply at ``INIT_ALPHA``, so that ``z`` starts near unit scale
@@ -80,21 +88,96 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         tau = dict(q=float(np.sqrt(np.mean((G["b"] / wq) ** 2))),
                    psi=float(np.sqrt(np.mean((G["d"] / wp) ** 2))))
     per = [per_sn_start(sample.loc[n]) for n in names]
-    raw = pack(G["a"] / wq, G["b"], G["c"] / wp, G["d"])
-    return dict(
+    raw = (pack(G["a"] / wq, G["b"], G["c"] / wp, G["d"]) if mode
+           else pack(G["a"] / wq, G["b"], G["d"]))
+    out = dict(
         # w = R^-1 raw, so that the start is the same point whatever rotation
         # is in force
         w_coef=raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw),
         tau_q=tau["q"], tau_psi=tau["psi"],
         alpha_q_m=INIT_ALPHA - 0.5, alpha_psi_m=INIT_ALPHA - 0.5,
         sigma_g=INIT_SIGMA, sigma_r=INIT_SIGMA,
-        mu_p=G["x_p"], mu_psi=G["x_psi"], mu_delta=0.0, s_delta=1.0,
+        mu_p=G["x_p"], mu_delta=0.0, s_delta=1.0,
         m_peak=np.array([p["m_peak"] for p in per]),
         colr=np.array([p["colr"] for p in per]),
         x_s=np.full(len(names), G["x_s"]),
         u_p=np.zeros(len(names)),      # x_p starts at mu_p = the SALT2 reference
-        u_psi=np.zeros(len(names)), u_del=np.zeros(len(names)),
+        u_del=np.zeros(len(names)),
     )
+    if mode:
+        out.update(mu_psi=G["x_psi"], u_psi=np.zeros(len(names)))
+    return out
+
+
+def _from_mode(mode: dict, name: str):
+    """One parameter out of an ``optimize`` result, scalar or vector.
+
+    CmdStan reports ``tau_q`` but ``u_del[1]``, so the shape has to be
+    discovered rather than assumed."""
+    if name in mode:
+        return float(mode[name])
+    vals = []
+    i = 1
+    while f"{name}[{i}]" in mode:
+        vals.append(mode[f"{name}[{i}]"])
+        i += 1
+    if not vals:
+        raise KeyError(f"{name} not in the optimize result")
+    return np.array(vals, dtype=float)
+
+
+def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: int,
+                        mode: bool = True, verbose: bool = True) -> dict:
+    """Initial values from Stan's own optimizer on the data, re-placed on the
+    ``s_delta`` ridge.
+
+    Why this exists.  Section 5 starts the chains at a \\salt\\ fit, which the
+    third standing commitment permits as its one exemption, licensed by
+    dispersed-start agreement.  A start found by optimizing the model's own
+    log density on the observed epochs needs no exemption: the only template
+    left is the one that starts the optimizer, a dependence on a basin rather
+    than on a point.
+
+    Why the re-placement.  The constrained-scale mode is *not finite* in
+    ``s_delta``.  Scaling ``s_delta`` by any factor while dividing ``u_del``
+    by it leaves ``delta_t``, and so the likelihood, exactly unchanged, while
+    the prior ``-1/2 sum u_del^2`` rises toward zero; measured along that
+    ridge the log density gains 7.3 nats monotonically and is flat to machine
+    precision by a factor of thirty, which is where the optimizer stops --- it
+    returned ``s_delta`` 5.48 against a posterior 0.186.  Starting a sampler
+    there mis-scales the per-supernova timing block by thirty.  Taking
+    ``u_del`` to unit rms and ``s_delta`` to match moves along the ridge to
+    where the non-centred pair is well scaled, and changes no fitted
+    magnitude: ``delta_t`` is preserved exactly.
+
+    It is the only pair needing this.  The gauge removes the scale of ``a``
+    and ``c``, so ``tau_q`` and ``tau_psi`` are informed by the centred
+    ``b_til`` and ``d_til`` and land within a factor of 1.7 of their
+    posteriors, as do both scatters.
+    """
+    from dgsn.stan.run import optimize
+
+    m = optimize(program, data, start, jacobian=False)
+    keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_g", "sigma_r",
+            "mu_p", "mu_delta", "s_delta", "m_peak", "colr", "x_s", "u_p", "u_del"]
+    if mode:
+        keys += ["mu_psi", "u_psi"]
+    out = {k: _from_mode(m, k) for k in keys}
+
+    u = np.asarray(out["u_del"], dtype=float)
+    rms = float(np.sqrt(np.mean(u ** 2)))
+    if rms > 0:
+        s_old = float(out["s_delta"])
+        out["s_delta"] = s_old * rms          # delta_t = mu_delta + s_delta u_del is fixed
+        out["u_del"] = u / rms
+        if verbose:
+            print(f"optimize start: lp {float(m['lp__']):.1f}; "
+                  f"s_delta re-placed {s_old:.4g} -> {out['s_delta']:.4g} "
+                  f"(rms u_del {rms:.4g} -> 1), delta_t unchanged")
+    elif verbose:
+        print(f"optimize start: lp {float(m['lp__']):.1f}; u_del is identically zero, "
+              "so s_delta is left as found")
+    return out
 
 
 PARAM_NAMES = ["m_peak", "colr", "x_s", "x_p", "x_psi", "delta_t"]

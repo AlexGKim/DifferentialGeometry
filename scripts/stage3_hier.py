@@ -20,7 +20,7 @@ from cmdstanpy import from_csv, write_stan_json
 from dgsn.data.sample import analysis_sample, median_x1, stage3_sample, x1_fifth
 from dgsn.salt.globals import fit_globals
 from dgsn.stan import data as D
-from dgsn.stan.hier_data import build, inits
+from dgsn.stan.hier_data import build, inits, inits_from_optimize
 from dgsn.stan.run import log_prob, model, sample_four, seconds_per_gradient
 
 K_PSI, K_Q = 12, 8      # the smallest orders; override with --k-psi/--k-q
@@ -29,11 +29,11 @@ GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi", "sigma_g", "sigma_
                   "mu_p_rel", "mu_psi_rel", "mu_delta", "s_delta"]
 
 
-def gradient_check(data, point, n_coords=20, h=1e-5, seed=0):
+def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     """Central differences of the log density in a random subset of coordinates."""
-    lp0, grad = log_prob("hier", data, point)
+    lp0, grad = log_prob(name, data, point)
     # flatten the parameter dict in Stan's order to index the gradient
-    names = list(model("hier").src_info()["parameters"].keys())
+    names = list(model(name).src_info()["parameters"].keys())
     flat = []
     for n in names:
         v = np.atleast_1d(np.asarray(point[n], dtype=float))
@@ -49,7 +49,7 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0):
             up[n] = up[n] + h; dn[n] = dn[n] - h
         else:
             up[n][i] += h; dn[n][i] -= h
-        fd = (log_prob("hier", data, up)[0] - log_prob("hier", data, dn)[0]) / (2 * h)
+        fd = (log_prob(name, data, up)[0] - log_prob(name, data, dn)[0]) / (2 * h)
         # log_prob's gradient is on the unconstrained scale: for a parameter
         # bounded below at zero that is theta d/dtheta.
         if n in BOUNDED:
@@ -59,7 +59,7 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0):
     return lp0, worst
 
 
-def cost(data, point):
+def cost(data, point, name="hier"):
     """Seconds per log_prob call at the full epoch set and at one epoch per
     object: the difference is the epoch loops, the remainder the node sweeps
     plus process launch.  Launch is measured separately from a run with
@@ -67,7 +67,7 @@ def cost(data, point):
     def timeit(d, reps=5):
         t = time.time()
         for _ in range(reps):
-            log_prob("hier", d, point)
+            log_prob(name, d, point)
         return (time.time() - t) / reps
     full = timeit(data)
     first = data["start"]
@@ -82,22 +82,34 @@ def report(fit, names, sample, data):
     print(fit.diagnose())
     summ = fit.summary()
     print("\nglobal scalars:")
-    print(summ.loc[GLOBAL_SCALARS, ["Mean", "StdDev", "5%", "95%", "ESS_bulk", "R_hat"]].to_string())
+    # hier_nomode.stan has no mu_psi, c or x_psi, so take what is present
+    have = [g for g in GLOBAL_SCALARS if g in summ.index]
+    print(summ.loc[have, ["Mean", "StdDev", "5%", "95%", "ESS_bulk", "R_hat"]].to_string())
     for v in ("a_rel", "c_rel", "b", "d"):
         rows = summ.loc[[r for r in summ.index if r.startswith(v + "[")]]
-        print(f"{v}: R_hat max {rows.R_hat.max():.3f}, ESS_bulk min {rows.ESS_bulk.min():.0f}")
+        if len(rows):
+            print(f"{v}: R_hat max {rows.R_hat.max():.3f}, ESS_bulk min {rows.ESS_bulk.min():.0f}")
     d = fit.draws_pd()
-    print(f"\nsign branches per chain: flip_q {[int(d[d.chain__ == c].flip_q.mean().round()) for c in sorted(d.chain__.unique())]}, "
-          f"flip_psi {[int(d[d.chain__ == c].flip_psi.mean().round()) for c in sorted(d.chain__.unique())]}; "
-          f"draws switching within a chain: {int((d.groupby('chain__').flip_q.nunique() > 1).sum() + (d.groupby('chain__').flip_psi.nunique() > 1).sum())}")
+    chains = sorted(d.chain__.unique())
+    branch = f"flip_q {[int(d[d.chain__ == c].flip_q.mean().round()) for c in chains]}"
+    switch = int((d.groupby('chain__').flip_q.nunique() > 1).sum())
+    if "flip_psi" in d.columns:
+        branch += f", flip_psi {[int(d[d.chain__ == c].flip_psi.mean().round()) for c in chains]}"
+        switch += int((d.groupby('chain__').flip_psi.nunique() > 1).sum())
+    print(f"\nsign branches per chain: {branch}; draws switching within a chain: {switch}")
     print(f"frac_tapered mean {d.frac_tapered.mean():.2e} max {d.frac_tapered.max():.2e}; frac_clamped mean {d.frac_clamped.mean():.2e} max {d.frac_clamped.max():.2e}")
     print(f"seconds per gradient (upper bound): {seconds_per_gradient(fit):.2e}; treedepth median {d.treedepth__.median():.0f}, leapfrogs/draw median {d.n_leapfrog__.median():.0f}")
     # per-SN: x_psi width vs prior, timing-block correlations, interval check
     xs = fit.stan_variable("x_s"); xp = fit.stan_variable("x_p_rel"); dl = fit.stan_variable("delta_t")
-    xpsi = fit.stan_variable("x_psi_rel")
+    has_mode = "x_psi_rel[1]" in summ.index
+    xpsi = fit.stan_variable("x_psi_rel") if has_mode else np.zeros_like(xp)
     corr = lambda u, v: np.array([np.corrcoef(u[:, i], v[:, i])[0, 1] for i in range(u.shape[1])])
-    print(f"\nper-SN posterior sd of x_psi: median {np.median(xpsi.std(0)):.2f} (prior 1); x_p {np.median(xp.std(0)):.2f}; delta_t {np.median(dl.std(0)):.2f} d")
-    print(f"per-SN correlations, median over objects: x_s-x_p {np.median(corr(xs, xp)):+.2f}, x_p-delta {np.median(corr(xp, dl)):+.2f}, x_s-delta {np.median(corr(xs, dl)):+.2f}, x_psi-delta {np.median(corr(xpsi, dl)):+.2f}")
+    print(f"\nper-SN posterior sd of"
+          + (f" x_psi: median {np.median(xpsi.std(0)):.2f} (prior 1);" if has_mode else "")
+          + f" x_p {np.median(xp.std(0)):.2f}; delta_t {np.median(dl.std(0)):.2f} d")
+    print(f"per-SN correlations, median over objects: x_s-x_p {np.median(corr(xs, xp)):+.2f}, "
+          f"x_p-delta {np.median(corr(xp, dl)):+.2f}, x_s-delta {np.median(corr(xs, dl)):+.2f}"
+          + (f", x_psi-delta {np.median(corr(xpsi, dl)):+.2f}" if has_mode else ""))
     smin, smax = fit.stan_variable("s_pmin").mean(0), fit.stan_variable("s_pmax").mean(0)
     print(f"s(-15 d) range over objects [{smin.min():.2f}, {smin.max():.2f}], s(+40 d) [{smax.min():.2f}, {smax.max():.2f}] against {D.ARC_RANGE}")
     lp_sn = fit.stan_variable("lp_sn").mean(0)
@@ -144,6 +156,58 @@ def warm_start(run_dir):
     return inits, cov
 
 
+def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, n: int = 4, seed: int = 7):
+    """``n`` starts jittered about ``ini``, for the dispersed-start check.
+
+    Agreement between chains from dispersed starts is what checks the \\salt\\
+    initialization (Section 5), so the dispersion has to reach the parameters
+    that decide where a chain goes.
+    """
+    # The coefficients are jittered where their priors are written --- in
+    # z_a, b_til, z_c, d_til --- and not in the rotated coordinates the
+    # sampler uses, so the dispersion means the same thing whatever
+    # rotation is in force; the result is turned back through R.  This
+    # block addressed ini["z_a"] directly until 2026-10-22, which has not
+    # existed since the coefficients were packed into w_coef, so every
+    # dispersed run raised KeyError before reaching the sampler.
+    from dgsn.stan.hier_data import n_coef, pack, unpack
+
+    rng = np.random.default_rng(seed)
+    Rm = np.eye(n_coef(k_psi, k_q, mode)) if R is None else np.asarray(R, dtype=float)
+    raw0 = Rm @ np.asarray(ini["w_coef"], dtype=float)
+    starts = []
+    for _ in range(n):
+        s = {kk: np.array(v, dtype=float, copy=True) if np.ndim(v) else float(v)
+             for kk, v in ini.items()}
+        co = unpack(raw0, k_psi, k_q, mode)
+        # the non-centred pair is unit scale under its own prior
+        for key in ("z_a", "z_c"):
+            if key in co:
+                co[key] = co[key] + 0.5 * rng.normal(size=len(co[key]))
+        # the centred pair in coefficient units: half the prior width at the start
+        for key, tau, alpha_m, K in (("b_til", ini["tau_q"], ini["alpha_q_m"], k_q),
+                                     ("d_til", ini["tau_psi"], ini["alpha_psi_m"], k_psi)):
+            kk = np.arange(1, K)
+            w = tau * (kk / np.exp(np.log(kk).mean())) ** -(alpha_m + 0.5)
+            co[key] = co[key] + 0.5 * w * rng.normal(size=K - 1)
+        raw = (pack(co["z_a"], co["b_til"], co["z_c"], co["d_til"]) if mode
+               else pack(co["z_a"], co["b_til"], co["d_til"]))
+        s["w_coef"] = raw if R is None else np.linalg.solve(Rm, raw)
+        # The common locations are dispersed too, not only the deviations
+        # about them: mu_p and mu_delta are the slowest-mixing directions
+        # measured, so four chains sharing them would leave the check
+        # blind to exactly what it is meant to test.
+        for key, w in (("mu_p", 1.0), ("mu_psi", 1.0), ("mu_delta", 0.5)):
+            if key in s:
+                s[key] = s[key] + w * float(rng.normal())
+        for key, w in (("m_peak", 0.3), ("colr", 0.3), ("x_s", 0.3),
+                       ("u_p", 1.0), ("u_psi", 1.0), ("u_del", 1.0)):
+            if key in s:
+                s[key] = s[key] + w * rng.normal(size=len(s[key]))
+        starts.append(s)
+    return starts
+
+
 def main():
     global K_PSI, K_Q
     ap = argparse.ArgumentParser()
@@ -164,19 +228,28 @@ def main():
     ap.add_argument("--precondition-optimize", action="store_true",
                     help="build the rotation at the optimize mode, which needs no previous run; "
                          "the only option after a change of basis")
+    ap.add_argument("--init-optimize", action="store_true",
+                    help="start the chains at Stan's own optimum on the data, re-placed on "
+                         "the s_delta ridge, instead of at the SALT2 fit; needs no template "
+                         "except to start the optimizer")
+    ap.add_argument("--no-mode", action="store_true",
+                    help="hier_nomode.stan: Eq. (curvlin) without x_psi Psi_1, so one "
+                         "shared curve and no turning mode")
     ap.add_argument("--precondition-from", default=None, metavar="DIR",
                     help="rotate the coefficients by the Fisher information at the posterior "
                          "mean of the run in DIR; built at a start instead it makes things worse")
     args = ap.parse_args()
 
     K_PSI, K_Q = args.k_psi, args.k_q
+    prog = "hier_nomode" if args.no_mode else "hier"
+    mode = not args.no_mode
     sample = analysis_sample()
     names = stage3_sample()
     x1_ref = median_x1()
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
-    data = build(names, k_psi, k_q, sample=sample)
-    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G)
+    data = build(names, k_psi, k_q, sample=sample, mode=mode)
+    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode)
     R = None
     if args.precondition_optimize:
         from dgsn.stan.precondition import from_optimize
@@ -192,20 +265,24 @@ def main():
         data = build(names, k_psi, k_q, sample=sample, R=R)
         print(f"preconditioned from {args.precondition_from}: "
               f"rotation condition {np.linalg.cond(R):.1e}")
-    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R)
-    print(f"{len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
+    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode)
+    if args.init_optimize:
+        # the SALT2 fit starts the optimizer; the optimum starts the chains
+        ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode)
+    print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
     print(f"start: tau_q {ini['tau_q']:.2f} tau_psi {ini['tau_psi']:.2f}, "
           f"|w_coef| {np.linalg.norm(ini['w_coef']):.2f}, "
-          f"mu_p {ini['mu_p']:.2f} mu_psi {ini['mu_psi']:.2f}")
+          f"mu_p {ini['mu_p']:.2f}"
+          + (f" mu_psi {ini['mu_psi']:.2f}" if 'mu_psi' in ini else ''))
 
     if args.report is not None:
         fit = from_csv([str(c) for c in sorted(Path(args.report or args.out).glob("hier-?.csv"))])
         report(fit, names, sample, data)
         return
 
-    lp0, worst = gradient_check(data, ini)
+    lp0, worst = gradient_check(data, ini, name=prog)
     print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")
-    full, nodes = cost(data, ini)
+    full, nodes = cost(data, ini, name=prog)
     per_ep = (full - nodes) / (data["N"] - data["N_sn"])
     print(f"cost per log_prob call: {full:.3f} s at {data['N']} epochs, {nodes:.3f} s at one epoch per object (nodes + launch) "
           f"-> {per_ep * 1e6:.0f} us per epoch; projected per gradient for 442 objects at ~31400 epochs: "
@@ -215,20 +292,7 @@ def main():
 
     starts = ini
     if args.dispersed:
-        rng = np.random.default_rng(7)
-        starts = []
-        for k in range(4):
-            s = {kk: np.array(v, dtype=float, copy=True) if np.ndim(v) else float(v) for kk, v in ini.items()}
-            for kk in ("z_a", "z_c"):
-                s[kk] += 0.5 * rng.normal(size=len(s[kk]))
-            # the centred pair in coefficient units: half the prior width at the start
-            for key, tau, K in (("b_til", ini["tau_q"], K_Q), ("d_til", ini["tau_psi"], K_PSI)):
-                kk = np.arange(1, K)
-                s[key] += 0.5 * tau * (kk / np.exp(np.log(kk).mean())) ** -2.0 * rng.normal(size=K - 1)
-            for kk, w in (("m_peak", 0.3), ("colr", 0.3), ("x_s", 0.3),
-                          ("u_p", 1.0), ("u_psi", 1.0), ("u_del", 1.0)):
-                s[kk] += w * rng.normal(size=len(s[kk]))
-            starts.append(s)
+        starts = dispersed_starts(ini, R, K_PSI, K_Q, mode)
     out = Path(args.out + ("-dispersed" if args.dispersed else ""))
     metric, metric_file, warmup, refresh = ("dense_e" if args.dense else None), None, args.iter, 100
     if args.warm_from:
@@ -239,7 +303,7 @@ def main():
         # below 20 warmup iterations Stan adapts the step size and not the metric
         metric, warmup, refresh = "dense_e", 19, 10
     t = time.time()
-    fit = sample_four("hier", data, starts, out, seed=1, threads_per_chain=args.threads,
+    fit = sample_four(prog, data, starts, out, seed=1, threads_per_chain=args.threads,
                       iter_warmup=warmup, iter_sampling=args.iter, max_treedepth=args.max_treedepth,
                       metric=metric, metric_file=metric_file, adapt_delta=args.adapt_delta,
                       refresh=refresh)
