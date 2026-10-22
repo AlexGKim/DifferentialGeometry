@@ -112,6 +112,12 @@ def optimize(name: str, data: dict, inits: dict, polish: bool = True,
                     keys = sorted((k for k in flat if k.startswith(p + "[")),
                                   key=lambda k: int(k[len(p) + 1:-1]))
                     ini[p] = np.array([flat[k] for k in keys])
+            # A sum_to_zero_vector comes back as 30 numbers rounded to 18
+            # significant figures, whose sum is no longer exactly zero, and a
+            # restart handed a constrained value that violates its constraint
+            # is rejected.  Project it back.
+            if "x_s_dev" in ini:
+                ini["x_s_dev"] = ini["x_s_dev"] - np.mean(ini["x_s_dev"])
             return ini
 
         for _ in range(4):

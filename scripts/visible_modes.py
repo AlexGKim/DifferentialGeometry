@@ -46,10 +46,10 @@ def main():
             raw = np.asarray(ini["w_coef"], dtype=float)
             hyper = {k: ini[k] for k in ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi",
                                          "sigma_g", "sigma_r")}
-            per = {k: ini[k] for k in ("m_peak", "colr", "x_s")}
-            per["x_p"] = ini["mu_p"] + np.asarray(ini["u_p"], dtype=float)
-            per["x_psi"] = ini["mu_psi"] + np.asarray(ini["u_psi"], dtype=float)
-            per["delta_t"] = ini["mu_delta"] + ini["s_delta"] * np.asarray(ini["u_del"], dtype=float)
+            # pieces() assembles x_s from s_bar and x_s_dev, so this follows the
+            # parameterization rather than restating it
+            from dgsn.stan.precondition import pieces
+            per = pieces(ini, kp, kq)[2]
             J, f = jacobian(data, raw, hyper, per, kp, kq)
             # each epoch in the error the likelihood gives it, Eq. (like):
             # weighting by the measurement error alone would count a bright

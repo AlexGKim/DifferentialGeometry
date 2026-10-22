@@ -109,10 +109,10 @@ def main():
         # The source run knows nothing of objects it never saw, so the point
         # at which the sensitivities are taken uses its globals and this
         # fit's own start for the per-supernova parameters.
-        per = {k: np.asarray(ini[k], dtype=float) for k in ("m_peak", "colr", "x_s")}
-        per["x_p"] = ini["mu_p"] + np.asarray(ini["u_p"], dtype=float)
-        per["x_psi"] = ini["mu_psi"] + np.asarray(ini["u_psi"], dtype=float)
-        per["delta_t"] = ini["mu_delta"] + ini["s_delta"] * np.asarray(ini["u_del"], dtype=float)
+        # pieces() assembles x_s from s_bar and x_s_dev, so this follows the
+        # parameterization rather than restating it
+        from dgsn.stan.precondition import pieces
+        per = pieces(ini, args.k_psi, args.k_q)[2]
         R = from_run(args.precondition_from, data, args.k_psi, args.k_q, per_sn=per)
         data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample, R=R)
         ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G, R=R)

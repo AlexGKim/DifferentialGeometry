@@ -128,7 +128,8 @@ def _from_mode(mode: dict, name: str):
 
 
 def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: int,
-                        mode: bool = True, verbose: bool = True) -> dict:
+                        mode: bool = True, verbose: bool = True,
+                        polish: bool = True) -> dict:
     """Initial values from Stan's own optimizer on the data, re-placed on the
     ``s_delta`` ridge.
 
@@ -151,6 +152,15 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     where the non-centred pair is well scaled, and changes no fitted
     magnitude: ``delta_t`` is preserved exactly.
 
+    ``polish`` is ``optimize``'s restart loop, which exists to resolve the
+    direction the light curve is nearly flat along.  On this posterior it
+    cannot terminate in ``s_delta``: that direction is flat in likelihood and
+    rising in prior, so each restart walks further up the ridge, by fractions
+    of a nat, and the re-placement then discards the distance gained.  Four of
+    the five passes are spent that way, at about three minutes each on thirty
+    objects, so ``polish=False`` is the better default when the mode is only
+    wanted as a starting point.
+
     It is the only pair needing this.  The gauge removes the scale of ``a``
     and ``c``, so ``tau_q`` and ``tau_psi`` are informed by the centred
     ``b_til`` and ``d_til`` and land within a factor of 1.7 of their
@@ -158,12 +168,17 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     """
     from dgsn.stan.run import optimize
 
-    m = optimize(program, data, start, jacobian=False)
+    m = optimize(program, data, start, jacobian=False, polish=polish)
+    # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
+    # transformed parameter, but an inits dict has to name what is sampled.
     keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_g", "sigma_r",
-            "mu_p", "mu_delta", "s_delta", "m_peak", "colr", "x_s", "u_p", "u_del"]
+            "mu_p", "mu_delta", "s_delta", "s_bar", "x_s_dev", "u_p", "u_del",
+            "m_peak", "colr"]
     if mode:
         keys += ["mu_psi", "u_psi"]
     out = {k: _from_mode(m, k) for k in keys}
+    # back onto the constraint surface after the roundtrip through text
+    out["x_s_dev"] = out["x_s_dev"] - np.mean(out["x_s_dev"])
 
     u = np.asarray(out["u_del"], dtype=float)
     rms = float(np.sqrt(np.mean(u ** 2)))

@@ -1147,3 +1147,53 @@ about what $K_{\psi} = 12$ supplies for the mode and not all 23, and a $K_{c}$ n
 indicated at either sample size, with $K_{\psi} = 24$ kept for $\Psi_0$, which the epochs
 pin directly. Separating the two orders, which the model currently ties together, is the
 change these measurements argue for.
+
+### Where the stiffness is, measured at a mode rather than a draw (2026-10-22)
+
+The mode-free model at the declared orders, new gauge, Hessian from central differences of
+Stan's gradient over the 176 unbounded coordinates at the optimum.
+
+**The Hessian is negative definite there**: eigenvalues from `-5.59e8` to `-5.04e-2`, none
+positive. The module docstring of `dgsn.stan.precondition` says this posterior's Hessian is
+indefinite and that it is "nowhere locally Gaussian", measured at the \salt\ start, the
+posterior mean and both optimize modes. At a *mode* of this variant it is definite, so
+`laplace` would run and a Hessian preconditioner exists. The two are compatible --- definite
+at a maximum, indefinite at draws --- but "nowhere" overstates it.
+
+**The stiffness is in the coefficients.** The stiffest direction puts 100 percent of its
+weight on the 53 coefficients and the thirty stiffest average 41.5 percent against an even
+share of 30.1. An earlier record here claimed the opposite, that the stiffness had left the
+coefficient block, on 27.5 percent against 29.3; that was measured at a *draw* of the
+*with-mode* model, two differences at once, and it was over-read.
+
+**And the per-object blocks do not set the global conditioning.** Each object's own block is
+positive definite with condition 6039 median, range 1168 to 38027, and one common rotation
+takes it to 13.3, worst 173.7, a factor of 21 in the step count --- not the 36 inferred
+earlier by deleting a row and column from the with-mode Hessian, which was the right shape
+at the wrong point. But nested in the whole problem it buys almost nothing:
+
+| whitened | raw condition | after diagonal adaptation |
+|---|---|---|
+| nothing | `1.11e10` | `6.45e5` |
+| the 53 coefficients | `3.02e9` | `6.11e4` |
+| the per-object blocks | `2.14e12` | `6.46e5` |
+| both | `5.35e9` | `4.78e4` |
+
+The second column is the one to read: Stan adapts a diagonal metric, so a block whitening
+that merely rescales coordinates buys nothing it would not have got anyway, and a raw
+condition number credits or blames it for exactly that. Read raw, the per-object whitening
+looks 193 times harmful; after adaptation it moves the conditioning by a tenth of a percent.
+That is `precondition.py`'s recorded $(12, 8)$ result --- "whitening the per-object blocks
+changes nothing at all" --- with a mechanism and a second confirmation. The coefficient
+rotation carries the gain, 10.6 times, and the per-object rotation adds 1.28 on top of it.
+
+What survives of the per-object work is one stable fact: the common stiffest direction is
+`(-0.671, +0.391, -0.631)` on `(m_peak, colr, x_s)` here against `(-0.670, +0.418, -0.610)`
+with the mode, across a change of model, of gauge, and of evaluation point. Brightness,
+colour and dilation at the anchor, which is the width-luminosity relation as a curvature.
+
+Also: `optimize`'s `polish` loop cannot terminate in `s_delta`, that direction being flat in
+likelihood and rising in prior by Appendix A, so its four restarts walk up the ridge at about
+three minutes each and the re-placement discards the distance. `polish=False` took the
+optimum from fifteen minutes to 182 seconds with no loss, and is now the right default when
+the mode is wanted as a starting point.
