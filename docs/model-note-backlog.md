@@ -1083,71 +1083,67 @@ at all: the refinement in `track_fit.stan` diverges at `K_q >= 32` and at `x1 = 
 entries of `1e52`, and the two quadrature resolutions disagree by up to sevenfold. The grid
 over `K_psi` and `K_q` that Section 5.2 still owes cannot be run until that is fixed.
 
-### The turning mode and the mean turning do not have the same information budget (2026-10-22)
+### The declared orders: what is over-parameterized, and what merely mixes slowly (2026-10-22)
 
-The first hierarchical fit at the declared orders, $K_{\psi} = 24$, $K_q = 16$, on thirty
-supernovae, 500 warmup and 500 sampling, unrotated: 64327 s, 2047 leapfrogs a draw, 1.7
-percent at the treedepth cap, 2.25 percent divergent.
-
-It fits better than $(12, 8)$ and it does not converge. Better: `-2 lp` per epoch 16.98
+The first hierarchical fit at $K_{\psi} = 24$, $K_q = 16$ on thirty supernovae, 500 warmup
+and 500 sampling, unrotated: 64327 s, 2047 leapfrogs a draw, 1.7 percent at the treedepth
+cap, 2.25 percent divergent. It fits better than $(12, 8)$ --- `-2 lp` per epoch 16.98
 against 17.05, and the intrinsic scatter falls from `0.0357` and `0.0407` to `0.0337` and
-`0.0346`, the extra freedom absorbing structure the smaller basis left in the residual ---
-so the scatter this model reports is a function of the order and cannot be quoted without
-it. Not converged: `R-hat` reaches 1.44 on `d` and 1.33 on `c_rel` with effective sample
-sizes of 8 and 10, and the step sizes split 1.93--2.09e-3 against 2.92--2.97e-3, a spread of
-1.54 where the pace criterion wants 1.2.
+`0.0346`, so the scatter this model reports is a function of the order and cannot be quoted
+without it --- and it does not converge.
 
-The two are the same fact, and the failure is confined to one object. All four chains are in
-the bulk and agree on everything the epochs constrain: `lp` within 17 nats of 13300, the two
-scatters within 1 to 4 percent, and the mean turning `d` agreeing in direction to a pairwise
-cosine of 0.924 to 0.999 at norms 5.35 to 5.73. The turning *mode* does not agree at all ---
-`c_rel` has pairwise cosines from 0.134 to 0.996 and norms from 0.289 to 0.684. Each chain
-picked a different mode direction, scaled its amplitudes to match, and earned the same
-likelihood.
+Two separate things, which three earlier drafts of this record ran together.
 
-The reason is in the spectrum, and an earlier version of this record had it wrong. With
-\eqref{eq:curvlin}'s $\psi = -\pi/2 + \Psi_0 + x_{\psi}\Psi_1$ one supernova's epochs see
-only the combination, from which that version concluded that $\Psi_1$ is informed by the
-thirty across-object values of $x_{\psi}$ alone, however many epochs there are. That is
-false. $\hat e_c$ is a single phase-independent direction and the epochs do bear on it: the
-Fisher information on the `z_c` block, Schur-complemented against every other coefficient so
-that the rest of the basis absorbs what it can, has trace `1181` with the across-object
-spread removed *entirely*, the gauge conditions preventing $\Psi_0$ from absorbing
-$\bar x_{\psi}\Psi_1$. It rises to `5332` at the fitted spread of `0.229` and `18700` at
-double it, so the spread multiplies the information roughly quadratically rather than
-supplying it.
+**It mixes slowly, everywhere.** Every block has every component above `R-hat` 1.01, with
+effective sample sizes of 5 to 10: `u_p` worst at 2.415, then `u_psi` 1.849, `x_psi` 1.593,
+`x_s` 1.503, `d` 1.440, `c_rel` 1.328. The `u` blocks are symptoms, not causes --- `u_p[i]`
+is `x_p[i]` minus `mu_p`, and `mu_p` wanders at sd `1.65` while `mean(u_p)` sits at its
+prior width of `0.187`, so the deviations inherit the common location's excursion while the
+observable `x_p_rel` mixes three times better. There is no ridge between `mu_p` and
+`mean(u_p)`: their correlation is `-0.113`, so the deviation parameterization is working as
+intended.
 
-What fails is the steepness. Those 23 eigenvalues are `4283`, `864`, `103`, `40.7`, `8.7`,
-`6.6`, `3.05`, `2.83`, `2.45`, `2.03`, `1.63` and then twelve more down to `1.00`, against a
-prior precision of 1: four directions are informed, nineteen lie within a factor of ten of
-the prior, and from the eleventh they *are* the prior to two digits. The posterior agrees
-independently, concentrating $\hat e_c$ on 4.1 effective dimensions where $K_{\psi} = 12$
-gives 1.3 --- a prior damped as $k^{-1.33}$ over four informed directions. Asking 23
-coefficients to carry four directions' worth of information is what leaves the rest
-wandering. The per-supernova amplitudes degrade with it:
+Nor is it multimodality. For `d` and `c_rel` the spread of the chain means is under half the
+within-chain width, `B/W` of 0.48 and 0.45, and one of 23 `d` components has chain means
+further apart than a chain is wide. An effective sample size of 6 in 2000 draws is an
+autocorrelation time near 300: the chains overlap and crawl.
 
-| | $\Psi_1$ components | $x_{\psi}$ width per object | spread of object means | ratio |
-|---|---|---|---|---|
-| $K_{\psi} = 12$ | 11 | 0.91 | 0.76 | 0.83 |
-| $K_{\psi} = 24$ | 23 | 1.52 | 0.62 | 0.41 |
+An earlier draft claimed the failure was confined to the turning mode, on the evidence that
+the chains agreed on `d`'s direction to a cosine of 0.924 while disagreeing on `c`'s at
+0.364. That comparison is void. The gauge normalizes `c` to unit norm, so all of its content
+*is* direction, where `d` is unnormalized at norm 5.5 concentrated in a few low modes, whose
+direction stays anchored however much the components wander. By `R-hat`, `d` is the worse of
+the two.
 
-At the declared order the across-object signal is less than half the per-object uncertainty,
-so the objects are barely resolved from one another in $x_{\psi}$ and the quadratic factor
-the spread contributes is small; both quantities move the wrong way at once as the order
-rises.
+What the slow mixing is, measurably, is conditioning. At each run's own posterior the
+coefficient block has condition `2.67e6` at $(12, 8)$ and `7.01e7` at $(24, 16)$, with 7 of
+36 directions within ten times the prior against 27 of 76 --- a factor of 5.3 in the step
+count a rotation would remove. So a rotation is the remedy here, and `carry` applies
+unchanged, the gauge span and the orders being the same.
 
-Three consequences. A preconditioning rotation will not fix this: whitening is a
-reparameterization and adds no information, so it cannot identify a direction the data do
-not constrain. The orders for the mode and for the mean turning are separate modelling
-choices that the model currently ties together, and separating them is the change this
-measurement argues for; the spectrum puts the mode's content at four directions here, which
-is a $K_{c}$ between six and twelve, and $12$ is the value already shown to work.
+**Separately, $\Psi_1$ is over-parameterized, and this does not depend on convergence.**
+The Fisher information on the `z_c` block, Schur-complemented against every other
+coefficient, has eigenvalues `4283`, `864`, `103`, `40.7`, `8.7`, `6.6`, `3.05` and then
+sixteen values between 1.0 and 2.9 against a prior precision of 1: four directions informed,
+the rest prior. Its per-mode diagonal falls as $k^{-2.79}$, a factor of 3900 from the first
+mode to the twenty-third, which is the integration in $\gamma = \int(\cos\psi, \sin\psi)\dd\arc$
+smoothing the high modes away --- a perturbation of `c` moves the curve only along the
+Frenet normal, and only through an integral of $\Psi_1$. The posterior agrees: $\hat e$
+along `c` concentrates on 4.1 effective dimensions where $K_{\psi} = 12$ gives 1.3, and the
+per-supernova $x_{\psi}$ widens from 0.91 to 1.52 against a unit prior while the spread of
+object means falls from 0.76 to 0.62.
 
-A forecast for stage 4, which the spectrum supports and a count of objects does not.
-Information adds over supernovae and the prior precision on `z_c` is the identity, so
-scaling the measured eigenvalues' data part by $442/30$ gives 11 of 23 directions above ten
-times the prior and 18 above twice it, against 4 and 10 at thirty objects. So the training
-sample should identify about as many turning directions as $K_{\psi} = 12$ supplies, and
-not all 23: the full sample improves the mode but does not by itself justify the declared
-order for it. Until stage 4 runs, the mean turning, the scatters and the fit quality of this
-run are usable and $\Psi_1$ and $x_{\psi}$ are not.
+Not, however, for the reason an earlier draft gave. That draft said $\Psi_1$ is informed by
+the thirty across-object values of $x_{\psi}$ alone, however many epochs there are. It is
+not: the information on `z_c` has trace `1181` with the across-object spread removed
+*entirely*, the gauge conditions preventing $\Psi_0$ from absorbing
+$\bar x_{\psi}\Psi_1$, rising to `5332` at the fitted spread and `18700` at double it. The
+spread multiplies the information roughly quadratically; it does not supply it.
+
+Scaling the eigenvalues' data part by $442/30$ --- information adds over supernovae and the
+prior precision on `z_c` is the identity --- puts 11 of 23 directions above ten times the
+prior at the training sample, against 4 at thirty objects. So the full sample should identify
+about what $K_{\psi} = 12$ supplies for the mode and not all 23, and a $K_{c}$ near 12 is
+indicated at either sample size, with $K_{\psi} = 24$ kept for $\Psi_0$, which the epochs
+pin directly. Separating the two orders, which the model currently ties together, is the
+change these measurements argue for.
