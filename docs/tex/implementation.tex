@@ -368,6 +368,176 @@ times $\turnone$, which inverts what the sampling diagnostics suggest and agrees
 $\turnone$ is the badly determined mode, four informed directions of $23$ falling as
 $k^{-2.79}$, and being well determined is what makes a mode expensive to remove.
 
+\section{\file{hier\_common.stan} in full}
+\label{sec:common}
+
+Self-contained: this section repeats in particular what the sections above give in general,
+so that the simplest program can be read without them. Everything here is the code's, taken
+from \file{stan/hier\_common.stan} and the \code{functions} block it includes.
+
+\subsection{What the model says}
+
+Every supernova walks one curve in magnitude space at one rate profile, and differs from
+every other only in where it is placed, how fast it goes, and when. For supernova $n$
+observed at time $t$, with redshift $\zred_{n}$ known and $t_{0,n}$ the archive's \salt\
+time of $B$ maximum:
+\begin{align}
+  \phase &= \frac{t - t_{0,n} - \Delta_{n}}{1 + \zred_{n}} ,
+    \label{eq:cphase}\\
+  \deriv{\arc}{\phase} &= \exp\bigl[x_{s,n} + q_{0}(\phase)\bigr] ,
+    \qquad \arc(0) = 0 ,
+    \label{eq:ctrav}\\
+  \psi(\arc) &= -\frac{\pi}{2} + \turnzero(\arc) , \qquad \turnzero(0) = 0 ,
+    \label{eq:cturn}\\
+  \curve(\arc) &= \int_{0}^{\arc}\bigl(\cos\psi,\ \sin\psi\bigr)\,\dd\arc' ,
+    \label{eq:ccurve}\\
+  \begin{pmatrix} \magg \\ \magr \end{pmatrix} &=
+    \curve\bigl(\arc(\phase)\bigr) + m_{g,n}^{\max}\begin{pmatrix} 1 \\ 1 \end{pmatrix}
+    + \colr_{n}\begin{pmatrix} 0 \\ -1 \end{pmatrix} ,
+    \label{eq:cmag}\\
+  \hat f &= 10^{-0.4\,(m_{b} - \zp)}\,\mathcal{T} .
+    \label{eq:cflux}
+\end{align}
+$q_{0}$ and $\turnzero$ are shared by every supernova; $m_{g,n}^{\max}, \colr_{n}, x_{s,n},
+\Delta_{n}$ are its own. $\mathcal{T}$ is the taper of \S\ref{sec:csoft}. Nothing else
+varies: there is no per-supernova freedom in the \emph{shape} of either the curve or the
+rate.
+
+\subsection{The two shared functions}
+
+Both are expanded in a basis of shifted Legendre polynomials, in a coordinate that
+compresses the wings so that resolution concentrates where each function turns sharply:
+\begin{equation}
+  v = \asinh(\phase/\delta_{p}) , \qquad u = \asinh(\arc/\delta) ,
+  \label{eq:ccoords}
+\end{equation}
+\begin{equation}
+  q_{0} = \sum_{k=1}^{K_{q}-1} b_{k}\,\tilde P_{k}(v) , \qquad
+  \turnzero = \sum_{k=1}^{K_{\psi}-1} d_{k}\,\tilde P_{k}(u) .
+  \label{eq:cbasis}
+\end{equation}
+Both bases drop the constant term, so $\bar q_{0} = 0$ and $\bar\turnzero$ is unconstrained
+only in the sense that the turning basis is shifted instead: each turning mode is
+$\tilde P_{k}(u) - \tilde P_{k}(0)$ re-orthonormalized, which makes $\turnzero(0) = 0$ hold
+identically. The traversal basis is orthonormal under $\int\!\dd v$ and the turning basis
+under $\int\!\dd u$, in both cases over the full declared interval and not over the gauge
+span.
+
+\paragraph{There is no gauge.} Every condition of the note's Eq.~(11) names a departure
+mode, and this program has none: $\bar q_{1} = 0$ and $\langle q_{1},q_{1}\rangle = 1$ are
+conditions on $q_{1}$, and $\langle q_{0},q_{1}\rangle = 0$ fixes $q_{0}$'s component along
+it. So $\mathbf{b} = \tilde{\mathbf{b}}$ and $\mathbf{d} = \tilde{\mathbf{d}}$: no
+normalization, no orthogonalization, and $G_{\arc}$, still built by the shared
+\code{transformed data} include, is never read. $q_{0}$ and $\turnzero$ are functions the
+data determine outright, with no coordinate freedom left to fix and no sign convention to
+relabel afterwards.
+
+Because $x_{s}$ is a constant in \eqref{eq:ctrav} and the basis carries no constant, the two
+cannot trade: $x_{s}$ is the mean log rate and $q_{0}$ its shape, exactly and by
+construction.
+
+\subsection{Softening}
+\label{sec:csoft}
+
+Three places, all $C^{\infty}$, with
+$\mathrm{softplus}(x,\epsilon) = \epsilon\log(1 + e^{x/\epsilon})$ and
+$\mathrm{clamp01}(w,\epsilon) = \mathrm{softplus}(w,\epsilon) - \mathrm{softplus}(w-1,\epsilon)$:
+\begin{align}
+  w &= \frac{\phase - \phase_{\min}}{\phase_{\max} - \phase_{\min}} , &
+  \hat\phase &= \phase_{\min} + (\phase_{\max}-\phase_{\min})\,\mathrm{clamp01}(w,\epsilon) ,\\
+  \log\mathcal{T} &= -\left[\frac{e}{\epsilon_{t}}\right]^{2} , &
+  e &= \mathrm{softplus}(-w, \tfrac{\epsilon_{t}}{10})
+      + \mathrm{softplus}(w - 1, \tfrac{\epsilon_{t}}{10}) ,\\
+  w_{\arc} &= \frac{\arc - \arc_{\min}}{\arcmax - \arc_{\min}} , &
+  \hat\arc &= \arc_{\min} + (\arcmax - \arc_{\min})\,\mathrm{clamp01}(w_{\arc},\epsilon_{s}) .
+\end{align}
+The taper is evaluated at the \emph{unclamped} $w$, so it switches the flux off outside the
+window rather than pinning it to the edge; the two clamps keep $\hat\phase$ and $\hat\arc$
+inside the intervals the bases are defined on.
+
+\subsection{Quadrature}
+
+Both integrals, \eqref{eq:ctrav} and \eqref{eq:ccurve}, are taken by two-sided composite
+Gauss--Legendre in the expansion coordinate: $m$ equal panels on $[lo, 0]$ and $m$ on
+$[0, hi]$, $J$ points in each, so that zero is a panel edge and $\arc(0) = 0$,
+$\curve(0) = 0$ hold by construction of the prefix table rather than up to a partial panel.
+The change of variable carries its Jacobian,
+\begin{equation}
+  \dd\phase = \delta_{p}\cosh v\,\dd v , \qquad \dd\arc = \delta\cosh u\,\dd u ,
+\end{equation}
+and the stored weights are already multiplied by it. Panel integrals are summed once per
+draw into a prefix table from zero outward; an epoch's remainder past its last edge is one
+further fresh $J$-point panel. The panel index is found by a comparison loop, \code{floor}
+not being castable to an integer in Stan when its argument depends on parameters.
+
+\subsection{The likelihood}
+
+In native flux, with $k = 0.4\ln 10$ and $\sigma_{b}$ the scatter of the epoch's band:
+\begin{equation}
+  -2\ln\mathcal{L} = \sum_{i}\left[
+    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}}
+    + \ln\!\left(\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}\right)\right] .
+\end{equation}
+Nothing is converted to magnitudes, negative fluxes are ordinary measurements, and the
+intrinsic term enters through the tapered $\hat f_{i}$, so an epoch outside the window has
+both its residual and its intrinsic variance suppressed. The sum is a \code{reduce\_sum}
+over supernovae.
+
+\subsection{Everything the program samples}
+
+\begin{tabular}{llll}
+\toprule
+ & shape & prior & reaches the model as \\
+\midrule
+\code{w\_coef}      & $(K_{q}{-}1) + (K_{\psi}{-}1)$ & below & $\mathbf{raw} = R\,\code{w\_coef}$ \\
+\code{tau\_q}       & scalar $> 0$ & flat & scale of $\tilde{\mathbf{b}}$ \\
+\code{tau\_psi}     & scalar $> 0$ & flat & scale of $\tilde{\mathbf{d}}$ \\
+\code{alpha\_q\_m}  & scalar $> 0$ & $\mathrm{Exp}(1)$ & $\alpha_{q} - \frac12$ \\
+\code{alpha\_psi\_m} & scalar $> 0$ & $\mathrm{Exp}(1)$ & $\alpha_{\psi} - \frac12$ \\
+\code{sigma\_g}, \code{sigma\_r} & scalar $> 0$ & flat & $\sigma_{b}$ by band \\
+\code{s\_bar}       & scalar & $\mathcal{N}(0, 10^{2})$ & mean of $x_{s}$ \\
+\code{x\_s\_dev}    & \code{sum\_to\_zero\_vector}$[N]$ & $\mathcal{N}(0,1)$ & $x_{s} = \code{s\_bar} + \code{x\_s\_dev}$ \\
+\code{mu\_delta}    & scalar & flat & mean of $\Delta$ \\
+\code{s\_delta}     & scalar $> 0$ & flat & scale of $\Delta$ \\
+\code{u\_del}       & $N$ & $\mathcal{N}(0,1)$ & $\Delta = \code{mu\_delta} + \code{s\_delta}\,\code{u\_del}$ \\
+\code{m\_peak}      & $N$ & $\mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$ & $\peakmag$ \\
+\code{colr}         & $N$ & $\mathcal{N}(0, 1)$ & $\colr$ \\
+\bottomrule
+\end{tabular}
+
+\medskip\noindent
+$\mathbf{raw}$ is sliced into $\tilde{\mathbf{b}}$, the first $K_{q}-1$ entries, and
+$\tilde{\mathbf{d}}$, the remaining $K_{\psi}-1$, and both carry the note's Eq.~(21) at the
+geometric-mean pivot $\bar k = \exp[\overline{\ln k}]$:
+\begin{equation}
+  \tilde b_{k} \sim \mathcal{N}\!\left(0,\ \tau_{q}\,(k/\bar k_{q})^{-\alpha_{q}}\right) ,
+  \qquad
+  \tilde d_{k} \sim \mathcal{N}\!\left(0,\ \tau_{\psi}\,(k/\bar k_{\psi})^{-\alpha_{\psi}}\right) .
+\end{equation}
+Both are \emph{centred}: the data pin them, there being no gauge to remove their scale, so
+$\tau_{q}$ and $\tau_{\psi}$ simply are the scales of $q_{0}$ and $\turnzero$ at a mid-range
+mode. $R$ is a fixed \code{data} matrix over the coefficient block, the identity unless a
+preconditioner has been built; being constant its Jacobian is constant, so it changes no
+posterior.
+
+The two priors on $x_{s}$ are propriety conditions and not population models. With a flat
+prior the likelihood tends to a positive constant as $x_{s} \to -\infty$, where the supernova
+freezes at peak, so some proper prior in that direction is needed however uninformative it
+is where the data are: the data pin \code{s\_bar} to about $0.07$ and the realized spread of
+the deviations is $0.12$ to $0.25$, against widths of $10$ and $1$.
+
+At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ that is $38$ coefficients and $167$ sampled
+values in all, four of them per supernova.
+
+\subsection{What it reports}
+
+Per draw: $\alpha_{q}$ and $\alpha_{\psi}$; $\curv(0) =
+\turnzero'(0)/\delta$, the turning rate at the anchor; $\arc$ at both ends of the data window
+for every supernova, against which the declared interval is checked; the fractions of epochs
+tapered and arclength-clamped; and $\ln\mathcal{L}$ per supernova, from which a per-epoch
+figure of merit follows. No sign flags and no relabeled copies: with no departure mode there
+is no sign freedom to record.
+
 \section{The declared constants}
 \label{sec:constants}
 
