@@ -33,7 +33,7 @@ from cmdstanpy import from_csv
 from dgsn.data.sample import analysis_sample, median_x1, training_split, x1_fifth
 from dgsn.salt.globals import fit_globals
 from dgsn.stan.hier_data import build, inits
-from dgsn.stan.run import sample_four
+from dgsn.stan.run import chain_csvs, sample_four
 
 sys.path.insert(0, str(Path(__file__).parent))
 from stage3_hier import cost, gradient_check, report  # noqa: E402
@@ -94,7 +94,7 @@ def main():
           f"grainsize {grain}, x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
 
     if args.report:
-        csvs = sorted(out.glob("hier-?.csv"))
+        csvs = chain_csvs(out)
         print(f"{len(csvs)} chain files in {out}")
         report(from_csv([str(c) for c in csvs]), names, sample, data)
         return

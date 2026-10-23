@@ -35,7 +35,7 @@ from pathlib import Path
 import numpy as np
 
 from dgsn.stan.hier_data import n_coef, pack, unpack
-from dgsn.stan.run import fixed_param, log_prob
+from dgsn.stan.run import chain_csvs, fixed_param, log_prob
 
 HYPER = ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi", "sigma_g", "sigma_r")
 
@@ -105,8 +105,17 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
 
     ``R_src`` is the rotation the point was sampled under, since ``w_coef``
     are rotated coordinates and ``raw = R w_coef``; ``None`` means identity."""
-    w = np.atleast_1d(np.asarray(point["w_coef"], dtype=float))
-    raw = w if R_src is None else np.asarray(R_src, dtype=float) @ w
+    # Prefer the relabeled blocks.  w_coef is the sampled vector and is *not*
+    # relabeled --- it cannot be, since R mixes its slots --- so a point built
+    # from w_coef together with relabeled mu_p and u_p has a's sign against
+    # x_p's, inverting the traversal.  Measured, that cost 38109 nats of
+    # likelihood at a point that should have transferred exactly.
+    blocks = [k for k in ("z_a", "b_til", "z_c", "d_til") if k in point]
+    if blocks:
+        raw = pack(*[point[k] for k in blocks])
+    else:
+        w = np.atleast_1d(np.asarray(point["w_coef"], dtype=float))
+        raw = w if R_src is None else np.asarray(R_src, dtype=float) @ w
     hyper = {k: float(point[k]) for k in HYPER}
     per = {k: np.asarray(point[k], dtype=float) for k in ("m_peak", "colr")}
     # x_s is a transformed parameter in a finished run's output, but has to be
@@ -120,18 +129,17 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
     return raw, hyper, per
 
 
-def posterior_mean(out_dir) -> dict:
-    """The posterior mean of every sampled parameter of a finished run.
+def _draws(out_dir) -> tuple[np.ndarray, list]:
+    """Every post-warmup draw of a run, relabeled, with the column names.
 
-    Pooled over chains, which is sound even when they sit in opposite sign
-    branches: the gauge normalizes what the coefficients carry, so a partial
-    cancellation of ``z_c`` is a change of scale and the point stays in the
-    bulk --- measured at 17.17 against the run's own 17.16 in ``-2 lp`` per
-    epoch, with one chain of four in the opposite branch of ``psi``."""
-    from dgsn.stan.run import model
-
+    Section 2.3 leaves each pair a sign and ``hier.stan`` reports which branch
+    a draw is in.  Relabeling here, once, is what makes anything downstream
+    able to pool: without it a run with two chains in each branch cancels its
+    signed blocks, ``||mean(a)||`` falling to 0.071 where every draw has
+    ``||a|| = 1``, and a rotation or a transfer built on that mean lands
+    fifteen thousand nats below where the run itself sat."""
     rows, hdr = [], None
-    for csv in sorted(Path(out_dir).glob("hier-?.csv")):
+    for csv in chain_csvs(out_dir):
         h, r = None, []
         for line in open(csv):
             if line.startswith("#"):
@@ -143,21 +151,69 @@ def posterior_mean(out_dir) -> dict:
             if len(p) == len(h):
                 r.append(p)
         hdr = h
-        rows.append(np.asarray(r[:-1], dtype=float))        # the last line may be partial
+        rows.append(np.asarray(r[:-1], dtype=float))     # the last line may be partial
     if not rows:
         raise ValueError(f"no chain CSVs in {out_dir}")
-    mean = np.vstack(rows).mean(0)
+    X = np.vstack(rows)
     col = {c: i for i, c in enumerate(hdr)}
+    for flag, signed in (("flip_q", ("z_a", "mu_p", "u_p")),
+                         ("flip_psi", ("z_c", "mu_psi", "u_psi"))):
+        if flag not in col:
+            continue
+        flip = X[:, col[flag]] > 0.5
+        if not flip.any():
+            continue
+        idx = [i for nm in signed for c, i in col.items()
+               if c == nm or c.startswith(nm + ".")]
+        X[np.ix_(flip, idx)] *= -1
+    return X, hdr
+
+
+def _named(row, col) -> dict:
+    """One row of the draw table as a parameter dict."""
+    from dgsn.stan.run import model
+
     out = {}
-    for name in model("hier").src_info()["parameters"]:
+    # z_a, b_til, z_c, d_til are harvested alongside w_coef because the sign
+    # relabeling acts on *them*: negating a slot of w_coef would be wrong
+    # whenever R is not the identity, since the rotation mixes the slots.
+    # Reading the relabeled blocks and re-packing is correct either way.
+    for name in list(model("hier").src_info()["parameters"]) + \
+            ["x_s", "x_p", "x_psi", "delta_t", "z_a", "b_til", "z_c", "d_til"]:
         if name in col:
-            out[name] = float(mean[col[name]])
-        else:
-            v = [mean[col[k]] for k in (f"{name}.{i}" for i in range(1, len(col) + 1)) if k in col]
-            if not v:
-                raise KeyError(f"{name} not in {out_dir}")
+            out[name] = float(row[col[name]])
+            continue
+        v = [row[col[k]] for k in (f"{name}.{i}" for i in range(1, len(col) + 1)) if k in col]
+        if v:
             out[name] = np.array(v)
     return out
+
+
+def best_draw(out_dir) -> dict:
+    """The highest-density draw of a finished run, relabeled.
+
+    For a starting point this is preferable to the mean of the draws, and the
+    reason is not subtle: the model is nonlinear, so a parameter-wise average
+    need not be a point the model fits at all.  Measured on an unconverged run
+    --- R-hat 1.44, effective size 8 --- the mean sat at ``-2 lp`` per epoch
+    32.3 where every draw in it sat near 17.0.  A draw cannot fail that way.
+    """
+    X, hdr = _draws(out_dir)
+    col = {c: i for i, c in enumerate(hdr)}
+    return _named(X[int(np.argmax(X[:, col["lp__"]]))], col)
+
+
+def posterior_mean(out_dir) -> dict:
+    """The posterior mean of every parameter of a finished run, relabeled.
+
+    Sound only because ``_draws`` relabels first.  Prefer ``best_draw`` for a
+    starting point or a rotation's reference: the model is nonlinear, so a
+    parameter-wise mean need not be a point the model fits, and on an
+    unconverged run it is not --- ``-2 lp`` per epoch 32.3 at the mean where
+    every draw in it sat near 17.0."""
+    X, hdr = _draws(out_dir)
+    col = {c: i for i, c in enumerate(hdr)}
+    return _named(X.mean(0), col)
 
 
 def source_rotation(out_dir, k_psi: int, k_q: int) -> np.ndarray | None:
@@ -251,7 +307,7 @@ def from_optimize(data: dict, inits: dict, k_psi: int, k_q: int, name: str = "hi
 
 def source_size(out_dir) -> int:
     """How many supernovae the run in ``out_dir`` held."""
-    csv = sorted(Path(out_dir).glob("hier-?.csv"))[0]
+    csv = chain_csvs(out_dir)[0]
     for line in open(csv):
         if line.startswith("#"):
             continue

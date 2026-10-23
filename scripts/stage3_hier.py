@@ -20,8 +20,9 @@ from cmdstanpy import from_csv, write_stan_json
 from dgsn.data.sample import analysis_sample, median_x1, stage3_sample, x1_fifth
 from dgsn.salt.globals import fit_globals
 from dgsn.stan import data as D
-from dgsn.stan.hier_data import build, inits, inits_from_optimize
-from dgsn.stan.run import log_prob, model, sample_four, seconds_per_gradient
+from dgsn.stan.hier_data import build, inits, inits_from_optimize, inits_from_run
+from dgsn.stan.run import (chain_csvs, log_prob, model, sample_four,
+                           seconds_per_gradient)
 
 K_PSI, K_Q = 12, 8      # the smallest orders; override with --k-psi/--k-q
 BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_g", "sigma_r", "s_delta"}
@@ -143,7 +144,7 @@ def warm_start(run_dir):
     covariance of the unconstrained draws as an inverse metric.  Within,
     not pooled: chains on opposite sign branches differ in raw z_c."""
     import pandas as pd
-    chains = [pd.read_csv(f, comment="#") for f in sorted(Path(run_dir).glob("hier-?.csv"))]
+    chains = [pd.read_csv(f, comment="#") for f in chain_csvs(run_dir)]
     cols = [c for p in PARAMS for c in chains[0].columns if c == p or c.startswith(p + ".")]
     assert len(cols) == len(set(cols))
     unc = []
@@ -254,6 +255,11 @@ def main():
     ap.add_argument("--no-mode", action="store_true",
                     help="hier_nomode.stan: Eq. (curvlin) without x_psi Psi_1, so one "
                          "shared curve and no turning mode")
+    ap.add_argument("--init-from", default=None, metavar="DIR",
+                    help="start at the posterior mean of the run in DIR, which may be a "
+                         "simpler program: the three hierarchies are nested, and a mode "
+                         "contributes only through its amplitude, so zeroing the new "
+                         "amplitudes reproduces the simpler fit exactly")
     ap.add_argument("--no-trav-mode", action="store_true",
                     help="hier_common.stan: also without x_p q_1, so one shared rate "
                          "profile as well; implies --no-mode, that being the only "
@@ -293,6 +299,9 @@ def main():
               f"rotation condition {np.linalg.cond(R):.1e}")
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode,
                 trav=trav)
+    if args.init_from:
+        ini = inits_from_run(args.init_from, names, k_psi, k_q, x1_ref, mode=mode,
+                             trav=trav, sample=sample, globals_=G, R=R)
     if args.init_optimize:
         # the SALT2 fit starts the optimizer; the optimum starts the chains.
         # polish=False: its restarts cannot terminate in s_delta, flat in
@@ -308,7 +317,7 @@ def main():
           + (f" mu_psi {ini['mu_psi']:.2f}" if 'mu_psi' in ini else ''))
 
     if args.report is not None:
-        fit = from_csv([str(c) for c in sorted(Path(args.report or args.out).glob("hier-?.csv"))])
+        fit = from_csv([str(c) for c in chain_csvs(args.report or args.out)])
         report(fit, names, sample, data)
         return
 

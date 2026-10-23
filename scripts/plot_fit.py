@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from dgsn.data.epochs import likelihood_epochs  # noqa: E402
 from dgsn.data.sample import analysis_sample, training_split  # noqa: E402
-from dgsn.stan.run import fixed_param  # noqa: E402
+from dgsn.stan.run import chain_csvs, fixed_param  # noqa: E402
 
 GLOBALS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi", "sigma_g", "sigma_r",
            "mu_p_rel", "mu_psi_rel", "mu_delta", "s_delta"]
@@ -52,7 +52,7 @@ GRID_KEYS = ["Kpsi", "Kq", "m", "J", "delta", "delta_p", "pmin", "pmax",
 def read_draws(out: Path) -> pd.DataFrame:
     """Post-warmup draws of every chain, with a chain label."""
     frames = []
-    for k in sorted(out.glob("hier-?.csv")):
+    for k in chain_csvs(out):
         hdr, rows = None, []
         for line in open(k):
             if line.startswith("#"):

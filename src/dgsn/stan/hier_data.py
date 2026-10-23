@@ -208,4 +208,96 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     return out
 
 
+def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
+                   mode: bool = True, trav: bool = True, sample=None, globals_=None,
+                   R=None, program: str | None = None, data: dict | None = None,
+                   use_mean: bool = False, verbose: bool = True) -> dict:
+    """Start a richer model at a simpler one's posterior mean.
+
+    The three hierarchy programs are nested, and the embedding is exact: a
+    departure mode contributes to the likelihood only through
+    ``x_p q_1`` or ``x_psi Psi_1``, so setting the amplitudes to zero ---
+    ``mu_p = u_p = 0``, ``mu_psi = u_psi = 0`` --- reproduces the simpler
+    model's prediction whatever the mode vector is.  The mode vector itself
+    cannot be set to zero: the gauge normalizes it, and ``at / ||at||`` is
+    undefined there, so ``z_a`` and ``z_c`` keep their \\salt\\ starting
+    values and are simply not used at the start.
+
+    Why bother.  A converged posterior of a simpler model is a better start
+    than the \\salt\\ fit or an optimizer's mode: it is a point a sampler has
+    actually occupied, so the scatters, the coefficient scales and every
+    per-supernova placement are where the data put them rather than where a
+    template or a maximum put them.
+    """
+    from dgsn.stan.precondition import best_draw, posterior_mean
+
+    src = posterior_mean(out_dir) if use_mean else best_draw(out_dir)
+    out = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=globals_, R=R,
+                mode=mode, trav=trav)
+    # carried across: everything the simpler model also had
+    carried = []
+    for k in list(out):
+        if k in src and k != "w_coef":
+            v = np.asarray(src[k], dtype=float)
+            if np.shape(v) == np.shape(np.asarray(out[k], dtype=float)):
+                out[k] = v if np.ndim(out[k]) else float(v)
+                carried.append(k)
+    # the coefficient block, by name, so a shorter source lands in the right slots
+    # From the relabeled blocks, not from w_coef: w_coef is the sampled vector
+    # and the relabeling cannot act on it, R mixing its slots, so a point
+    # assembled from w_coef beside relabeled mu_p and u_p has a's sign against
+    # x_p's.  That inverted the traversal and cost 38109 nats.
+    s_un = {k: np.asarray(src[k], dtype=float)
+            for k in ("z_a", "b_til", "z_c", "d_til") if k in src}
+    if not s_un:
+        s_un = unpack(np.asarray(src["w_coef"], dtype=float), k_psi, k_q,
+                      mode="z_c" in _slots(out_dir), trav="z_a" in _slots(out_dir))
+    d_un = unpack(np.asarray(out["w_coef"], dtype=float), k_psi, k_q, mode, trav)
+    for key in d_un:
+        if key in s_un:
+            d_un[key] = s_un[key]
+            carried.append(key)
+    raw = pack(*[d_un[k] for k in ("z_a", "b_til", "z_c", "d_til") if k in d_un])
+    out["w_coef"] = raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw)
+    # A source from before Eq. (xsmean) carries x_s itself; split it the way
+    # the gauge now does, which is exactly how the constraint defines it.
+    if "x_s" in src and "s_bar" in out and "s_bar" not in src:
+        xs = np.asarray(src["x_s"], dtype=float)
+        out["s_bar"] = float(xs.mean())
+        out["x_s_dev"] = xs - xs.mean()
+        carried.append("x_s as s_bar + x_s_dev")
+    # the new modes start unused
+    zeroed = [k for k in ("mu_p", "mu_psi") if k in out and k not in src]
+    for k in zeroed:
+        out[k] = 0.0
+        out["u" + ("_p" if k == "mu_p" else "_psi")] = np.zeros(len(names))
+    if verbose:
+        msg = (f"started from {out_dir}: carried {len(set(carried))} blocks"
+               + (f", new modes zeroed: {', '.join(zeroed)}" if zeroed else ""))
+        # A count of blocks says nothing about fidelity: a transfer that
+        # silently drops x_s reports nineteen blocks carried and lands fifteen
+        # thousand nats below the Salt2 start.  Report the log density, which
+        # cannot be fooled that way.
+        if program is not None and data is not None:
+            from dgsn.stan.run import log_prob
+            msg += f"; lp at the transferred point {log_prob(program, data, out)[0]:.1f}"
+        print(msg)
+    return out
+
+
+def _slots(out_dir) -> set:
+    """Which coefficient blocks the run in ``out_dir`` sampled."""
+    from dgsn.stan.run import chain_csvs
+
+    for line in open(chain_csvs(out_dir)[0]):
+        if line.startswith("#"):
+            continue
+        cols = line.strip().split(",")
+        return {n for n in ("z_a", "b_til", "z_c", "d_til")
+                if any(c.startswith(n + ".") for c in cols)}
+    raise ValueError(f"no header yet in {out_dir}: Stan writes its configuration "
+                     "comments before the column names, so a run still in early warmup "
+                     "has no header to read")
+
+
 PARAM_NAMES = ["m_peak", "colr", "x_s", "x_p", "x_psi", "delta_t"]

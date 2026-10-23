@@ -1242,3 +1242,40 @@ Appendix~A lengthens as the model simplifies, the timing block having more of th
 do and less to trade against, and the re-placement is what makes the optimum usable as a
 start. Also: a gradient check at an optimum is weak --- `2.1e-4` here against `1e-8` at the
 \salt\ start --- because differencing a small gradient loses digits.
+
+### A relabeling that reached the copies and not the original (2026-10-23)
+
+Candidate for the traps list in `CLAUDE.md`. It produced a wrong number, reported it as a
+success, and the success message was one I had written.
+
+Section 2.3 leaves each pair a sign, and `hier.stan` reports the branch per draw. Pooling or
+transferring across branches therefore has to relabel first. The relabeling negated the
+columns named `z_a.*` and `z_c.*` --- which are *transformed* parameters, copies read out of
+the rotation --- and left `w_coef.*`, the vector actually sampled, untouched. Anything built
+from `w_coef` beside the relabeled `mu_p` and `u_p` then had $\mathbf{a}$'s sign against
+$x_p$'s, so $x_p\mathbf{a}$ inverted and the traversal ran backwards: 38109 nats of
+likelihood at a point that should have transferred exactly, reported as "carried 20 blocks".
+
+Two things made it hard to see. Every check I ran compared the transferred point against
+`best_draw` of the same run, and both sides had the same defect, so each block agreed to
+`0.000e+00` --- three such comparisons in a row, all circular. And the symptom pointed
+elsewhere: the arclength clamp started biting, `frac_clamped` going from `1.4e-5` to
+`6.4e-3`, which reads as an interval problem rather than a sign problem.
+
+What found it was comparing against something built by a different route, by hand from the
+raw CSV row, and what should have found it sooner is the log density. A count of blocks
+carried cannot detect this; `lp` at the transferred point cannot miss it. `inits_from_run`
+now reports `lp` when given the program and data, and that is the number to read.
+
+The repair is not to relabel `w_coef`: with a rotation in force, $R$ mixes its slots, so
+negating one slot is wrong. The gauge-level blocks are reported in their own right, so the
+fix is to read `z_a, b_til, z_c, d_til` --- which the relabeling does act on --- and re-pack.
+`pieces` now prefers them too, which matters because it builds every rotation: a
+preconditioner from a mixed-branch source carried the same inversion.
+
+Also settled here: for a starting point take the best draw, not the mean. The same transfer
+from the pooled mean lands at `-34580` against the best draw's `-13247.8`, which matches the
+source draw to the digit. A parameter-wise mean of a nonlinear posterior need not be a point
+the model fits, and on an unconverged run --- `R-hat` 1.44, effective size 8 --- it is not.
+This is the second time the same mistake has cost a measurement; the first put residuals at
+`chi2/N` 4.9 when every draw sat at 1.07.

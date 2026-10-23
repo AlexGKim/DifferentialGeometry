@@ -24,6 +24,19 @@ STAN_DIR = Path(__file__).resolve().parents[3] / "stan"
 _models: dict[str, CmdStanModel] = {}
 
 
+def chain_csvs(out_dir) -> list[Path]:
+    """The chain CSVs of a run, whatever program wrote them.
+
+    A program writes ``<name>-1.csv`` and so on, and there are three hierarchy
+    programs, so globbing ``hier-?.csv`` finds nothing at all for a
+    ``hier_nomode`` or ``hier_common`` run --- silently, since an empty glob
+    is not an error.  Six call sites did that until 2026-10-23."""
+    got = sorted(Path(out_dir).glob("*-[1-9].csv"))
+    if not got:
+        raise FileNotFoundError(f"no chain CSVs in {out_dir}")
+    return got
+
+
 THREADED = {"hier", "hier_nomode", "hier_common"}   # compiled with STAN_THREADS, for reduce_sum
 
 
