@@ -26,6 +26,8 @@ from dgsn.stan.run import (chain_csvs, log_prob, model, sample_four,
 
 K_PSI, K_Q = 12, 8      # the smallest orders; override with --k-psi/--k-q
 BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m"}
+# flat on a box, so the unconstrained scale is a scaled logit, not a log
+BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0)}
 GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
                   "mu_p_rel", "mu_psi_rel", "c_bar", "s_bar"]
 
@@ -39,16 +41,23 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     # of length N carries N - 1 coordinates though it is reported as N.  Index
     # by the constrained length and every block after it is off by one, which
     # showed up here as a finite-difference mismatch of 87.
-    short = {"x_s_dev": 1}
+    short = {"x_s_dev": 1, "c_dev": 1, "delta_t": 1}
     flat = []
     for n in names:
         v = np.atleast_1d(np.asarray(point[n], dtype=float))
         flat += [(n, i) for i in range(len(v) - short.get(n, 0))]
     rng = np.random.default_rng(seed)
-    # x_s_dev is a sum_to_zero_vector: moving one element alone leaves the
-    # constraint violated and Stan rejects the point.  x_s reaches the forward
-    # map as s_bar + x_s_dev and s_bar is checked, so the path is covered.
-    movable = [j for j, (nm, _) in enumerate(flat) if nm != "x_s_dev"]
+    # The three sum_to_zero_vector blocks cannot be moved one element at a
+    # time: the constraint is then violated and Stan refuses to unconstrain
+    # the point.  Their forward paths are covered elsewhere.  x_s reaches the
+    # map as s_bar + x_s_dev and colr as c_bar + c_dev, and both scalars are
+    # checked here; delta_t has no scalar companion, <Delta> = 0 having left
+    # it none, and is covered instead by single_sn.stan, where it is an
+    # unconstrained real and
+    # tests/test_single_sn.py::test_gradient_vs_finite_differences walks the
+    # same log_flux with it.
+    frozen = {"x_s_dev", "c_dev", "delta_t"}
+    movable = [j for j, (nm, _) in enumerate(flat) if nm not in frozen]
     idx = rng.choice(movable, min(n_coords, len(movable)), replace=False)
     worst = 0.0
     for j in idx:
@@ -64,6 +73,12 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
         # bounded below at zero that is theta d/dtheta.
         if n in BOUNDED:
             fd *= float(np.atleast_1d(point[n])[i])
+        elif n in BOUNDED2:
+            # two-sided: v = a + (b - a) inv_logit(x), so dv/dx is
+            # (v - a)(b - v)/(b - a).  m_peak and c_bar are flat on boxes.
+            a, b = BOUNDED2[n]
+            v = float(np.atleast_1d(point[n])[i])
+            fd *= (v - a) * (b - v) / (b - a)
         rel = abs(grad[j] - fd) / max(abs(fd), 1e-3)
         worst = max(worst, rel)
     return lp0, worst
