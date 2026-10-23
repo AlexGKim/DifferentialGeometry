@@ -427,19 +427,28 @@ span.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{traversal-coordinates}
-\caption{Why the traversal is expanded in $v$ and not in phase. \emph{Left:} the rate
-$\dd\arc/\dd\phase$ of a \salt\ track at $x_{1}=0$, $c=0$, against phase. It is a cusp:
-$0.008$~mag/d at $+0.4$~d against $1.0$ a fortnight earlier, a factor of $125$, in a feature
-about a day wide in a window of $65$. \emph{Right:} the same quantity's logarithm, which by
-\eqref{eq:ctrav} \emph{is} $x_{s} + q_{0}$, against $v$. The cusp becomes a smooth broad
-curve spanning $-4.85$ to $0.01$ over the data window, bottoming at $v \simeq 0.37$ and
-flattening by $v \simeq 2.7$; $x_{s}$ is the dotted line, and $q_{0}$ oscillates about it
-with zero mean under $\int\dd v$. Dashed: the least-squares fit at $K_{q} = 8$ and $16$,
-whose residuals in the log over the data window have root-mean-square $0.085$ and $0.038$.
-The maximum residual barely moves between the two, $0.221$ against $0.202$, because it lives
-in the five-day margins outside the data window and not in the body: the order is set by the
-edges. The track is an illustration of what the basis has to represent and is not fitted ---
-nothing here reaches a likelihood. Produced by \file{scripts/plot\_traversal.py}.}
+\caption{The two functions the population shares, each in the coordinate it is expanded
+in. \emph{Left:} the turning $\turnzero(u) = \psi + \pi/2$ of a \salt\ track at $x_{1}=0$,
+$c=0$, by \eqref{eq:cturn}, against $u = \mathrm{asinh}(\arc/\delta)$. Dash-dotted: the
+arclengths the data window reaches, $\arc \in [-4.06, +3.18]$~mag, which is
+$u \in [-7.39, +7.15]$. $\turnzero$ runs over $[-0.974, +2.556]$~rad there and is not
+monotone, doubling back twice for a total variation of $5.33$~rad. Of its range, $38\%$ is
+climbed inside $|\arc| < \delta = 5\times10^{-3}$~mag, a rise of $1.33$~rad over $1.03$~d of
+phase, $1.9\%$ of the window, which the $\mathrm{asinh}$ opens to $12\%$ of the $u$ range. Dashed: the least-squares fit at
+$K_{\psi} = 12$ and $24$, with maximum residual $0.32$ and $0.078$~rad over those
+arclengths. \emph{Right:} the log rate, which by \eqref{eq:ctrav} \emph{is}
+$x_{s} + q_{0}$, against $v$. In phase this quantity is a cusp --- $0.008$~mag/d at $+0.4$~d
+against $1.0$ a fortnight earlier, a factor of $125$ in a feature a day wide --- and in $v$ it
+is a smooth broad curve spanning $-4.85$ to $0.01$ over the data window, bottoming at
+$v \simeq 0.37$ and flattening by $v \simeq 2.7$; $x_{s}$ is the dotted line, and $q_{0}$
+oscillates about it with zero mean under $\int\dd v$. Dashed: the fit at $K_{q} = 8$ and
+$16$, whose residuals in the log over the data window have root-mean-square $0.085$ and
+$0.038$. The maximum residual barely moves between the two, $0.221$ against $0.202$, because
+it lives in the five-day margins outside the data window and not in the body: the order is
+set by the edges. Both coordinates do the same work --- they spend resolution where the
+function turns, which in phase and in arclength is a vanishing fraction of the interval. The
+track is an illustration of what the basis has to represent and is not fitted; nothing here
+reaches a likelihood. Produced by \file{scripts/plot\_traversal.py}.}
 \label{fig:coords}
 \end{figure}
 

@@ -9,7 +9,7 @@ immediate in a picture: the rate is a cusp in phase and a smooth broad curve
 in v, and the rule puts a fifth of its nodes in the two panels either side of
 zero, which is where the cusp is.
 
-The \salt\ track at x1 = 0 is used as an illustration of what the basis has
+The SALT2 track at x1 = 0 is used as an illustration of what the basis has
 to represent, not as anything fitted: the standing commitment is that
 templates quantify systematics and never fit, and nothing here reaches a
 likelihood.  Stan evaluates the model throughout, through forward.stan.
@@ -48,6 +48,24 @@ def rate_on(V, kq):
     return r, np.log(r), float(fit["x_s"]), s
 
 
+def turning_on(U, kpsi):
+    """Psi_0 at arclengths s = delta sinh(U), from the K_psi fit.
+
+    forward.stan reports psi at the requested arclengths, and
+    psi = -pi/2 + Psi_0 by Eq. (cturn), so Psi_0 = psi + pi/2."""
+    tr = salt_track(0.0, n_per_side=4000)
+    fit = fit_track(tr, kpsi, 16)
+    S = D.DELTA * np.sinh(U)
+    d = D.grid_data(k_psi=kpsi, k_q=16)
+    d.update(a=np.zeros(15), b=np.asarray(fit["q"]), c=np.zeros(kpsi - 1),
+             d=np.asarray(fit["psi"]))
+    d.update(D.params_data(x_s=float(fit["x_s"]), x_p=0.0, x_psi=0.0))
+    d.update(z=0.0)
+    d.update(D.eval_points(p_eval=np.array([0.0, 1.0]), s_eval=S,
+                           dt=np.array([0.0, 0.0]), band=np.array([1, 2])))
+    return np.asarray(fixed_param("forward", d)["psi"], dtype=float) + np.pi / 2
+
+
 def track_rate(V):
     tr = salt_track(0.0, n_per_side=4000)
     P = D.DELTA_P * np.sinh(V)
@@ -67,33 +85,55 @@ def main():
     fits = {kq: rate_on(V, kq) for kq in (8, 16)}
     k = (vm >= wlo) & (vm <= whi)
 
-    # ---- Figure 1: the same function in the two coordinates ----------------
+    # ---- Figure 1: the two shared functions, each in its own coordinate ----
+    ulo, uhi = np.arcsinh(np.array(D.ARC_RANGE) / D.DELTA)
+    tr = salt_track(0.0, n_per_side=4000)
+    u_tr = np.arcsinh(tr["s"] / D.DELTA)
+    inu = (u_tr >= ulo) & (u_tr <= uhi)
+    U = np.linspace(ulo + 1e-6, uhi - 1e-6, 4001)
+    psi_t = np.interp(U, u_tr[inu], tr["psi"][inu] + np.pi / 2)
+    turns = {kp: turning_on(U, kp) for kp in (12, 24)}
+    # where the data window lands in u
+    s_lo = np.interp(D.DATA_WINDOW[0], tr["p"], tr["s"])
+    s_hi = np.interp(D.DATA_WINDOW[1], tr["p"], tr["s"])
+    u_lo, u_hi = np.arcsinh(s_lo / D.DELTA), np.arcsinh(s_hi / D.DELTA)
+    print(f"   the data window maps to s in [{s_lo:+.2f}, {s_hi:+.2f}] mag, "
+          f"u in [{u_lo:+.2f}, {u_hi:+.2f}]")
+    ku = (U >= u_lo) & (U <= u_hi)
+    for kp in turns:
+        print(f"   K_psi={kp}: max |residual| in Psi_0 over the data window's arclengths "
+              f"{np.abs(turns[kp][ku] - psi_t[ku]).max():.4f} rad")
+
     fig, ax = plt.subplots(1, 2, figsize=(10.6, 4.3))
     a = ax[0]
-    a.semilogy(pm, r_t, lw=2.2, color="0.25")
-    a.semilogy(pm, fits[16][0], lw=1.3, ls="--", color="#d62728")
-    j = np.argmin(r_t[k])
-    a.plot(pm[k][j], r_t[k][j], "o", ms=6, mfc="none", color="#2ca02c")
-    a.annotate(f"{r_t[k][j]:.3f} mag/d\nat {pm[k][j]:+.1f} d", (pm[k][j], r_t[k][j]),
-               textcoords="offset points", xytext=(12, 4), fontsize=8, color="#2ca02c")
-    for e in D.DATA_WINDOW:
+    a.plot(U, psi_t, lw=2.2, color="0.25", label="SALT2 $x_{1}=0$")
+    for kp, col in ((12, "#ff7f0e"), (24, "#d62728")):
+        a.plot(U, turns[kp], lw=1.3, ls="--", color=col, label=f"$K_\\psi={kp}$")
+    for e in (u_lo, u_hi):
         a.axvline(e, color="0.4", lw=1.0, ls="-.")
-    a.set_xlabel(r"rest-frame phase $p$  (d)")
-    a.set_ylabel(r"$\mathrm{d}s/\mathrm{d}p$  (mag/d)")
-    a.set_title("in phase: a cusp a day wide", fontsize=10)
-    a.grid(alpha=0.15, which="both")
+    a.axvline(0, color="0.8", lw=0.6)
+    a.axhline(0, color="0.8", lw=0.6)
+    a.set_xlabel(r"$u=\mathrm{asinh}(s/\delta)$")
+    a.set_ylabel(r"$\Psi_0(u) = \psi + \pi/2$   (rad)")
+    # the K_psi = 12 fit runs away past the data window's right edge; let it
+    # leave the frame rather than flatten everything the panel is about
+    a.set_ylim(psi_t.min() - 0.7, psi_t.max() + 1.0)
+    a.set_title("the turning, in $u$", fontsize=10)
+    a.legend(fontsize=8, frameon=False, loc="upper left")
+    a.grid(alpha=0.15)
 
     a = ax[1]
-    a.plot(vm, y_t, lw=2.2, color="0.25", label=r"SALT2 $x_{1}=0$")
+    a.plot(vm, y_t, lw=2.2, color="0.25", label="SALT2 $x_{1}=0$")
     for kq, col in ((8, "#ff7f0e"), (16, "#d62728")):
         a.plot(vm, fits[kq][1], lw=1.3, ls="--", color=col, label=f"$K_q={kq}$")
     a.axhline(fits[16][2], color="#2ca02c", lw=1.0, ls=":",
               label=f"$x_s={fits[16][2]:.2f}$")
     for e in (wlo, whi):
         a.axvline(e, color="0.4", lw=1.0, ls="-.")
+    a.axvline(0, color="0.8", lw=0.6)
     a.set_xlabel(r"$v=\mathrm{asinh}(p/\delta_p)$")
     a.set_ylabel(r"$\ln(\mathrm{d}s/\mathrm{d}p)=x_s+q_0(v)$")
-    a.set_title("in $v$: smooth, and what the basis fits", fontsize=10)
+    a.set_title("the traversal, in $v$", fontsize=10)
     a.legend(fontsize=8, frameon=False, loc="upper center", ncol=2)
     a.grid(alpha=0.15)
     fig.tight_layout()
