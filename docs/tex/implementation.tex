@@ -4,6 +4,7 @@
 \usepackage{booktabs}
 \usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
+\usepackage{graphicx}
 \input{macros}
 
 \newcommand{\file}[1]{\texttt{#1}}
@@ -423,6 +424,25 @@ identically. The traversal basis is orthonormal under $\int\!\dd v$ and the turn
 under $\int\!\dd u$, in both cases over the full declared interval and not over the gauge
 span.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{traversal-coordinates}
+\caption{Why the traversal is expanded in $v$ and not in phase. \emph{Left:} the rate
+$\dd\arc/\dd\phase$ of a \salt\ track at $x_{1}=0$, $c=0$, against phase. It is a cusp:
+$0.008$~mag/d at $+0.4$~d against $1.0$ a fortnight earlier, a factor of $125$, in a feature
+about a day wide in a window of $65$. \emph{Right:} the same quantity's logarithm, which by
+\eqref{eq:ctrav} \emph{is} $x_{s} + q_{0}$, against $v$. The cusp becomes a smooth broad
+curve spanning $-4.85$ to $0.01$ over the data window, bottoming at $v \simeq 0.37$ and
+flattening by $v \simeq 2.7$; $x_{s}$ is the dotted line, and $q_{0}$ oscillates about it
+with zero mean under $\int\dd v$. Dashed: the least-squares fit at $K_{q} = 8$ and $16$,
+whose residuals in the log over the data window have root-mean-square $0.085$ and $0.038$.
+The maximum residual barely moves between the two, $0.221$ against $0.202$, because it lives
+in the five-day margins outside the data window and not in the body: the order is set by the
+edges. The track is an illustration of what the basis has to represent and is not fitted ---
+nothing here reaches a likelihood. Produced by \file{scripts/plot\_traversal.py}.}
+\label{fig:coords}
+\end{figure}
+
 \paragraph{There is no gauge.} Every condition of the note's Eq.~(11) names a departure
 mode, and this program has none: $\bar q_{1} = 0$ and $\langle q_{1},q_{1}\rangle = 1$ are
 conditions on $q_{1}$, and $\langle q_{0},q_{1}\rangle = 0$ fixes $q_{0}$'s component along
@@ -469,6 +489,22 @@ and the stored weights are already multiplied by it. Panel integrals are summed 
 draw into a prefix table from zero outward; an epoch's remainder past its last edge is one
 further fresh $J$-point panel. The panel index is found by a comparison loop, \code{floor}
 not being castable to an integer in Stan when its argument depends on parameters.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{traversal-quadrature}
+\caption{The integrand of \eqref{eq:ctrav} as the rule meets it, and where the nodes fall.
+Laying the panels in $v$ puts $16$ of the $80$ nodes in the two either side of zero --- one
+per $0.11$ in $v$, which near the anchor is one per $0.11$~d, where the feature of
+Figure~\ref{fig:coords} is. The same budget spread evenly in phase would give one node per
+$0.8$~d and miss it. The Jacobian $\delta_{p}\cosh v$ tilts the integrand even though the
+function of Figure~\ref{fig:coords} is nearly symmetric: it runs $0.008$ to $15.1$ over the
+data window, so the integral's weight sits at large $|v|$ while its \emph{structure} sits at
+the anchor. The leftmost panel, outside the data window, is where the integrand reaches
+$10^{3}$ and the fit departs; that failure is confined to one panel and to phases no epoch
+occupies. Produced by \file{scripts/plot\_traversal.py}.}
+\label{fig:quad}
+\end{figure}
 
 \subsection{The likelihood}
 
