@@ -165,7 +165,8 @@ def warm_start(run_dir):
     return inits, cov
 
 
-def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, n: int = 4, seed: int = 7):
+def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True,
+                     n: int = 4, seed: int = 7):
     """``n`` starts jittered about ``ini``, for the dispersed-start check.
 
     Agreement between chains from dispersed starts is what checks the \\salt\\
@@ -182,13 +183,13 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, n: int = 4, seed:
     from dgsn.stan.hier_data import n_coef, pack, unpack
 
     rng = np.random.default_rng(seed)
-    Rm = np.eye(n_coef(k_psi, k_q, mode)) if R is None else np.asarray(R, dtype=float)
+    Rm = np.eye(n_coef(k_psi, k_q, mode, trav)) if R is None else np.asarray(R, dtype=float)
     raw0 = Rm @ np.asarray(ini["w_coef"], dtype=float)
     starts = []
     for _ in range(n):
         s = {kk: np.array(v, dtype=float, copy=True) if np.ndim(v) else float(v)
              for kk, v in ini.items()}
-        co = unpack(raw0, k_psi, k_q, mode)
+        co = unpack(raw0, k_psi, k_q, mode, trav)
         # the non-centred pair is unit scale under its own prior
         for key in ("z_a", "z_c"):
             if key in co:
@@ -199,8 +200,12 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, n: int = 4, seed:
             kk = np.arange(1, K)
             w = tau * (kk / np.exp(np.log(kk).mean())) ** -(alpha_m + 0.5)
             co[key] = co[key] + 0.5 * w * rng.normal(size=K - 1)
-        raw = (pack(co["z_a"], co["b_til"], co["z_c"], co["d_til"]) if mode
-               else pack(co["z_a"], co["b_til"], co["d_til"]))
+        if not trav:
+            raw = pack(co["b_til"], co["d_til"])
+        elif mode:
+            raw = pack(co["z_a"], co["b_til"], co["z_c"], co["d_til"])
+        else:
+            raw = pack(co["z_a"], co["b_til"], co["d_til"])
         s["w_coef"] = raw if R is None else np.linalg.solve(Rm, raw)
         # The common locations are dispersed too, not only the deviations
         # about them: mu_p and mu_delta are the slowest-mixing directions
@@ -249,21 +254,28 @@ def main():
     ap.add_argument("--no-mode", action="store_true",
                     help="hier_nomode.stan: Eq. (curvlin) without x_psi Psi_1, so one "
                          "shared curve and no turning mode")
+    ap.add_argument("--no-trav-mode", action="store_true",
+                    help="hier_common.stan: also without x_p q_1, so one shared rate "
+                         "profile as well; implies --no-mode, that being the only "
+                         "program built for the combination")
     ap.add_argument("--precondition-from", default=None, metavar="DIR",
                     help="rotate the coefficients by the Fisher information at the posterior "
                          "mean of the run in DIR; built at a start instead it makes things worse")
     args = ap.parse_args()
 
     K_PSI, K_Q = args.k_psi, args.k_q
-    prog = "hier_nomode" if args.no_mode else "hier"
-    mode = not args.no_mode
+    if args.no_trav_mode:
+        args.no_mode = True           # hier_common drops both departure modes
+    prog = ("hier_common" if args.no_trav_mode
+            else "hier_nomode" if args.no_mode else "hier")
+    mode, trav = not args.no_mode, not args.no_trav_mode
     sample = analysis_sample()
     names = stage3_sample()
     x1_ref = median_x1()
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
-    data = build(names, k_psi, k_q, sample=sample, mode=mode)
-    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode)
+    data = build(names, k_psi, k_q, sample=sample, mode=mode, trav=trav)
+    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode, trav=trav)
     R = None
     if args.precondition_optimize:
         from dgsn.stan.precondition import from_optimize
@@ -279,18 +291,20 @@ def main():
         data = build(names, k_psi, k_q, sample=sample, R=R)
         print(f"preconditioned from {args.precondition_from}: "
               f"rotation condition {np.linalg.cond(R):.1e}")
-    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode)
+    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode,
+                trav=trav)
     if args.init_optimize:
         # the SALT2 fit starts the optimizer; the optimum starts the chains.
         # polish=False: its restarts cannot terminate in s_delta, flat in
         # likelihood and rising in prior, so they walk the ridge for four
         # passes and the re-placement discards the distance -- 182 s against
         # fifteen minutes, at the same point.
-        ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode, polish=False)
+        ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode, trav=trav,
+                                  polish=False)
     print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
     print(f"start: tau_q {ini['tau_q']:.2f} tau_psi {ini['tau_psi']:.2f}, "
           f"|w_coef| {np.linalg.norm(ini['w_coef']):.2f}, "
-          f"mu_p {ini['mu_p']:.2f}"
+          + (f" mu_p {ini['mu_p']:.2f}" if 'mu_p' in ini else "")
           + (f" mu_psi {ini['mu_psi']:.2f}" if 'mu_psi' in ini else ''))
 
     if args.report is not None:
@@ -310,7 +324,7 @@ def main():
 
     starts = ini
     if args.dispersed:
-        starts = dispersed_starts(ini, R, K_PSI, K_Q, mode)
+        starts = dispersed_starts(ini, R, K_PSI, K_Q, mode, trav)
     out = Path(args.out + ("-dispersed" if args.dispersed else ""))
     metric, metric_file, warmup, refresh = ("dense_e" if args.dense else None), None, args.iter, 100
     if args.warm_from:

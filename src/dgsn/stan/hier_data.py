@@ -22,7 +22,7 @@ INIT_SIGMA = 0.05       # mag; a scatter the first iterations can live with
 
 
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
-          sample=None, R=None, mode: bool = True) -> dict:
+          sample=None, R=None, mode: bool = True, trav: bool = True) -> dict:
     """The data block of ``hier.stan`` for the objects ``names``.
 
     ``mode=False`` is for ``hier_nomode.stan``, where Eq. (curvlin) carries no
@@ -44,15 +44,17 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         dt=np.concatenate(dt), f=np.concatenate(f), sig_f=np.concatenate(sig_f),
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), grainsize=int(grainsize),
-        R=np.eye(n_coef(k_psi, k_q, mode)) if R is None else np.asarray(R, dtype=float),
+        R=np.eye(n_coef(k_psi, k_q, mode, trav)) if R is None else np.asarray(R, dtype=float),
     )
     return data
 
 
-def n_coef(k_psi: int, k_q: int, mode: bool = True) -> int:
-    """The rotated block: z_a, b_til, z_c, d_til laid end to end, or without
-    z_c when the turning mode is absent."""
-    return 2 * (k_q - 1) + (2 if mode else 1) * (k_psi - 1)
+def n_coef(k_psi: int, k_q: int, mode: bool = True, trav: bool = True) -> int:
+    """The rotated block: z_a, b_til, z_c, d_til laid end to end, dropping
+    z_c when the turning mode is absent and z_a when the traversal mode is.
+
+    ``mode`` is Psi_1 of Eq. (curvlin), ``trav`` is q_1 of Eq. (travlog)."""
+    return (2 if trav else 1) * (k_q - 1) + (2 if mode else 1) * (k_psi - 1)
 
 
 def pack(*vectors) -> np.ndarray:
@@ -61,16 +63,19 @@ def pack(*vectors) -> np.ndarray:
     return np.concatenate([np.asarray(v, dtype=float) for v in vectors])
 
 
-def unpack(raw, k_psi: int, k_q: int, mode: bool = True) -> dict:
+def unpack(raw, k_psi: int, k_q: int, mode: bool = True, trav: bool = True) -> dict:
     n1, n3 = k_q - 1, k_psi - 1
     raw = np.asarray(raw, dtype=float)
+    if not trav:                       # b_til, d_til alone
+        return dict(b_til=raw[:n1], d_til=raw[n1:n1+n3])
     if not mode:
         return dict(z_a=raw[:n1], b_til=raw[n1:2*n1], d_til=raw[2*n1:2*n1+n3])
     return dict(z_a=raw[:n1], b_til=raw[n1:2*n1], z_c=raw[2*n1:2*n1+n3], d_til=raw[2*n1+n3:])
 
 
 def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None,
-          tau: dict | None = None, R=None, mode: bool = True) -> dict:
+          tau: dict | None = None, R=None, mode: bool = True,
+          trav: bool = True) -> dict:
     """Initial values: per-supernova from SALT2 and the sample, global
     functions from the SALT2 fits.  ``tau`` defaults to the norm the SALT2
     coefficients imply at ``INIT_ALPHA``, so that ``z`` starts near unit scale
@@ -88,8 +93,12 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         tau = dict(q=float(np.sqrt(np.mean((G["b"] / wq) ** 2))),
                    psi=float(np.sqrt(np.mean((G["d"] / wp) ** 2))))
     per = [per_sn_start(sample.loc[n]) for n in names]
-    raw = (pack(G["a"] / wq, G["b"], G["c"] / wp, G["d"]) if mode
-           else pack(G["a"] / wq, G["b"], G["d"]))
+    if not trav:
+        raw = pack(G["b"], G["d"])     # no z_a, no z_c
+    elif mode:
+        raw = pack(G["a"] / wq, G["b"], G["c"] / wp, G["d"])
+    else:
+        raw = pack(G["a"] / wq, G["b"], G["d"])
     out = dict(
         # w = R^-1 raw, so that the start is the same point whatever rotation
         # is in force
@@ -97,16 +106,17 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         tau_q=tau["q"], tau_psi=tau["psi"],
         alpha_q_m=INIT_ALPHA - 0.5, alpha_psi_m=INIT_ALPHA - 0.5,
         sigma_g=INIT_SIGMA, sigma_r=INIT_SIGMA,
-        mu_p=G["x_p"], mu_delta=0.0, s_delta=1.0,
+        mu_delta=0.0, s_delta=1.0,
         m_peak=np.array([p["m_peak"] for p in per]),
         colr=np.array([p["colr"] for p in per]),
         s_bar=G["x_s"],                # the mean log rate; the deviations carry the rest
         x_s_dev=np.zeros(len(names)),  # sums to zero, as sum_to_zero_vector requires
-        u_p=np.zeros(len(names)),      # x_p starts at mu_p = the SALT2 reference
         u_del=np.zeros(len(names)),
     )
     if mode:
         out.update(mu_psi=G["x_psi"], u_psi=np.zeros(len(names)))
+    if trav:
+        out.update(mu_p=G["x_p"], u_p=np.zeros(len(names)))
     return out
 
 
@@ -128,7 +138,7 @@ def _from_mode(mode: dict, name: str):
 
 
 def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: int,
-                        mode: bool = True, verbose: bool = True,
+                        mode: bool = True, trav: bool = True, verbose: bool = True,
                         polish: bool = True) -> dict:
     """Initial values from Stan's own optimizer on the data, re-placed on the
     ``s_delta`` ridge.
@@ -172,10 +182,12 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
     # transformed parameter, but an inits dict has to name what is sampled.
     keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_g", "sigma_r",
-            "mu_p", "mu_delta", "s_delta", "s_bar", "x_s_dev", "u_p", "u_del",
+            "mu_delta", "s_delta", "s_bar", "x_s_dev", "u_del",
             "m_peak", "colr"]
     if mode:
         keys += ["mu_psi", "u_psi"]
+    if trav:
+        keys += ["mu_p", "u_p"]
     out = {k: _from_mode(m, k) for k in keys}
     # back onto the constraint surface after the roundtrip through text
     out["x_s_dev"] = out["x_s_dev"] - np.mean(out["x_s_dev"])

@@ -24,7 +24,7 @@ STAN_DIR = Path(__file__).resolve().parents[3] / "stan"
 _models: dict[str, CmdStanModel] = {}
 
 
-THREADED = {"hier", "hier_nomode"}   # programs compiled with STAN_THREADS, for reduce_sum
+THREADED = {"hier", "hier_nomode", "hier_common"}   # compiled with STAN_THREADS, for reduce_sum
 
 
 def _cpp_options(name: str) -> dict | None:

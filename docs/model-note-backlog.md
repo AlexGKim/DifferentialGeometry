@@ -1197,3 +1197,48 @@ likelihood and rising in prior by Appendix A, so its four restarts walk up the r
 three minutes each and the re-placement discards the distance. `polish=False` took the
 optimum from fifteen minutes to 182 seconds with no loss, and is now the right default when
 the mode is wanted as a starting point.
+
+### The two departure modes, by what removing them costs (2026-10-23)
+
+Three programs now, nested: `hier.stan` with both departure modes,
+`hier_nomode.stan` without $\shapeturn\turnone$, `hier_common.stan` without $x_p q_1$ as
+well, so that every supernova walks one curve at one rate profile and differs only in
+brightness, colour, overall speed and timing. 267, 213 and 167 sampled values on thirty
+objects at $K_{\psi} = 24$, $K_q = 16$; six, five and four parameters an object.
+
+Removing both modes empties the gauge. Eq. (gauge)'s four conditions on the traversal pair
+and two on the turning pair all involve a mode, so in `hier_common.stan` $b = \tilde b$ and
+$d = \tilde d$ and $G_{\arc}$ is inert. Both sign freedoms go with their modes, so that
+program has no discrete symmetry and needs no relabeling --- which removes by construction
+the `flip_psi` instability that contaminated `R-hat` on `c_rel`.
+
+At the optimum, the cost of each removal:
+
+| | MLE lp | cost of the removal |
+|---|---|---|
+| both modes | `-13258.5` | --- |
+| no $\turnone$ | `-13271.9` | 13 nats |
+| neither | `-13432.0` | a further 160 |
+
+So $q_1$ is worth about twelve times $\turnone$, which inverts what the sampling diagnostics
+suggested. That is consistent rather than contradictory: $\turnone$ is the badly determined
+one --- four informed directions of 23, falling as $k^{-2.79}$, $\shapeturn$ with posterior
+sd 1.52 against a unit prior --- while $q_1$ is well determined, $\lVert\mathbf{a}\rVert$
+being exactly 1 with a stable direction. Being well determined is what makes a mode
+expensive to remove.
+
+A partial sampling run agrees about $\turnone$ and argues against dropping it. The mode-free
+fit reached 124 to 273 sampling draws before being stopped, at `-2 lp` per epoch
+`17.10`--`17.11` on all four chains against `16.98` with the mode: 0.13 an epoch, so about
+204 in `-2 lp` over 1568 epochs for 54 coordinates saved. Read as a likelihood ratio that is
+$\chi^{2} = 204$ on some 54 degrees of freedom, fourteen standard deviations, though the
+reading is loose --- the densities carry priors, the counts differ so no proper test applies,
+and the run was not converged, with 3.7 to 15.0 percent of transitions divergent against
+2.25 with the mode.
+
+One harness note: `s_delta` came back from the optimizer at 25.24 for `hier_common` against
+2.959 and 1.555 for the other two, rms $u_{\mathrm{del}}$ at `0.013`. The ridge of
+Appendix~A lengthens as the model simplifies, the timing block having more of the fitting to
+do and less to trade against, and the re-placement is what makes the optimum usable as a
+start. Also: a gradient check at an optimum is weak --- `2.1e-4` here against `1e-8` at the
+\salt\ start --- because differencing a small gradient loses digits.
