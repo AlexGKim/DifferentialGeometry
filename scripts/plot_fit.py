@@ -41,9 +41,9 @@ from dgsn.data.epochs import likelihood_epochs  # noqa: E402
 from dgsn.data.sample import analysis_sample, training_split  # noqa: E402
 from dgsn.stan.run import chain_csvs, fixed_param  # noqa: E402
 
-GLOBALS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi", "sigma_g", "sigma_r",
-           "mu_p_rel", "mu_psi_rel", "mu_delta", "s_delta"]
-LOGGED = {"tau_q", "tau_psi", "s_delta"}      # plotted as log10, their range spanning decades
+GLOBALS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
+           "mu_p_rel", "mu_psi_rel", "c_bar", "s_bar"]
+LOGGED = {"tau_q", "tau_psi"}                 # plotted as log10, their range spanning decades
 CHAIN_COLOURS = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]
 GRID_KEYS = ["Kpsi", "Kq", "m", "J", "delta", "delta_p", "pmin", "pmax",
              "smin", "smax", "gsmin", "gsmax", "eps", "eps_t", "eps_s", "zp"]

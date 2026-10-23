@@ -37,7 +37,7 @@ import numpy as np
 from dgsn.stan.hier_data import n_coef, pack, unpack
 from dgsn.stan.run import chain_csvs, fixed_param, log_prob
 
-HYPER = ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi", "sigma_g", "sigma_r")
+HYPER = ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi")
 
 
 def _flux(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int) -> np.ndarray:
@@ -72,14 +72,12 @@ def fisher(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k
     """``J' Sigma^-1 J`` plus the prior precision, over the coefficients.
 
     The likelihood is Gaussian in flux, so with ``J`` the derivative of the
-    *log* flux the weight of epoch ``i`` is ``(f_i / sigma_i)^2``.  The
-    variance carries the intrinsic scatter of Eq. (like), as the fit does."""
+    *log* flux the weight of epoch ``i`` is ``(f_i / sigma_{f,i})^2``.  The
+    variance is the archive's error alone, as the fit's now is: Eq. (like)
+    carried a second, fitted term and no longer does."""
     J, f = jacobian(data, raw, hyper, per_sn, k_psi, k_q, h)
     sig_f = np.asarray(data["sig_f"], dtype=float)
-    band = np.asarray(data["band"], dtype=int)
-    sb = np.where(band == 1, float(hyper["sigma_g"]), float(hyper["sigma_r"]))
-    var = sig_f ** 2 + (0.4 * np.log(10) * sb * f) ** 2
-    W = f ** 2 / var
+    W = (f / sig_f) ** 2
     F = J.T @ (W[:, None] * J)
 
     # prior precision: std_normal on z_a, z_c; Eq. (coefprior) at the pivot on
@@ -117,15 +115,16 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
         w = np.atleast_1d(np.asarray(point["w_coef"], dtype=float))
         raw = w if R_src is None else np.asarray(R_src, dtype=float) @ w
     hyper = {k: float(point[k]) for k in HYPER}
-    per = {k: np.asarray(point[k], dtype=float) for k in ("m_peak", "colr")}
-    # x_s is a transformed parameter in a finished run's output, but has to be
-    # assembled from its pieces in an inits dict
+    per = {"m_peak": np.asarray(point["m_peak"], dtype=float),
+           "delta_t": np.asarray(point["delta_t"], dtype=float)}
+    # x_s and colr are transformed parameters in a finished run's output, but
+    # have to be assembled from their pieces in an inits dict
     per["x_s"] = (np.asarray(point["x_s"], dtype=float) if "x_s" in point
                   else float(point["s_bar"]) + np.asarray(point["x_s_dev"], dtype=float))
+    per["colr"] = (np.asarray(point["colr"], dtype=float) if "colr" in point
+                   else float(point["c_bar"]) + np.asarray(point["c_dev"], dtype=float))
     per["x_p"] = float(point["mu_p"]) + np.asarray(point["u_p"], dtype=float)
     per["x_psi"] = float(point["mu_psi"]) + np.asarray(point["u_psi"], dtype=float)
-    per["delta_t"] = (float(point["mu_delta"])
-                      + float(point["s_delta"]) * np.asarray(point["u_del"], dtype=float))
     return raw, hyper, per
 
 
@@ -284,22 +283,21 @@ def from_optimize(data: dict, inits: dict, k_psi: int, k_q: int, name: str = "hi
     leaves ``delta_t``, and so the likelihood, untouched while the prior
     ``-1/2 sum u_del^2`` rises toward zero.  Measured along that ridge the log
     density gains 7.3 nats monotonically and plateaus by a factor of 30, which
-    is where the optimizer stopped: the constrained-scale mode is not finite
-    in ``s_delta``.  A Fisher built there mis-scales the per-supernova timing
-    block by thirty.
-
-    Use ``from_run``, which carries a previous posterior across a change of
-    basis.  To start a *sampler* from this mode instead, re-place it on the
-    ridge first --- ``s_delta`` to sd(``delta_t`` - ``mu_delta``) and ``u_del``
-    to match --- which keeps the fit and fixes the scaling.
+    was where the optimizer stopped: the constrained-scale mode was not
+    finite in ``s_delta``, and a Fisher built there mis-scaled the
+    per-supernova timing block by thirty.  That ridge went with the
+    population of ``delta_t``, which is now a ``sum_to_zero_vector`` with no
+    scale of its own, so the warning no longer applies and this has not been
+    re-measured since.  ``from_run``, which carries a previous posterior
+    across a change of basis, remains the better-tested route.
     """
     from dgsn.stan.run import optimize
 
     mode = optimize(name, data, inits, jacobian=False)
     n = int(data["N_sn"])
-    point = {k: float(mode[k]) for k in HYPER + ("mu_p", "mu_psi", "mu_delta", "s_delta")}
+    point = {k: float(mode[k]) for k in HYPER + ("mu_p", "mu_psi", "s_bar", "c_bar")}
     point["w_coef"] = np.array([mode[f"w_coef[{i}]"] for i in range(1, n_coef(k_psi, k_q) + 1)])
-    for v in ("m_peak", "colr", "x_s", "u_p", "u_psi", "u_del"):
+    for v in ("m_peak", "x_s_dev", "c_dev", "delta_t", "u_p", "u_psi"):
         point[v] = np.array([mode[f"{v}[{i}]"] for i in range(1, n + 1)])
     raw, hyper, per_sn = pieces(point, k_psi, k_q)
     return rotation(fisher(data, raw, hyper, per_sn, k_psi, k_q))

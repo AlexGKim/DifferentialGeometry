@@ -103,12 +103,12 @@ def eval_points(p_eval=(), s_eval=(), dt=(), band=()) -> dict:
                 N=len(dt), dt=dt, band=band)
 
 
-def epochs_data(dt, f, sig_f, band, z: float, sigma_g: float, sigma_r: float) -> dict:
+def epochs_data(dt, f, sig_f, band, z: float) -> dict:
     """The epoch set of Section 4 as ``single_sn.stan`` data."""
     dt = np.asarray(dt, dtype=float)
     return dict(N=len(dt), dt=dt, f=np.asarray(f, dtype=float),
                 sig_f=np.asarray(sig_f, dtype=float), band=np.asarray(band, dtype=int),
-                z=float(z), sigma_g=float(sigma_g), sigma_r=float(sigma_r))
+                z=float(z))
 
 
 def prior_data(prior_on: bool = True, mu_p: float = 0.0, mu_psi: float = 0.0,

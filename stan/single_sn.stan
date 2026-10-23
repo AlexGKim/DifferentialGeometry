@@ -14,8 +14,6 @@ data {
   vector[N] f;
   vector<lower=0>[N] sig_f;
   array[N] int<lower=1, upper=2> band;
-  real<lower=0> sigma_g;          // intrinsic scatter, data at this stage
-  real<lower=0> sigma_r;
   // Priors of Section 5, with the population hyperparameters as data.
   int<lower=0, upper=1> prior_on;
   real mu_p;
@@ -42,7 +40,7 @@ model {
                              Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
                              edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u,
                              xg, wg, P0, T);
-  target += -0.5 * neg2_loglike(f, sig_f, band, exp(lf[:, 1]), sigma_g, sigma_r);
+  target += -0.5 * neg2_loglike(f, sig_f, exp(lf[:, 1]));
   if (prior_on) {
     x_p ~ normal(mu_p, 1);
     x_psi ~ normal(mu_psi, 1);

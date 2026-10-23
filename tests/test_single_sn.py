@@ -42,12 +42,12 @@ def synth_epochs(G, params, dilation=1.0, shift=(0.0, 0.0), cadence=1.5, snr=50.
     return dict(dt=dt_rest * dilation, f=f, sig_f=np.full(len(f), f.max() / snr), band=band, z=0.0)
 
 
-def fit_data(G, epochs, sigma=0.0, prior_on=False, eps=D.EPS):
+def fit_data(G, epochs, prior_on=False, eps=D.EPS):
     data = D.grid_data()
     data["eps"] = eps
     data.update({k: G[k] for k in ("a", "b", "c", "d")})
     data.update(D.epochs_data(epochs["dt"], epochs["f"], epochs["sig_f"], epochs["band"],
-                              epochs["z"], sigma, sigma))
+                              epochs["z"]))
     data.update(D.prior_data(prior_on=prior_on, mu_p=G["x_p"], mu_psi=G["x_psi"],
                              xs_bar=G["x_s"], m_bright=18.0))
     return data
@@ -113,7 +113,7 @@ def test_gradient_vs_finite_differences(salt_globals):
     G = salt_globals
     truth0 = D.params_data(m_peak=18.0, colr=0.05, x_s=G["x_s"], x_p=G["x_p"], x_psi=G["x_psi"])
     epochs = synth_epochs(G, truth0)
-    data = fit_data(G, epochs, sigma=0.05, prior_on=True)
+    data = fit_data(G, epochs, prior_on=True)
     point = perturbed(truth0)
     _, grad = log_prob("single_sn", data, point)
     for h in (1e-4, 1e-5):

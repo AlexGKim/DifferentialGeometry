@@ -508,23 +508,31 @@ the baseline was estimated from (\texttt{in\_baseline}). Every epoch contributes
 non-detections and negative fluxes included,
 \begin{equation}
   -2\ln\mathcal{L}
-    = \sum_{i}\left[\frac{\bigl(f_{i} - \hat f_{i}\bigr)^{2}}{\sigma_{i}^{2}}
-      + \ln\sigma_{i}^{2}\right], \qquad
-  \sigma_{i}^{2} = \sigma_{f,i}^{2}
-    + \bigl(0.4\ln 10\ \sigma_{b_{i}}\,\hat f_{i}\bigr)^{2} ,
+    = \sum_{i}\frac{\bigl(f_{i} - \hat f_{i}\bigr)^{2}}{\sigma_{f,i}^{2}} ,
   \label{eq:like}
 \end{equation}
 with $f_{i}$ the archive's baseline-subtracted flux and $\sigma_{f,i}$ its error, taken as
 published.
 
-The second variance term is the intrinsic scatter, carried by two fitted scalars
-$\sigma_{g}$ and $\sigma_{r}$: one per band, constant in phase, and in magnitudes, which
-is why they enter \eqref{eq:like} through $0.4\ln 10$ as a fractional flux error scaled by
-$\hat f_{i}$. Here $\sigma_{b_{i}}$ is whichever belongs to the band of epoch $i$. The
-inclusion of these model parameters necessitates the log-determinant term in the
-likelihood. A variance that rises with the prediction gives the fit, through that term, a
-small preference for the fainter of two predictions; it belongs to any such error model and
-is noted rather than removed.
+The variance is the archive's and nothing else. \texttt{flux\_err} already carries both the
+sky and the source contribution: regressed against flux over the epochs of
+Section~\ref{sec:inference}'s sample it is
+$\sigma_{f}^{2} = 3.85\times10^{6} + 5.39\,f$ in $g$ and
+$2.6\times10^{6} + 38.1\,f$ in $r$, a floor plus a term rising with the source, steeply in
+$r$, where the faint and bright deciles of $\sigma_{f}$ stand at $1168$ and $1806$. It is
+also calibrated as published: over the baseline epochs the flux scatters at $0.977$ times
+$\sigma_{f}$, so DR2's own \texttt{err\_scale} is already folded in and is not to be
+applied again.
+
+An earlier version of \eqref{eq:like} added a second variance term,
+$(0.4\ln 10\ \sigma_{b_{i}}\hat f_{i})^{2}$, a fractional scatter carried by one fitted
+scalar per band. It is removed. With the variance no longer depending on the parameters the
+log-determinant goes with it: it was not optional while the variance did depend on them,
+since $\sum (f-\hat f)^{2}/\sigma^{2}$ alone falls monotonically in $\sigma$ and the fit
+would drive $\sigma_{b}$ to infinity, but $\sum\ln\sigma_{f,i}^{2}$ is an additive constant
+and contributes nothing. What \eqref{eq:like} returns is therefore $-2\ln\mathcal{L}$ up to
+that fixed number, and a log-likelihood from this model is not comparable with one from a
+program that kept the term until it is restored.
 
 Two intervals bound where the modeling functions of Section~\ref{sec:traversal} are
 defined, and the posterior respects neither: $\tmax$ can carry an epoch's phase outside
@@ -601,12 +609,14 @@ The posterior is sampled with the no-U-turn Hamiltonian Monte Carlo sampler
 \citep{Hoffman2011} in \texttt{cmdstan} \citep{Carpenter2017}, and the forward map of
 Section~\ref{sec:staging} is the same \texttt{Stan} code: there is no second implementation,
 and it is checked against closed forms and against finite differences of its own log
-density. Global coefficients, per-supernova parameters, $\sigma_{g}, \sigma_{r}$
-and the hyperparameters below
+density. Global coefficients, per-supernova parameters and the hyperparameters below
 are sampled jointly: $2K_{\psi} + 2K_{q} - 4$ coefficients, six parameters for each
-training supernova, and the scalars. Nothing is profiled or held at a point estimate: the
-per-supernova parameters are incidental, and maximizing over them would return
-$\sigma_{g}, \sigma_{r}$ biased low \citep{Neyman1948}.
+training supernova, and the scalars. Nothing is profiled or held at a point estimate. The
+per-supernova parameters are incidental in the sense of \citet{Neyman1948}, and maximizing
+over them biases the global quantities that share the same epochs; the earlier version of
+this section named the fitted scatters as what would be biased low, and they are gone with
+\eqref{eq:like}'s second variance term, but the reason for sampling rather than profiling
+is unchanged.
 
 The gauge is imposed by construction rather than sampled. The sampler moves on the
 unconstrained raw coefficients $(\tilde{\mathbf{a}}, \tilde{\mathbf{b}}, \tilde{\mathbf{c}}, \tilde{\mathbf{d}})$ of
@@ -670,7 +680,7 @@ $\langle q_{0}, q_{1}\rangle = 0$ makes the reference supernova the one orthogon
 departure mode and not the population mean, so a prior centred at zero would pull the
 population toward a point with no physical meaning; $\mu_{p}$ is identified because that
 same condition has fixed the component of $q_{0}$ along $q_{1}$, and $\mu_{\psi}$ likewise.
-The scatters are flat on $\sigma_{g}, \sigma_{r} > 0$. The time origin is written
+The time origin is written
 $\tmax = t_{0} + \Delta$ with $\Delta \sim \mathcal{N}(\mu_{\Delta}, s_{\Delta}^{2})$,
 $\mu_{\Delta}$ flat and $s_{\Delta}$ flat on $s_{\Delta} > 0$: $t_{0}$ is $B$ maximum and
 $\tmax$ is $g$ maximum, and the offset between them is measured by the fit, centre and
@@ -800,21 +810,27 @@ What validation withholds is the global functions, which is what the truncation 
 control. The six per-supernova parameters are not shared and cannot be withheld --- a
 supernova of which nothing has been seen cannot be predicted --- so a validation object is
 fit for its own six, sampled under the same priors with
-$\turnzero, \turnone, q_{0}, q_{1}, \sigma_{g}, \sigma_{r}$ and the departure means held
+$\turnzero, \turnone, q_{0}, q_{1}$ and the departure means held
 at their training posterior means, and the score below averaged over the draws. Those six
 are fit on the same epochs whose residuals are then
 scored, which makes the exercise mildly optimistic.
 
 The truncation orders are set by running the fit over
-$K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing the held-out log
-score, $\sum_{i}[(f_{i} - \hat f_{i})^{2}/\sigma_{i}^{2} + \ln\sigma_{i}^{2}]$ over
-validation epochs. The spread of the normalized residual $(f_{i} - \hat f_{i})/\sigma_{i}$
-is not the statistic: $\sigma_{g}, \sigma_{r}$ are fitted in training and absorb what the
-truncation cannot fit, and validation, holding them, meets the same truncation, so that
-spread is unity at every order and truncation error would be reported as intrinsic scatter.
-The log score ranks because a better truncation earns a smaller scatter, and
-$\sigma_{g}(K), \sigma_{r}(K)$ are tabulated beside it and must fall and flatten where it
-does. Residual within the training
+$K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing
+$\sum_{i}(f_{i} - \hat f_{i})^{2}/\sigma_{f,i}^{2}$ over validation epochs, which by
+\eqref{eq:like} is the held-out $-2\ln\mathcal{L}$ up to the additive constant the orders
+share.
+
+An earlier version of this section could not use that statistic. The variance then carried
+a fitted scatter per band, which absorbed in training whatever the truncation could not fit;
+validation held those scatters and met the same truncation, so the normalized residual had
+unit spread at every order and truncation error was reported as intrinsic scatter. The
+ranking had to be done on the log score, with $\sigma_{g}(K), \sigma_{r}(K)$ tabulated
+beside it. With the variance now the archive's alone there is nothing to absorb anything:
+$\sigma_{f,i}$ is data, identical across orders, and the spread of
+$(f_{i} - \hat f_{i})/\sigma_{f,i}$ is free to exceed unity and does so by exactly the
+amount the truncation misses. The statistic and the diagnostic have become the same number.
+Residual within the training
 sample falls with either order by construction and so ranks nothing. \eqref{eq:coefprior}
 is what keeps the comparison about truncation rather than prior: a larger basis is free to
 leave its high modes near zero instead of obliged to fill them, and with $\alpha$ inferred

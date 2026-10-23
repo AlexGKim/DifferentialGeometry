@@ -1,7 +1,7 @@
 """Stage 2 of Section 5.2: one supernova, six parameters, the global
 functions supplied as data from the SALT2 fits.
 
-    python scripts/stage2_single.py [--check-only] [--name ZTF..] [--sigma 0.05]
+    python scripts/stage2_single.py [--check-only] [--name ZTF..]
 
 --check-only runs the build check (single_sn's fluxes against forward.stan
 for the same inputs) and the gradient against finite differences at the
@@ -43,7 +43,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check-only", action="store_true")
     ap.add_argument("--name", default=None)
-    ap.add_argument("--sigma", type=float, default=None, help="sigma_g = sigma_r in mag; default the SALT2 truncation rms")
     ap.add_argument("--out", default="runs/stage2")
     args = ap.parse_args()
 
@@ -56,8 +55,8 @@ def main():
 
     x1_ref = median_x1()
     G = fit_globals(D.K_PSI, D.K_Q, x1_ref)
-    sigma = args.sigma if args.sigma is not None else max(G["lightcurve_rms"], 0.01)
-    print(f"globals from SALT2 at x1 = {x1_ref:.3f}; reference at x_s {G['x_s']:.3f}, x_p {G['x_p']:.3f}, x_psi {G['x_psi']:.3f}; sigma_g = sigma_r = {sigma:.3f}")
+    print(f"globals from SALT2 at x1 = {x1_ref:.3f}; reference at x_s {G['x_s']:.3f}, "
+          f"x_p {G['x_p']:.3f}, x_psi {G['x_psi']:.3f}; likelihood on the archive's errors alone")
 
     start = per_sn_start(row)
     start.update(x_s=G["x_s"], x_p=G["x_p"], x_psi=G["x_psi"])
@@ -65,7 +64,7 @@ def main():
 
     data = D.grid_data()
     data.update({k: G[k] for k in ("a", "b", "c", "d")})
-    data.update(D.epochs_data(ep["dt"], ep["f"], ep["sig_f"], ep["band"], ep["z"], sigma, sigma))
+    data.update(D.epochs_data(ep["dt"], ep["f"], ep["sig_f"], ep["band"], ep["z"]))
     data.update(D.prior_data(prior_on=True, mu_p=G["x_p"], mu_psi=G["x_psi"], mu_delta=0.0,
                              s_delta=1.0, xs_bar=G["x_s"], m_bright=ep["m_bright"]))
 

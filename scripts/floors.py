@@ -1,7 +1,7 @@
 """The floors of Section 3, pushed through the truncated model before any
 fit: the K-correction at z = 0.05 and the Galactic extinction drift at
 E(B-V) = 0.3, each as what it does to x_psi and to the per-band residual
-that sigma_g, sigma_r would have to absorb.
+that the fit would have to absorb, Eq. (like) carrying no scatter of its own.
 
     python scripts/floors.py
 
@@ -24,7 +24,7 @@ def fit_epochs(G, epochs, start):
     data = D.grid_data()
     data.update({k: G[k] for k in ("a", "b", "c", "d")})
     data.update(D.epochs_data(epochs["dt"], epochs["f"], epochs["sig_f"], epochs["band"],
-                              epochs["z"], 0.0, 0.0))
+                              epochs["z"]))
     data.update(D.prior_data(prior_on=False))
     fit = optimize("single_sn", data, start)
     fp = {k: fit[k] for k in NAMES}

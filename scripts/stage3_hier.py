@@ -25,9 +25,9 @@ from dgsn.stan.run import (chain_csvs, log_prob, model, sample_four,
                            seconds_per_gradient)
 
 K_PSI, K_Q = 12, 8      # the smallest orders; override with --k-psi/--k-q
-BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_g", "sigma_r", "s_delta"}
-GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi", "sigma_g", "sigma_r",
-                  "mu_p_rel", "mu_psi_rel", "mu_delta", "s_delta"]
+BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m"}
+GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
+                  "mu_p_rel", "mu_psi_rel", "c_bar", "s_bar"]
 
 
 def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
@@ -129,14 +129,17 @@ def report(fit, names, sample, data):
     print("\n-2 lp per epoch by x1 fifth (mean over objects):", " ".join(f"{q}: {per_ep[fifth.to_numpy() == q].mean():.2f}" for q in range(5)))
     worst = np.argsort(per_ep)[-3:][::-1]
     print("worst objects:", ", ".join(f"{names[i]} ({per_ep[i]:.1f}, x1 {sample.loc[names[i]].x1:+.2f})" for i in worst))
-    print(f"delta_t: mean over objects {dl.mean():+.3f} d, sd of object means {dl.mean(0).std():.3f}; mu_delta {summ.loc['mu_delta', 'Mean']:+.3f}, s_delta {summ.loc['s_delta', 'Mean']:.3f}")
+    # <Delta> = 0 is imposed, so the mean below is a check on the constraint
+    # surviving the roundtrip through text, not a fitted quantity.
+    print(f"delta_t: mean over objects {dl.mean():+.3e} d (constrained to zero), "
+          f"sd of object means {dl.mean(0).std():.3f}")
 
 
 # The parameters block of hier.stan in declaration order, and which are
 # log-transformed to the unconstrained space.
 PARAMS = ["z_a", "b_til", "z_c", "d_til", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
-          "sigma_g", "sigma_r", "mu_p", "mu_psi", "mu_delta", "s_delta",
-          "m_peak", "colr", "x_s", "u_p", "u_psi", "u_del"]
+          "mu_p", "mu_psi",
+          "m_peak", "c_bar", "c_dev", "x_s", "u_p", "u_psi", "delta_t"]
 
 
 def warm_start(run_dir):
@@ -209,19 +212,21 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
             raw = pack(co["z_a"], co["b_til"], co["d_til"])
         s["w_coef"] = raw if R is None else np.linalg.solve(Rm, raw)
         # The common locations are dispersed too, not only the deviations
-        # about them: mu_p and mu_delta are the slowest-mixing directions
+        # about them: mu_p and mu_psi are the slowest-mixing directions
         # measured, so four chains sharing them would leave the check
         # blind to exactly what it is meant to test.
-        if "x_s_dev" in s:
-            # stay on the sum-to-zero hyperplane, or the start is invalid
-            j = 0.3 * rng.normal(size=len(s["x_s_dev"]))
-            s["x_s_dev"] = s["x_s_dev"] + j - j.mean()
-        for key, w in (("mu_p", 1.0), ("mu_psi", 1.0), ("mu_delta", 0.5),
+        # The three sum_to_zero blocks have to stay on their hyperplanes, or
+        # the start is rejected as violating its own constraint.
+        for key, w in (("x_s_dev", 0.3), ("c_dev", 0.3), ("delta_t", 0.5)):
+            if key in s:
+                j = w * rng.normal(size=len(s[key]))
+                s[key] = s[key] + j - j.mean()
+        for key, w in (("mu_p", 1.0), ("mu_psi", 1.0), ("c_bar", 0.3),
                        ("s_bar", 0.3)):
             if key in s:
                 s[key] = s[key] + w * float(rng.normal())
-        for key, w in (("m_peak", 0.3), ("colr", 0.3), ("x_s", 0.3),
-                       ("u_p", 1.0), ("u_psi", 1.0), ("u_del", 1.0)):
+        for key, w in (("m_peak", 0.3), ("x_s", 0.3),
+                       ("u_p", 1.0), ("u_psi", 1.0)):
             if key in s:
                 s[key] = s[key] + w * rng.normal(size=len(s[key]))
         starts.append(s)
@@ -249,9 +254,8 @@ def main():
                     help="build the rotation at the optimize mode, which needs no previous run; "
                          "the only option after a change of basis")
     ap.add_argument("--init-optimize", action="store_true",
-                    help="start the chains at Stan's own optimum on the data, re-placed on "
-                         "the s_delta ridge, instead of at the SALT2 fit; needs no template "
-                         "except to start the optimizer")
+                    help="start the chains at Stan's own optimum on the data instead of "
+                         "at the SALT2 fit; needs no template except to start the optimizer")
     ap.add_argument("--no-mode", action="store_true",
                     help="hier_nomode.stan: Eq. (curvlin) without x_psi Psi_1, so one "
                          "shared curve and no turning mode")
@@ -304,10 +308,10 @@ def main():
                              trav=trav, sample=sample, globals_=G, R=R)
     if args.init_optimize:
         # the SALT2 fit starts the optimizer; the optimum starts the chains.
-        # polish=False: its restarts cannot terminate in s_delta, flat in
-        # likelihood and rising in prior, so they walk the ridge for four
-        # passes and the re-placement discards the distance -- 182 s against
-        # fifteen minutes, at the same point.
+        # polish=False was forced by the s_delta ridge, which the constrained
+        # delta_t has removed; whether the restarts now converge and earn
+        # their four passes is unmeasured, so the cheap setting stands until
+        # it is.
         ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode, trav=trav,
                                   polish=False)
     print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")

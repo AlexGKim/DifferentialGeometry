@@ -218,16 +218,16 @@ depends on parameters.
 
 Eq.~(18) of the note, with the tapered flux of Eq.~(17). \textbf{[=]}
 
-\code{neg2\_loglike}, over all epochs with $k = 0.4\ln 10$ and $\sigma_{b}$ the band's
-scatter:
+\code{neg2\_loglike}, over all epochs, on the archive's errors alone:
 \begin{equation}
-  -2\ln\mathcal{L} = \sum_{i}\left[
-    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}}
-    + \ln\!\left(\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}\right)\right] .
+  -2\ln\mathcal{L} = \sum_{i}
+    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2}} .
 \end{equation}
-The scatter enters the variance through the \emph{tapered} $\hat f_{i}$, so an epoch outside
-the window has both residual and intrinsic variance suppressed. In \file{hier.stan} the sum
-is a \code{reduce\_sum} over supernovae with the slice width passed as \code{grainsize}.
+$\hat f_{i}$ is the \emph{tapered} flux, so an epoch outside the window has its residual
+suppressed. In \file{hier.stan} the sum is a \code{reduce\_sum} over supernovae with the
+slice width passed as \code{grainsize}. The function takes
+$(\mathbf{f}, \boldsymbol{\sigma}_{f}, \hat{\mathbf{f}})$ and nothing else: the band index
+went with the per-band scatter it used to select.
 
 \section{The hierarchy}
 
@@ -517,16 +517,26 @@ occupies. Produced by \file{scripts/plot\_traversal.py}.}
 
 \subsection{The likelihood}
 
-In native flux, with $k = 0.4\ln 10$ and $\sigma_{b}$ the scatter of the epoch's band:
+In native flux, on the archive's errors alone:
 \begin{equation}
-  -2\ln\mathcal{L} = \sum_{i}\left[
-    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}}
-    + \ln\!\left(\sigma_{f,i}^{2} + (k\sigma_{b}\hat f_{i})^{2}\right)\right] .
+  -2\ln\mathcal{L} = \sum_{i}
+    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2}} .
 \end{equation}
-Nothing is converted to magnitudes, negative fluxes are ordinary measurements, and the
-intrinsic term enters through the tapered $\hat f_{i}$, so an epoch outside the window has
-both its residual and its intrinsic variance suppressed. The sum is a \code{reduce\_sum}
-over supernovae.
+Nothing is converted to magnitudes and negative fluxes are ordinary measurements. The sum
+is a \code{reduce\_sum} over supernovae, and $\hat f_{i}$ is the tapered flux, so an epoch
+outside the window has its residual suppressed.
+
+The variance used to carry a second term, $(k\sigma_{b}\hat f_{i})^{2}$ with
+$k = 0.4\ln 10$ --- a fractional scatter with one fitted scalar per band --- and a
+log-determinant beside it. Both are gone, and $\sigma_{g}, \sigma_{r}$ with them, since
+with the second term removed they appear nowhere and a flat prior on a parameter the
+likelihood does not see leaves the posterior improper. The log-determinant was not optional
+while the variance depended on the parameters: $\sum(f-\hat f)^{2}/\sigma^{2}$ alone falls
+monotonically in $\sigma$, so the fit would drive $\sigma_{b}$ to infinity. With
+$\sigma_{f,i}$ data, $\sum\ln\sigma_{f,i}^{2}$ is an additive constant. Two consequences
+for reading output: \code{lp\_sn} is now exactly $-\chi^{2}/2$, so a fit quality reads
+straight off it, and a log-likelihood from this program is not comparable with one from a
+program that kept the term until that constant is restored.
 
 \subsection{Everything the program samples}
 
@@ -539,14 +549,12 @@ over supernovae.
 \code{tau\_psi}     & scalar $> 0$ & flat & scale of $\tilde{\mathbf{d}}$ \\
 \code{alpha\_q\_m}  & scalar $> 0$ & $\mathrm{Exp}(1)$ & $\alpha_{q} - \frac12$ \\
 \code{alpha\_psi\_m} & scalar $> 0$ & $\mathrm{Exp}(1)$ & $\alpha_{\psi} - \frac12$ \\
-\code{sigma\_g}, \code{sigma\_r} & scalar $> 0$ & flat & $\sigma_{b}$ by band \\
 \code{s\_bar}       & scalar & $\mathcal{N}(0, 10^{2})$ & mean of $x_{s}$ \\
 \code{x\_s\_dev}    & \code{sum\_to\_zero\_vector}$[N]$ & $\mathcal{N}(0,1)$ & $x_{s} = \code{s\_bar} + \code{x\_s\_dev}$ \\
-\code{mu\_delta}    & scalar & flat & mean of $\Delta$ \\
-\code{s\_delta}     & scalar $> 0$ & flat & scale of $\Delta$ \\
-\code{u\_del}       & $N$ & $\mathcal{N}(0,1)$ & $\Delta = \code{mu\_delta} + \code{s\_delta}\,\code{u\_del}$ \\
-\code{m\_peak}      & $N$ & $\mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$ & $\peakmag$ \\
-\code{colr}         & $N$ & $\mathcal{N}(0, 1)$ & $\colr$ \\
+\code{c\_bar}       & scalar, $[-5, 5]$ & flat & mean of $\colr$ \\
+\code{c\_dev}       & \code{sum\_to\_zero\_vector}$[N]$ & $\mathcal{N}(0,1)$ & $\colr = \code{c\_bar} + \code{c\_dev}$ \\
+\code{delta\_t}     & \code{sum\_to\_zero\_vector}$[N]$ & $\mathcal{N}(0, 3^{2})$ & $\Delta$, with $\langle\Delta\rangle = 0$ \\
+\code{m\_peak}      & $N$, each in $[5, 30]$ & flat & $\peakmag$ \\
 \bottomrule
 \end{tabular}
 
@@ -565,14 +573,66 @@ mode. $R$ is a fixed \code{data} matrix over the coefficient block, the identity
 preconditioner has been built; being constant its Jacobian is constant, so it changes no
 posterior.
 
-The two priors on $x_{s}$ are propriety conditions and not population models. With a flat
-prior the likelihood tends to a positive constant as $x_{s} \to -\infty$, where the supernova
-freezes at peak, so some proper prior in that direction is needed however uninformative it
-is where the data are: the data pin \code{s\_bar} to about $0.07$ and the realized spread of
-the deviations is $0.12$ to $0.25$, against widths of $10$ and $1$.
+\paragraph{No population is posited.} Every placement parameter is written as a mean and a
+set of deviations constrained to sum to zero, which is the note's Eq.~(22)'s device and which
+assumes nothing about how the objects are distributed --- a fitted mean with a normal
+population prior would instead assume them Gaussian, which a sum over the realized values
+does not. Three of the four means are named parameters, \code{s\_bar} and \code{c\_bar} and
+the magnitude zero point; the fourth is fixed, and that is the one case where something is
+removed rather than renamed.
 
-At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ that is $38$ coefficients and $167$ sampled
-values in all, four of them per supernova.
+\paragraph{$\langle\Delta\rangle = 0$ is a gauge.} A common shift of every $\Delta$ is a
+shift of the phase origin, and $q_{0}$ is a free function of $v$ that reshapes to absorb it,
+so the population mean of $\Delta$ is pinned by the basis's finite flexibility and not by
+the data. The fit says so directly: the per-supernova posterior standard deviation of
+$\Delta$ is $0.359$~d, so thirty independently measured offsets would put
+$0.359/\sqrt{30} = 0.066$~d on their mean, and the hierarchical fit returns $0.344$~d ---
+$5.2$ times larger, the common mode carrying nearly all the uncertainty of a single object.
+Fixing it costs almost nothing, which is the check that licenses it: at
+$K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ the constrained mode reaches a total
+log-likelihood of $-4101.16$ against the free mode's $-4099.20$, a difference of $1.96$
+nats over $1568$ epochs, or $1.25\times10^{-3}$ an epoch, with the realized spread of
+$\Delta$ unmoved at $0.2989$~d to four figures and $\chi^{2}$ per epoch moving from
+$5.229$ to $5.231$. The same comparison made under the superseded likelihood, which
+carried a fitted scatter and a log-determinant, gave $2.19$ nats --- the conclusion does
+not depend on which of the two is used. The offset between $t_{0}$, which is $B$ maximum, and
+$\tmax$, which is $g$ maximum, is not lost by this: it moves to where it is identified,
+into where $q_{0}$ puts its own minimum in $v$. Going with $\langle\Delta\rangle = 0$ are
+the two parameters of the population it replaced, and with them the ridge of
+Appendix~A of the note, which was a ridge in the scale of a distribution this program no
+longer posits.
+
+\paragraph{The flat priors are proper.} \code{m\_peak} and \code{c\_bar} are flat on boxes
+rather than on the line. The bound is needed because the likelihood does not vanish in the
+faint direction but tends to $\exp(-\frac12\sum f^{2}/\sigma^{2})$, the log-likelihood of
+predicting no supernova at all --- small, but a positive constant, so a flat prior over an
+infinite range integrates to infinity. It is not an assertion about supernovae: $\zp$ and
+$\peakmag$ are exactly degenerate in \eqref{eq:cflux}, so the magnitude origin is a
+convention already fixed at $\zp = 30$, and in that convention $\peakmag = 30$ is a
+predicted flux of one archive unit and $\peakmag = 5$ is $10^{10}$, against a sample
+spanning $1.5\times10^{4}$ to $7.8\times10^{5}$. The box is four decades clear on both sides
+and flat everywhere the data are. What it replaces is
+$\peakmag \sim \mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$, whose centre was the brightest good
+$g$ epoch --- a number read out of the same photometry that enters the likelihood. The prior
+was doing no work in any case, shrinking by a factor of $2.7\times10^{-4}$ to
+$3.5\times10^{-3}$; what the box buys is that the data are no longer read twice.
+
+The remaining priors are propriety conditions on the same footing and none is a population
+model. With a flat prior the likelihood tends to a positive constant as $x_{s} \to -\infty$,
+where the supernova freezes at peak; the data pin \code{s\_bar} to about $0.07$ and the
+realized spread of its deviations is $0.12$ to $0.25$, against widths of $10$ and $1$.
+The widths on \code{delta\_t} and \code{c\_dev} are chosen the same way and are deliberately
+far looser than the data: the realized spread of $\Delta$ across thirty objects is
+$0.076$~d and of the colour deviations $0.255$~mag, so the two are forty and four times too
+wide to shape either. An earlier version of this section had
+$\colr \sim \mathcal{N}(0,1)$, which asserted a mean anchor colour of zero; three fits put it
+at $+0.060 \pm 0.013$ at $N = 30$ and $+0.0597 \pm 0.0032$ at $N = 100$, so the centre was
+misplaced in the way Section~5 of the note records for $x_{s}$'s templated $-3.0$.
+
+At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ that is $38$ coefficients and $164$ named
+values, four of them per supernova. Stan samples $161$ coordinates, not $164$: a
+\code{sum\_to\_zero\_vector}$[N]$ is an orthogonal transform carrying $N-1$ unconstrained
+coordinates, and there are three of them.
 
 \subsection{What it reports}
 

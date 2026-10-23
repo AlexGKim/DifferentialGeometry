@@ -48,29 +48,37 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
     name = names[0]
     row = sample.loc[name]
     ep = likelihood_epochs(name, row.t0, row.redshift)
-    sigma = 0.05
     ini = inits([name], K_PSI, K_Q, median_x1(), sample=sample, globals_=G)
-    ini.update(sigma_g=sigma, sigma_r=sigma, mu_delta=0.0, s_delta=1.0)
     point = {k: ini[k] for k in ini}
-    # single_sn at the same per-SN point and priors
+    # single_sn with its priors off, so its log density is the likelihood
+    # alone.  The two programs' per-object priors used to coincide and could
+    # be left in on both sides; they no longer do --- hier's m_peak is flat
+    # on a box, its colour is c_bar plus deviations and its delta_t is
+    # constrained --- so the comparison is made against the likelihood and
+    # every one of hier's priors is removed from hier's side.  That is also
+    # what the test means to assert.
     d2 = D.grid_data(k_psi=K_PSI, k_q=K_Q)
     d2.update({k: G[k] for k in "abcd"})
-    d2.update(D.epochs_data(ep["dt"], ep["f"], ep["sig_f"], ep["band"], ep["z"], sigma, sigma))
-    d2.update(D.prior_data(prior_on=True, mu_p=ini["mu_p"], mu_psi=ini["mu_psi"], mu_delta=0.0,
+    d2.update(D.epochs_data(ep["dt"], ep["f"], ep["sig_f"], ep["band"], ep["z"]))
+    d2.update(D.prior_data(prior_on=False, mu_p=ini["mu_p"], mu_psi=ini["mu_psi"], mu_delta=0.0,
                            s_delta=1.0, xs_bar=D.XS_BAR, m_bright=ep["m_bright"]))
-    p2 = dict(m_peak=float(ini["m_peak"][0]), colr=float(ini["colr"][0]),
-              x_s=float(ini["s_bar"]) + float(ini["x_s_dev"][0]),
+    # At one object the three sum_to_zero_vector blocks carry no free
+    # coordinate and their values are identically zero, so x_s is s_bar,
+    # colr is c_bar and delta_t is zero.
+    p2 = dict(m_peak=float(ini["m_peak"][0]), colr=float(ini["c_bar"]),
+              x_s=float(ini["s_bar"]),
               x_p=ini["mu_p"] + float(ini["u_p"][0]),
               x_psi=ini["mu_psi"] + float(ini["u_psi"][0]),
-              delta_t=ini["mu_delta"] + ini["s_delta"] * float(ini["u_del"][0]))
+              delta_t=0.0)
     lp2, _ = log_prob("single_sn", d2, p2)
     dh = build([name], K_PSI, K_Q, sample=sample)
     lph, _ = log_prob("hier", dh, point)
-    # hier's extras: std_normal on z_a, z_c (up to constants Stan drops: -z^2/2),
-    # normal(0, tau k^-alpha) on the centred b_til, d_til (kept terms
-    # -log w - b^2/2w^2), exponential(1) on alpha - 1/2; the per-SN priors are
-    # the same in both.  The gauge-fixed a..d in hier equal G's, so the
-    # likelihoods agree.
+    # Every ``~`` statement of hier.stan, with the constants Stan drops left
+    # out: std_normal on z_a and z_c, normal(0, tau k^-alpha) on the centred
+    # b_til and d_til, exponential(1) on the two alpha - 1/2, std_normal on
+    # u_p and u_psi, and the propriety priors.  m_peak has none, being flat
+    # on its box, and log_prob is called with the Jacobian off so the bounds
+    # contribute nothing either.
     raw = np.asarray(ini["w_coef"], dtype=float)
     parts = unpack(raw, K_PSI, K_Q)
     ini = dict(ini, **parts)
@@ -80,17 +88,13 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
         w = tau * (kk / np.exp(np.log(kk).mean())) ** -2.0
         extra += float(np.sum(-np.log(w) - 0.5 * (ini[k] / w) ** 2))
     extra += -(ini["alpha_q_m"] + ini["alpha_psi_m"])
-    # single_sn keeps x_s ~ normal(xs_bar, 1); the hierarchy dropped it when the
-    # mean log rate became s_bar with the deviations summing to zero, so that
-    # term has to come off single_sn's side of the comparison.
-    x_s1 = float(ini["s_bar"]) + float(ini["x_s_dev"][0])
-    p_xs = -0.5 * (x_s1 - D.XS_BAR) ** 2
-    # and hier's own propriety priors, which single_sn has no counterpart for
+    extra += -0.5 * sum(float(np.sum(np.square(ini[k]))) for k in ("u_p", "u_psi"))
     extra += -0.5 * (float(ini["s_bar"]) / 10.0) ** 2
     extra += -0.5 * float(np.sum(np.square(ini["x_s_dev"])))
-    print(f"single_sn lp {lp2:.6f} (x_s prior {p_xs:.6f}), "
-          f"hier lp - extras {lph - extra:.6f}")
-    assert abs((lph - extra) - (lp2 - p_xs)) < 1e-6
+    extra += -0.5 * float(np.sum(np.square(ini["c_dev"])))
+    extra += -0.5 * float(np.sum(np.square(np.asarray(ini["delta_t"]) / 3.0)))
+    print(f"single_sn likelihood {lp2:.6f}, hier lp - priors {lph - extra:.6f}")
+    assert abs((lph - extra) - lp2) < 1e-6
 
 
 def test_gauge_and_signs(sample, names, G):

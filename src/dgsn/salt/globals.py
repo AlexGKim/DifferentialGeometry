@@ -187,7 +187,7 @@ def refine_track(track: dict, fit: dict, k_psi: int, k_q: int,
 
     ep = track_epochs(track, window=window)
     data = D.grid_data(k_psi=k_psi, k_q=k_q, m_per_side=m_per_side)
-    data.update(D.epochs_data(ep["dt"], ep["f"], ep["sig_f"], ep["band"], 0.0, 0.0, 0.0))
+    data.update(D.epochs_data(ep["dt"], ep["f"], ep["sig_f"], ep["band"], 0.0))
     data.update(ridge=RIDGE_MAG, ridge_alpha=RIDGE_ALPHA)
     i0 = int(np.argmin(np.abs(track["p"])))
     start = dict(m_peak=float(track["g"][i0]), colr=float(track["g"][i0] - track["r"][i0]),

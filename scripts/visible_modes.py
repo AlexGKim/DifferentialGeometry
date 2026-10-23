@@ -44,21 +44,18 @@ def main():
             data = build(names, kp, kq, sample=sample)
             ini = inits(names, kp, kq, x1_ref, sample=sample, globals_=fit_globals(kp, kq, x1_ref))
             raw = np.asarray(ini["w_coef"], dtype=float)
-            hyper = {k: ini[k] for k in ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi",
-                                         "sigma_g", "sigma_r")}
+            hyper = {k: ini[k] for k in ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi")}
             # pieces() assembles x_s from s_bar and x_s_dev, so this follows the
             # parameterization rather than restating it
             from dgsn.stan.precondition import pieces
             per = pieces(ini, kp, kq)[2]
             J, f = jacobian(data, raw, hyper, per, kp, kq)
-            # each epoch in the error the likelihood gives it, Eq. (like):
-            # weighting by the measurement error alone would count a bright
-            # epoch a hundred times over, where the intrinsic scatter in fact
-            # dominates there
+            # each epoch in the error the likelihood gives it, Eq. (like),
+            # which is now the archive's alone: the fitted scatter that used
+            # to enter the weight here is gone, so a bright epoch does count
+            # for as much as its small sigma_f says it does
             sig_f = np.asarray(data["sig_f"], dtype=float)
-            sb = np.where(np.asarray(data["band"], dtype=int) == 1,
-                          hyper["sigma_g"], hyper["sigma_r"])
-            w = f / np.sqrt(sig_f ** 2 + (0.4 * np.log(10) * sb * f) ** 2)
+            w = f / sig_f
             Jw = w[:, None] * J
             n1, n3 = kq - 1, kp - 1
             # the mean functions: no gauge normalization, so no null direction.

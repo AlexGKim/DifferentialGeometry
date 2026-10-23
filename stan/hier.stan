@@ -18,7 +18,6 @@ data {
   array[N_sn] int<lower=1> start;  // 1-based, inclusive
   array[N_sn] int<lower=1> stop;
   vector[N_sn] z;
-  vector[N_sn] m_bright;
   int<lower=1> grainsize;
   // A fixed rotation of the coefficient coordinates, identity unless a
   // preconditioner has been built.  All of the posterior's stiffness lives
@@ -62,14 +61,22 @@ parameters {
   real<lower=0> tau_psi;
   real<lower=0> alpha_q_m;         // alpha - 1/2, Eq. (coefprior)
   real<lower=0> alpha_psi_m;
-  real<lower=0> sigma_g;
-  real<lower=0> sigma_r;
   real mu_p;
   real mu_psi;
-  real mu_delta;
-  real<lower=0> s_delta;
-  vector[N_sn] m_peak;
-  vector[N_sn] colr;
+  // The three placement parameters whose population means were fitted
+  // Gaussians' are written as a mean and deviations summing to zero, which
+  // is Eq. (xsmean)'s device and assumes nothing about how the objects are
+  // distributed.  See hier_common.stan for the full argument and the
+  // measurements; in brief: m_peak's prior read the brightest good g epoch,
+  // which is the same photometry the likelihood reads, and the box replaces
+  // it with the zp = 30 convention that zp and m_peak are degenerate in;
+  // colr's N(0,1) asserted a mean anchor colour of zero where three fits put
+  // it at +0.060; and <Delta> = 0 is a gauge, a common shift of Delta being
+  // a shift of the phase origin that q_0 reshapes to absorb, measured at
+  // 2.19 nats over 1568 epochs at (K_psi, K_q) = (24, 16).
+  vector<lower=5, upper=30>[N_sn] m_peak;
+  real<lower=-5, upper=5> c_bar;
+  sum_to_zero_vector[N_sn] c_dev;
   // The mean log rate as a named global, and the per-supernova part summing
   // to zero.  The traversal basis drops the constant Legendre term, so
   // qbar_0 = 0 identically and q_0 cannot carry the mean: it has to live in
@@ -87,19 +94,21 @@ parameters {
   real s_bar;
   sum_to_zero_vector[N_sn] x_s_dev;
   // The amplitudes with sampled locations, as deviations about them: the
-  // first fit's longest directions were the common modes of the per-SN
-  // block riding with their locations (corr(mu_psi, mean x_psi) = +1.00)
-  // and the s_delta funnel (corr(log s_delta, log rms(delta_t - mu_delta))
-  // = +0.95); written this way each common mode is one coordinate.
+  // first fit's longest direction was the common mode of the per-SN block
+  // riding with its location (corr(mu_psi, mean x_psi) = +1.00), and
+  // written this way each common mode is one coordinate.  The second of
+  // those directions was the s_delta funnel, which went with the population
+  // of Delta; delta_t below is constrained instead, so there is no scale
+  // left to fall into.
   vector[N_sn] u_p;                // x_p = mu_p + u_p
   vector[N_sn] u_psi;              // x_psi = mu_psi + u_psi
-  vector[N_sn] u_del;              // delta_t = mu_delta + s_delta u_del
+  sum_to_zero_vector[N_sn] delta_t;   // <Delta> = 0, a gauge
 }
 transformed parameters {
   vector[N_sn] x_s = s_bar + x_s_dev;
   vector[N_sn] x_p = mu_p + u_p;
   vector[N_sn] x_psi = mu_psi + u_psi;
-  vector[N_sn] delta_t = mu_delta + s_delta * u_del;
+  vector[N_sn] colr = c_bar + c_dev;
   // the coefficients the priors are written on, read out of the rotation
   vector[Kq - 1] z_a;
   vector[Kq - 1] b_til;
@@ -137,10 +146,9 @@ model {
   d_til ~ normal(0, tau_psi * pow(kpsi / kbar_psi, -(alpha_psi_m + 0.5)));
   alpha_q_m ~ exponential(1);      // Section 5: alpha - 1/2 ~ Exp(1)
   alpha_psi_m ~ exponential(1);
-  // tau, sigma, mu, s_delta flat on their supports
+  // tau, sigma and the two mu flat on their supports
   u_p ~ std_normal();              // x_p ~ N(mu_p, 1)
   u_psi ~ std_normal();            // x_psi ~ N(mu_psi, 1)
-  u_del ~ std_normal();            // delta_t ~ N(mu_delta, s_delta)
   // Propriety, not population structure.  Section 5 records that with a flat
   // prior the likelihood tends to a positive constant as x_s -> -infinity,
   // where the supernova freezes at peak, so some proper prior in that
@@ -153,11 +161,14 @@ model {
   // to 3.1 sigma from where the data put the mean.
   s_bar ~ normal(0, 10);
   x_s_dev ~ normal(0, 1);
-  m_peak ~ normal(m_bright, 1);
-  colr ~ normal(0, 1);
+  // Propriety only, and far looser than the data: the realized spread of
+  // Delta over thirty objects is 0.076 d and of the colour deviations
+  // 0.255 mag.  m_peak and c_bar are flat on their boxes.
+  delta_t ~ normal(0, 3);
+  c_dev ~ normal(0, 1);
   target += reduce_sum(partial_sum, sn_index, grainsize,
                        dt, f, sig_f, band, start, stop, z,
-                       m_peak, colr, x_s, x_p, x_psi, delta_t, sigma_g, sigma_r,
+                       m_peak, colr, x_s, x_p, x_psi, delta_t,
                        a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
                        Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
                        edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
@@ -193,8 +204,7 @@ generated quantities {
         a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
         Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
         edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
-    lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], band[lo:hi], exp(lf[:, 1]),
-                                   sigma_g, sigma_r);
+    lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]));
     for (i in 1:(hi - lo + 1)) {
       frac_tapered += (lf[i, 2] < log(0.99));
       frac_clamped += (abs(lf[i, 4] - lf[i, 3]) > eps_s * (smax - smin));

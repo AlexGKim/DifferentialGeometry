@@ -129,8 +129,9 @@ def optimize(name: str, data: dict, inits: dict, polish: bool = True,
             # significant figures, whose sum is no longer exactly zero, and a
             # restart handed a constrained value that violates its constraint
             # is rejected.  Project it back.
-            if "x_s_dev" in ini:
-                ini["x_s_dev"] = ini["x_s_dev"] - np.mean(ini["x_s_dev"])
+            for k in ("x_s_dev", "c_dev", "delta_t"):
+                if k in ini:
+                    ini[k] = ini[k] - np.mean(ini[k])
             return ini
 
         for _ in range(4):

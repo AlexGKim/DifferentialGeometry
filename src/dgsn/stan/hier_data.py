@@ -18,7 +18,6 @@ from dgsn.salt.tracks import per_sn_start
 from dgsn.stan import data as D
 
 INIT_ALPHA = 2.0        # alpha at the start; the ridge of the SALT2 fits uses the same
-INIT_SIGMA = 0.05       # mag; a scatter the first iterations can live with
 
 
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
@@ -93,6 +92,7 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         tau = dict(q=float(np.sqrt(np.mean((G["b"] / wq) ** 2))),
                    psi=float(np.sqrt(np.mean((G["d"] / wp) ** 2))))
     per = [per_sn_start(sample.loc[n]) for n in names]
+    colr0 = np.array([q["colr"] for q in per])
     if not trav:
         raw = pack(G["b"], G["d"])     # no z_a, no z_c
     elif mode:
@@ -105,13 +105,14 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         w_coef=raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw),
         tau_q=tau["q"], tau_psi=tau["psi"],
         alpha_q_m=INIT_ALPHA - 0.5, alpha_psi_m=INIT_ALPHA - 0.5,
-        sigma_g=INIT_SIGMA, sigma_r=INIT_SIGMA,
-        mu_delta=0.0, s_delta=1.0,
         m_peak=np.array([p["m_peak"] for p in per]),
-        colr=np.array([p["colr"] for p in per]),
+        # the anchor colour as a named mean and deviations about it; the
+        # start is the same point in colr either way
+        c_bar=float(colr0.mean()),
+        c_dev=colr0 - colr0.mean(),
         s_bar=G["x_s"],                # the mean log rate; the deviations carry the rest
         x_s_dev=np.zeros(len(names)),  # sums to zero, as sum_to_zero_vector requires
-        u_del=np.zeros(len(names)),
+        delta_t=np.zeros(len(names)),  # likewise, and <Delta> = 0 is the gauge
     )
     if mode:
         out.update(mu_psi=G["x_psi"], u_psi=np.zeros(len(names)))
@@ -123,7 +124,7 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
 def _from_mode(mode: dict, name: str):
     """One parameter out of an ``optimize`` result, scalar or vector.
 
-    CmdStan reports ``tau_q`` but ``u_del[1]``, so the shape has to be
+    CmdStan reports ``tau_q`` but ``delta_t[1]``, so the shape has to be
     discovered rather than assumed."""
     if name in mode:
         return float(mode[name])
@@ -140,8 +141,7 @@ def _from_mode(mode: dict, name: str):
 def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: int,
                         mode: bool = True, trav: bool = True, verbose: bool = True,
                         polish: bool = True) -> dict:
-    """Initial values from Stan's own optimizer on the data, re-placed on the
-    ``s_delta`` ridge.
+    """Initial values from Stan's own optimizer on the data.
 
     Why this exists.  Section 5 starts the chains at a \\salt\\ fit, which the
     third standing commitment permits as its one exemption, licensed by
@@ -150,61 +150,48 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     left is the one that starts the optimizer, a dependence on a basin rather
     than on a point.
 
-    Why the re-placement.  The constrained-scale mode is *not finite* in
-    ``s_delta``.  Scaling ``s_delta`` by any factor while dividing ``u_del``
-    by it leaves ``delta_t``, and so the likelihood, exactly unchanged, while
-    the prior ``-1/2 sum u_del^2`` rises toward zero; measured along that
-    ridge the log density gains 7.3 nats monotonically and is flat to machine
-    precision by a factor of thirty, which is where the optimizer stops --- it
-    returned ``s_delta`` 5.48 against a posterior 0.186.  Starting a sampler
-    there mis-scales the per-supernova timing block by thirty.  Taking
-    ``u_del`` to unit rms and ``s_delta`` to match moves along the ridge to
-    where the non-centred pair is well scaled, and changes no fitted
-    magnitude: ``delta_t`` is preserved exactly.
+    What used to be here.  The mode of the previous parameterization was not
+    finite in ``s_delta``: scaling it while dividing ``u_del`` by the same
+    factor left ``delta_t``, and so the likelihood, exactly unchanged while
+    the prior ``-1/2 sum u_del^2`` rose toward zero, so the optimizer walked
+    up that ridge and returned ``s_delta`` 5.48 against a posterior 0.186.
+    Every start had to be re-placed along it.  The ridge was a ridge in the
+    scale of a population of ``delta_t``, and that population is gone ---
+    ``delta_t`` is now a ``sum_to_zero_vector`` with no scale of its own ---
+    so the re-placement has gone with it.
 
-    ``polish`` is ``optimize``'s restart loop, which exists to resolve the
-    direction the light curve is nearly flat along.  On this posterior it
-    cannot terminate in ``s_delta``: that direction is flat in likelihood and
-    rising in prior, so each restart walks further up the ridge, by fractions
-    of a nat, and the re-placement then discards the distance gained.  Four of
-    the five passes are spent that way, at about three minutes each on thirty
-    objects, so ``polish=False`` is the better default when the mode is only
-    wanted as a starting point.
+    This voids the reason ``polish`` defaults to False at the call sites.
+    That default was not about cost: ``optimize``'s restart loop could not
+    terminate in ``s_delta``, each restart walking further up the ridge by
+    fractions of a nat for about three minutes, and the re-placement then
+    discarded the distance gained.  With the ridge removed the restarts may
+    well converge, and whether they earn their time is now an open question
+    to be measured rather than an answered one.
 
-    It is the only pair needing this.  The gauge removes the scale of ``a``
-    and ``c``, so ``tau_q`` and ``tau_psi`` are informed by the centred
-    ``b_til`` and ``d_til`` and land within a factor of 1.7 of their
-    posteriors, as do both scatters.
+    ``tau_q`` and ``tau_psi`` need no help: the gauge removes the scale of
+    ``a`` and ``c``, so they are informed by the centred ``b_til`` and
+    ``d_til`` and land within a factor of 1.7 of their posteriors, as do both
+    scatters.
     """
     from dgsn.stan.run import optimize
 
     m = optimize(program, data, start, jacobian=False, polish=polish)
     # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
     # transformed parameter, but an inits dict has to name what is sampled.
-    keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_g", "sigma_r",
-            "mu_delta", "s_delta", "s_bar", "x_s_dev", "u_del",
-            "m_peak", "colr"]
+    keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
+            "s_bar", "x_s_dev", "c_bar", "c_dev", "delta_t", "m_peak"]
     if mode:
         keys += ["mu_psi", "u_psi"]
     if trav:
         keys += ["mu_p", "u_p"]
     out = {k: _from_mode(m, k) for k in keys}
-    # back onto the constraint surface after the roundtrip through text
-    out["x_s_dev"] = out["x_s_dev"] - np.mean(out["x_s_dev"])
-
-    u = np.asarray(out["u_del"], dtype=float)
-    rms = float(np.sqrt(np.mean(u ** 2)))
-    if rms > 0:
-        s_old = float(out["s_delta"])
-        out["s_delta"] = s_old * rms          # delta_t = mu_delta + s_delta u_del is fixed
-        out["u_del"] = u / rms
-        if verbose:
-            print(f"optimize start: lp {float(m['lp__']):.1f}; "
-                  f"s_delta re-placed {s_old:.4g} -> {out['s_delta']:.4g} "
-                  f"(rms u_del {rms:.4g} -> 1), delta_t unchanged")
-    elif verbose:
-        print(f"optimize start: lp {float(m['lp__']):.1f}; u_del is identically zero, "
-              "so s_delta is left as found")
+    # Back onto the constraint surfaces after the roundtrip through text: the
+    # mode is written at 18 significant figures, whose sum is no longer
+    # exactly zero, and sum_to_zero_vector requires that it is.
+    for k in ("x_s_dev", "c_dev", "delta_t"):
+        out[k] = out[k] - np.mean(out[k])
+    if verbose:
+        print(f"optimize start: lp {float(m['lp__']):.1f}")
     return out
 
 
@@ -242,6 +229,18 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
             if np.shape(v) == np.shape(np.asarray(out[k], dtype=float)):
                 out[k] = v if np.ndim(out[k]) else float(v)
                 carried.append(k)
+    # A source that predates the constrained placements carries colr whole and
+    # a delta_t with a mean in it.  Split the one and project the other, or the
+    # start violates the constraint it is handed to and is rejected.
+    if "colr" in src and "c_bar" in out:
+        c = np.asarray(src["colr"], dtype=float)
+        if c.shape == np.shape(out["c_dev"]):
+            out["c_bar"], out["c_dev"] = float(c.mean()), c - c.mean()
+            carried.append("colr -> c_bar, c_dev")
+    for k in ("x_s_dev", "c_dev", "delta_t"):
+        if k in out:
+            out[k] = np.asarray(out[k], dtype=float) - np.mean(out[k])
+
     # the coefficient block, by name, so a shorter source lands in the right slots
     # From the relabeled blocks, not from w_coef: w_coef is the sampled vector
     # and the relabeling cannot act on it, R mixing its slots, so a point

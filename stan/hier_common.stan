@@ -33,7 +33,6 @@ data {
   array[N_sn] int<lower=1> start;  // 1-based, inclusive
   array[N_sn] int<lower=1> stop;
   vector[N_sn] z;
-  vector[N_sn] m_bright;
   int<lower=1> grainsize;
   // Over the shorter block: b_til and d_til alone, no z_a and no z_c.
   matrix[(Kq - 1) + (Kpsi - 1), (Kq - 1) + (Kpsi - 1)] R;
@@ -63,20 +62,51 @@ parameters {
   real<lower=0> tau_psi;
   real<lower=0> alpha_q_m;         // alpha - 1/2, Eq. (coefprior)
   real<lower=0> alpha_psi_m;
-  real<lower=0> sigma_g;
-  real<lower=0> sigma_r;
-  real mu_delta;
-  real<lower=0> s_delta;
-  vector[N_sn] m_peak;
-  vector[N_sn] colr;
+  // Eq. (xsmean)'s device, applied to every placement parameter whose
+  // population mean was previously a fitted Gaussian's.  None of the three
+  // below is a population model, and nothing is assumed about how the
+  // objects are distributed; each is a constraint on the realized values.
+  //
+  // m_peak flat on a box.  Its prior was N(m_bright, 1) with m_bright the
+  // brightest good g epoch, which is a centre read out of the same
+  // photometry that enters the likelihood --- the data twice.  The box
+  // replaces it: zp and m_peak are exactly degenerate (Section 3), so the
+  // magnitude origin is a convention already fixed at zp = 30, and the
+  // bounds are that convention's own statement rather than a judgement
+  // about supernovae.  m_peak = 30 is a predicted flux of one archive unit
+  // and m_peak = 5 is 1e10, against a sample spanning 1.5e4 to 7.8e5, so
+  // the box is four decades clear on both sides and flat everywhere the
+  // data are.  It is there only to make the posterior proper: with a flat
+  // prior on the whole line the likelihood tends to exp(-sum f^2/2 sig^2)
+  // as m_peak -> +infinity, a positive constant, and the integral diverges.
+  vector<lower=5, upper=30>[N_sn] m_peak;
+  // The anchor colour's mean named, its deviations summing to zero.  The
+  // old prior N(0, 1) asserted a mean anchor colour of zero; three runs put
+  // it at +0.060 +- 0.013 (N = 30) and +0.0597 +- 0.0032 (N = 100), so the
+  // centre was misplaced, in the way Section 5 records for x_s's templated
+  // -3.0.  c_bar is flat on a box for the same reason m_peak is.
+  real<lower=-5, upper=5> c_bar;
+  sum_to_zero_vector[N_sn] c_dev;
   // Eq. (xsmean): the mean log rate named, the deviations summing to zero.
   real s_bar;
   sum_to_zero_vector[N_sn] x_s_dev;
-  vector[N_sn] u_del;              // delta_t = mu_delta + s_delta u_del
+  // <Delta> = 0, which is a gauge and not a choice of population.  A common
+  // shift of every Delta is a shift of the phase origin, and q_0 is a free
+  // function of v that reshapes to absorb it, so the mean is pinned by the
+  // basis's finite flexibility rather than by the data.  Measured: the
+  // per-object posterior sd of Delta is 0.359 d, so thirty independent
+  // offsets would put 0.359/sqrt(30) = 0.066 d on their mean, and the fit
+  // returns 0.344 d --- 5.2 times larger, the common mode carrying nearly
+  // all the uncertainty of a single object.  Fixing it to zero removes that
+  // direction and sends the B-to-g offset where it is identified, into
+  // where q_0 puts its own minimum in v.  mu_delta and s_delta go with it,
+  // and so does the s_delta ridge of Appendix A, which was a ridge in the
+  // scale of a population this program no longer posits.
+  sum_to_zero_vector[N_sn] delta_t;
 }
 transformed parameters {
   vector[N_sn] x_s = s_bar + x_s_dev;
-  vector[N_sn] delta_t = mu_delta + s_delta * u_del;
+  vector[N_sn] colr = c_bar + c_dev;
   vector[Kq - 1] b_til;
   vector[Kpsi - 1] d_til;
   // No gauge: Eq. (gauge)'s four conditions on the traversal pair and two on
@@ -98,17 +128,20 @@ model {
   d_til ~ normal(0, tau_psi * pow(kpsi / kbar_psi, -(alpha_psi_m + 0.5)));
   alpha_q_m ~ exponential(1);      // Section 5: alpha - 1/2 ~ Exp(1)
   alpha_psi_m ~ exponential(1);
-  u_del ~ std_normal();            // delta_t ~ N(mu_delta, s_delta)
   // Propriety, as Section 5 requires: with a flat prior the likelihood tends
   // to a positive constant as x_s -> -infinity, where the supernova freezes
   // at peak.  Neither of these is a population model.
   s_bar ~ normal(0, 10);
   x_s_dev ~ normal(0, 1);
-  m_peak ~ normal(m_bright, 1);
-  colr ~ normal(0, 1);
+  // Propriety only, and deliberately far looser than the data: the realized
+  // spread of Delta across thirty objects is 0.076 d and of the colour
+  // deviations 0.255 mag, so these are forty and four times too wide to
+  // shape either.  m_peak and c_bar are flat on their boxes.
+  delta_t ~ normal(0, 3);
+  c_dev ~ normal(0, 1);
   target += reduce_sum(partial_sum, sn_index, grainsize,
                        dt, f, sig_f, band, start, stop, z,
-                       m_peak, colr, x_s, x_p_zero, x_psi_zero, delta_t, sigma_g, sigma_r,
+                       m_peak, colr, x_s, x_p_zero, x_psi_zero, delta_t,
                        a_zero, b, c_zero, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
                        Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
                        edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
@@ -132,8 +165,7 @@ generated quantities {
         a_zero, b, c_zero, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
         Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
         edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
-    lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], band[lo:hi], exp(lf[:, 1]),
-                                   sigma_g, sigma_r);
+    lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]));
     for (i in 1:(hi - lo + 1)) {
       frac_tapered += (lf[i, 2] < log(0.99));
       frac_clamped += (abs(lf[i, 4] - lf[i, 3]) > eps_s * (smax - smin));

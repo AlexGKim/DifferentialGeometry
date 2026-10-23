@@ -57,15 +57,15 @@ def main():
         tau_q=hyper["tau_q"] / kbq ** (hyper["alpha_q_m"] + 0.5),
         tau_psi=hyper["tau_psi"] / kbp ** (hyper["alpha_psi_m"] + 0.5),
         alpha_q_m=hyper["alpha_q_m"], alpha_psi_m=hyper["alpha_psi_m"],
-        sigma_g=hyper["sigma_g"], sigma_r=hyper["sigma_r"],
         mu_p=float(np.mean(per_sn["x_p"])), mu_psi=float(np.mean(per_sn["x_psi"])),
-        mu_delta=float(np.mean(per_sn["delta_t"])),
-        s_delta=max(float(np.std(per_sn["delta_t"])), 1e-3),
-        m_peak=per_sn["m_peak"], colr=per_sn["colr"], x_s=per_sn["x_s"],
+        delta_t=per_sn["delta_t"] - np.mean(per_sn["delta_t"]),
+        m_peak=per_sn["m_peak"],
+        c_bar=float(np.mean(per_sn["colr"])),
+        c_dev=per_sn["colr"] - np.mean(per_sn["colr"]),
+        x_s=per_sn["x_s"],
     )
     ini["u_p"] = per_sn["x_p"] - ini["mu_p"]
     ini["u_psi"] = per_sn["x_psi"] - ini["mu_psi"]
-    ini["u_del"] = (per_sn["delta_t"] - ini["mu_delta"]) / ini["s_delta"]
     print(f"{'no rotation (control)' if R is None else 'Fisher rotation'}, warm start from {args.src}")
 
     t = time.time()

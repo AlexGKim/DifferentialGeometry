@@ -301,18 +301,24 @@ functions {
     return out;
   }
 
-  // Eq. (like): -2 ln L with the tapered flux in residual and variance.
-  real neg2_loglike(vector f, vector sig_f, array[] int band, vector f_hat,
-                    real sigma_g, real sigma_r) {
-    int N = rows(f);
-    real total = 0;
-    real k = 0.4 * log(10);
-    for (i in 1:N) {
-      real sb = (band[i] == 1) ? sigma_g : sigma_r;
-      real var_i = square(sig_f[i]) + square(k * sb * f_hat[i]);
-      total += square(f[i] - f_hat[i]) / var_i + log(var_i);
-    }
-    return total;
+  // Eq. (like): -2 ln L in native flux, on the archive's errors alone.
+  //
+  // The variance used to carry a second term, (0.4 ln10 sigma_b f_hat)^2,
+  // a fractional scatter with one fitted scalar per band.  It is gone, and
+  // sigma_g and sigma_r with it: ZTF's flux_err already carries both the
+  // sky and the source contribution, and the published errors are
+  // calibrated -- over the baseline epochs the flux scatters at 0.977 times
+  // flux_err, so DR2's own e_scale is already folded in.
+  //
+  // The log-determinant is gone for the same reason.  It was not optional
+  // while the variance depended on the parameters: without it the density
+  // falls monotonically in the variance and the fit drives sigma_b to
+  // infinity.  With sig_f alone the variance is data, so sum log sig_f^2 is
+  // an additive constant, and what this returns is -2 ln L up to that fixed
+  // number.  Anything comparing an lp_sn here with one from a program that
+  // kept the term has to restore it.
+  real neg2_loglike(vector f, vector sig_f, vector f_hat) {
+    return sum(square((f - f_hat) ./ sig_f));
   }
 
   // ---- The hierarchy, Section 5: a slice of supernovae for reduce_sum ---
@@ -321,7 +327,7 @@ functions {
                    vector dt, vector f, vector sig_f, array[] int band,
                    array[] int start, array[] int stop, vector z,
                    vector m_peak, vector colr, vector x_s, vector x_p, vector x_psi,
-                   vector delta_t, real sigma_g, real sigma_r,
+                   vector delta_t,
                    vector a, vector b, vector c, vector d,
                    real pmin, real pmax, real smin, real smax,
                    real eps, real eps_t, real eps_s, real zp,
@@ -339,8 +345,7 @@ functions {
           a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
           Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
           edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
-      total += neg2_loglike(f[lo:hi], sig_f[lo:hi], band[lo:hi], exp(lf[:, 1]),
-                            sigma_g, sigma_r);
+      total += neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]));
     }
     return -0.5 * total;
   }

@@ -42,6 +42,6 @@ model {
                              Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
                              edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u,
                              xg, wg, P0, T);
-  target += -0.5 * neg2_loglike(f, sig_f, band, exp(lf[:, 1]), 0, 0);
+  target += -0.5 * neg2_loglike(f, sig_f, exp(lf[:, 1]));
   target += -0.5 * (dot_product(ridge_q, square(b)) + dot_product(ridge_psi, square(d)));
 }
