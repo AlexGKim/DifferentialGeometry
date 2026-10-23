@@ -51,7 +51,8 @@ hard-coded: every constant arrives as data from \file{src/dgsn/stan/data.py}.
 program & samples & purpose & \\
 \midrule
 \file{hier.stan}        & the hierarchy & Section~5, stages 3 and 4 & \textbf{[=]} \\
-\file{hier\_nomode.stan} & the hierarchy with $\shapeturn \equiv 0$ & whether the mode earns its place & \textbf{[0]} \\
+\file{hier\_nomode.stan} & the hierarchy with $\shapeturn \equiv 0$ & whether the turning mode earns its place & \textbf{[0]} \\
+\file{hier\_common.stan} & also with $x_p \equiv 0$ & whether either does & \textbf{[0]} \\
 \file{single\_sn.stan}  & one supernova, globals as data & Section~5.2, stage 2 & \textbf{[=]} \\
 \file{track\_fit.stan}  & one track, no priors & \salt\ floors, Section~5.2 & \textbf{[=]} \\
 \file{forward.stan}     & nothing (\code{fixed\_param}) & the forward map for diagnostics & \textbf{[=]} \\
@@ -264,10 +265,7 @@ and likewise $\tilde{\mathbf{d}}$, where $\bar k = \exp[\overline{\ln k}]$ is th
 geometric-mean mode. So $\tau$ is the scale of a mid-range mode, and it informs only the
 centred pair: the gauge removes the scale of $\mathbf{a}$ and $\mathbf{c}$ entirely.
 
-\code{hier\_nomode.stan} drops \code{mu\_psi}, \code{u\_psi} and the
-$K_{\psi}-1$ entries of $\mathbf{z}_{c}$, so \code{w\_coef} is
-$2(K_{q}{-}1) + (K_{\psi}{-}1)$ long. \code{tau\_psi} and \code{alpha\_psi\_m} remain,
-being $\turnzero$'s own scale and decay.
+The two simplified programs are Section~\ref{sec:nested}.
 
 \paragraph{The rotation.} $R$ is a square \code{data} matrix over the coefficient block,
 identity unless a preconditioner has been built. Since it is constant its Jacobian is
@@ -282,6 +280,93 @@ $\code{flip\_psi} = [\turnone(\arc_{\mathrm{g}+}) < 0]$, and the relabeled
 $\mathbf{a}_{\mathrm{rel}}, \mathbf{c}_{\mathrm{rel}}, x_{p,\mathrm{rel}},
 x_{\psi,\mathrm{rel}}$. It also reports \code{lp\_sn} per supernova,
 $\arc$ at the window ends, and the tapered and clamped fractions.
+
+\section{The nested hierarchies}
+\label{sec:nested}
+
+\textbf{[0]} --- neither program is in the note. Each removes a departure mode of
+Section~2.3, and what goes with a mode is more than its term.
+
+\begin{tabular}{llll}
+\toprule
+ & \file{hier.stan} & \file{hier\_nomode.stan} & \file{hier\_common.stan} \\
+\midrule
+turning, Eq.~(9)        & $-\frac{\pi}{2} + \turnzero + \shapeturn\turnone$
+                        & $-\frac{\pi}{2} + \turnzero$
+                        & $-\frac{\pi}{2} + \turnzero$ \\
+traversal, Eq.~(10)     & $\xstretch + q_{0} + x_p q_{1}$
+                        & $\xstretch + q_{0} + x_p q_{1}$
+                        & $\xstretch + q_{0}$ \\
+\code{w\_coef} length   & $2(K_{q}{-}1) + 2(K_{\psi}{-}1)$
+                        & $2(K_{q}{-}1) + (K_{\psi}{-}1)$
+                        & $(K_{q}{-}1) + (K_{\psi}{-}1)$ \\
+coefficients at $(24,16)$ & 76 & 53 & 38 \\
+sampled values, $N = 30$  & 267 & 213 & 167 \\
+per supernova           & 6 & 5 & 4 \\
+gauge conditions        & 4 on $q$, 2 on $\psi$ & 4 on $q$ & \emph{none} \\
+sign conventions        & \code{flip\_q}, \code{flip\_psi} & \code{flip\_q} & \emph{none} \\
+cost per \code{log\_prob} & $0.097$~s & $0.084$~s & $0.113$~s \\
+\bottomrule
+\end{tabular}
+
+\paragraph{How a mode is removed.} Not by setting its coefficients to zero, which the gauge
+forbids: $\mathbf{a} = \tilde{\mathbf{a}}/\lVert\tilde{\mathbf{a}}\rVert$ is undefined there.
+The mode vector and its amplitudes are held at zero as \code{transformed data} constants ---
+\code{a\_zero}, \code{c\_zero}, \code{x\_p\_zero}, \code{x\_psi\_zero} --- so they cost
+nothing per draw and no dead column reaches the output, and the shared \code{functions}
+block needs no change at all, taking the combined $\mathbf{d} + \shapeturn\mathbf{c}$ and
+$\mathbf{b} + x_p\mathbf{a}$ as it already did. The parameters that go with the mode are its
+amplitudes and their location: \code{mu\_psi} and \code{u\_psi} with $\turnone$,
+\code{mu\_p} and \code{u\_p} with $q_{1}$.
+
+\paragraph{The gauge empties.} Every condition in Eq.~(11) names a mode. $\bar q_{1} = 0$
+and $\langle q_{1},q_{1}\rangle = 1$ are conditions \emph{on} $q_{1}$;
+$\langle q_{0},q_{1}\rangle = 0$ and $\bar q_{0} = 0$ fix $q_{0}$'s component along $q_{1}$
+and its constant, and the constant is already absent from the basis. So in
+\file{hier\_common.stan} the \code{transformed parameters} block reads
+$\mathbf{b} = \tilde{\mathbf{b}}$ and $\mathbf{d} = \tilde{\mathbf{d}}$, nothing is
+normalized, and $G_{\arc}$ --- still built in \code{transformed data}, the include being
+shared --- is never used. $q_{0}$ and $\turnzero$ are functions the data determine outright,
+with no coordinate freedom left to fix.
+
+\paragraph{And so do the sign conventions.} The two freedoms of Section~2.3 are
+$(q_{1}, x_p) \mapsto (-q_{1}, -x_p)$ and $(\turnone, \shapeturn) \mapsto
+(-\turnone, -\shapeturn)$, each belonging to a mode. \file{hier\_common.stan} has neither, so
+it reports no \code{flip\_q}, no \code{flip\_psi}, and none of
+$\mathbf{a}_{\mathrm{rel}}, \mathbf{c}_{\mathrm{rel}}, x_{p,\mathrm{rel}},
+x_{\psi,\mathrm{rel}}$: every quantity it writes is already in one branch. That removes by
+construction a defect rather than a nuisance --- a relabeling read off the sign of
+$\turnone$ at one point is unstable when $\turnone$ has a node there, and such a relabeling
+contaminated \code{R-hat} on $\mathbf{c}_{\mathrm{rel}}$ in the fits that have one.
+
+\paragraph{What stays.} \code{tau\_q}, \code{alpha\_q\_m}, \code{tau\_psi} and
+\code{alpha\_psi\_m} are the prior scale and decay of $\tilde{\mathbf{b}}$ and
+$\tilde{\mathbf{d}}$ by Eq.~(21), which are $q_{0}$'s and $\turnzero$'s own expansions and
+have nothing to do with the modes. In \file{hier.stan} $\tau_{q}$ informs only the centred
+pair, the gauge having removed $\mathbf{a}$'s scale; here there is no $\mathbf{a}$ to
+remove a scale from, so $\tau_{q}$ simply is $q_{0}$'s scale.
+
+\paragraph{They are nested, and the embedding is exact.} A mode reaches the likelihood only
+through its amplitude, so a point of the simpler model is a point of the richer one with the
+new amplitudes at zero: $\mathbf{b} + x_p\mathbf{a}$ reduces to $\mathbf{b}$ whatever
+$\mathbf{a}$ is. \code{hier\_data.inits\_from\_run} does that, which makes a simpler fit's
+posterior a start for the next rung --- a point a sampler has occupied, rather than a
+template's or an optimizer's. Two cautions found in building it. The start must be taken
+from a \emph{draw}, not from the mean of the draws: the model is nonlinear, so a
+parameter-wise mean need not be a point the model fits, and on an unconverged source it is
+not, costing $21000$ nats where a draw transfers to the digit. And a source with chains in
+both sign branches must be relabeled first, in the blocks
+$\mathbf{z}_{a}, \tilde{\mathbf{b}}, \mathbf{z}_{c}, \tilde{\mathbf{d}}$ rather than in
+\code{w\_coef}: $R$ mixes \code{w\_coef}'s slots, so negating one is wrong, and a point
+built from an unrelabeled \code{w\_coef} beside a relabeled \code{mu\_p} has
+$\mathbf{a}$'s sign against $x_p$'s, which inverts the traversal.
+
+\paragraph{What removing each mode costs.} At the optimum, on thirty supernovae at
+$(24, 16)$: $-13258.5$ with both modes, $-13271.9$ without $\turnone$, $-13432.0$ without
+either. So $\turnone$ is worth $13$ nats and $q_{1}$ a further $160$ --- $q_{1}$ about twelve
+times $\turnone$, which inverts what the sampling diagnostics suggest and agrees with them:
+$\turnone$ is the badly determined mode, four informed directions of $23$ falling as
+$k^{-2.79}$, and being well determined is what makes a mode expensive to remove.
 
 \section{The declared constants}
 \label{sec:constants}
@@ -344,10 +429,13 @@ third was taken as free on an accuracy budget. All three are recorded with their
 measurements in \file{docs/model-note-backlog.md}, and none has been written back into
 Sections~2.3 or~3.
 
-\paragraph{Two programs the note does not describe.} \file{hier\_nomode.stan} removes
-$\shapeturn\turnone$ from Eq.~(curvlin) of \file{model-definition.tex} entirely, and with it the turning pair's gauge
-and one of the two sign conventions. \file{jacobian.stan} exists only to supply $J$ for the
-preconditioner.
+\paragraph{Three programs the note does not describe.} \file{hier\_nomode.stan} removes
+$\shapeturn\turnone$ from Eq.~(9) of \file{model-definition.tex}, and
+\file{hier\_common.stan} removes $x_p q_{1}$ from Eq.~(10) as well, taking both gauges and
+both sign conventions with them --- Section~\ref{sec:nested}. \file{jacobian.stan} exists
+only to supply $J$ for the preconditioner. None is a divergence in the sense of
+contradicting the note: each is a strictly smaller model, built to measure what the note's
+own terms are worth, and the note's model is \file{hier.stan}.
 
 \paragraph{One parameter the note does not describe.} The rotation $R$ is a
 reparameterization and so changes nothing inferentially, but the note's
