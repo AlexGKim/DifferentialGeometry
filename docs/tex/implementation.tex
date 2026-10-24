@@ -1,5 +1,7 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
 \usepackage[hidelinks]{hyperref}
@@ -570,22 +572,30 @@ $\Delta_{n}, x_{s,n}, m_{g,n}^{\max}, \colr_{n}$. Each is written below in terms
 \code{hier\_common.stan} actually samples, with $P_{0} = 1/\sqrt{v_{hi}-v_{lo}}$ and
 $\mathbf{raw} = R\,\code{w\_coef}$. No transformed parameter appears on the right.
 
-\begin{tabular}{lll}
+\begin{tabular}{@{}l l p{0.46\textwidth}@{}}
 \toprule
- & is & $=$ \\
+ & $=$ & \code{parameters} declaration, and prior \\
 \midrule
-$\Delta_{n}$        & the offset from the catalogued $t_{0}$ & \code{delta\_t}$[n]$ \\
-$x_{s,n}$           & this supernova's departure from the mean log rate & \code{x\_s}$[n]$ \\
-$b_{0}$             & the mean log rate, $q_{0}$'s degree-zero term & \code{b\_0} \\
-$\mathbf{b}$        & $q_{0}$'s degrees $1$ to $K_{q}{-}1$ & $\mathbf{raw}_{1:K_{q}-1}$ \\
-$\mathbf{d}$        & $\turnzero$'s coefficients & $\mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2}$ \\
-$m_{g,n}^{\max}$    & the $g$ magnitude at the anchor & \code{m\_peak}$[n]$ \\
-$\colr_{n}$         & the $g-r$ colour at the anchor & \code{c\_bar} $+$ \code{c\_dev}$[n]$ \\
+$\Delta_{n}$     & \code{delta\_t}$[n]$
+                 & \code{vector<lower=-3, upper=3>[N\_sn]}, flat \\[2pt]
+$x_{s,n}$        & \code{x\_s}$[n]$
+                 & \code{sum\_to\_zero\_vector[N\_sn]}, flat, walled at $\pm 20$ \\[2pt]
+$b_{0}$          & \code{b\_0}
+                 & \code{real<lower = -20 * sqrt(vhi - vlo),} \code{upper = 10 * sqrt(vhi - vlo)>}, flat \\[2pt]
+$\mathbf{b}$     & $\mathbf{raw}_{1:K_{q}-1}$
+                 & \code{vector[(Kq - 1) + (Kpsi - 1)] w\_coef}, Eq.~(21) below \\[2pt]
+$\mathbf{d}$     & $\mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2}$
+                 & the same \code{w\_coef}, Eq.~(21) below \\[2pt]
+$m_{g,n}^{\max}$ & \code{m\_peak}$[n]$
+                 & \code{vector<lower=5, upper=30>[N\_sn]}, flat \\[2pt]
+$\colr_{n}$      & \code{c\_bar} $+$ \code{c\_dev}$[n]$
+                 & \code{real<lower=-5, upper=5>}, flat, and
+                   \code{sum\_to\_zero\_vector[N\_sn]}, \textbf{no prior} \\
 \bottomrule
 \end{tabular}
 
 \medskip\noindent
-Three remarks on the right-hand column. Only the sum $x_{s,n} + b_{0}P_{0}$ reaches
+Three remarks on the middle column. Only the sum $x_{s,n} + b_{0}P_{0}$ reaches
 \eqref{eq:ctrav}, which is the exact gauge of the paragraph below and the reason $\xstretch$
 alone is a departure from a rate and not a rate. $R$ is a fixed
 $\bigl[(K_{q}{-}1)+(K_{\psi}{-}1)\bigr]^{2}$ matrix supplied as \code{data}, the identity
@@ -598,32 +608,16 @@ the last two equal $\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$ here, the note'
 being vacuous in a program whose every gauge condition names a departure mode.
 
 \medskip\noindent
-What is sampled, in declaration order, which is also the order of the output columns:
-
-\begin{tabular}{lll}
-\toprule
- & shape and support & prior \\
-\midrule
-\code{w\_coef}       & $(K_{q}{-}1) + (K_{\psi}{-}1)$ & Eq.~(21) below, through $R$ \\
-\code{tau\_q}        & scalar $> 0$ & flat \\
-\code{tau\_psi}      & scalar $> 0$ & flat \\
-\code{alpha\_q\_m}   & scalar $> 0$ & $\mathrm{Exp}(1)$ \\
-\code{alpha\_psi\_m} & scalar $> 0$ & $\mathrm{Exp}(1)$ \\
-\code{m\_peak}       & $N$, each in $[5, 30]$ & flat \\
-\code{c\_bar}        & scalar, $[-5, 5]$ & flat \\
-\code{c\_dev}        & \code{sum\_to\_zero\_vector}$[N]$ & \textbf{none} \\
-\code{b\_0}          & scalar, $b_{0}P_{0} \in [-20, 10]$ & flat \\
-\code{x\_s}          & \code{sum\_to\_zero\_vector}$[N]$ & flat, walled at $\pm 20$ \\
-\code{delta\_t}      & $N$, each in $[-3, 3]$ & flat \\
-\bottomrule
-\end{tabular}
-
-\medskip\noindent
-At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ that is $164$ named values, four of them per
-supernova, of which Stan samples $162$: a \code{sum\_to\_zero\_vector}$[N]$ is an orthogonal
-transform carrying $N-1$ unconstrained coordinates, and there are two of them. Every prior
-in the right-hand column is flat or absent except the two on the basis coefficients, and the
-paragraphs after Eq.~(21) say what each bound is for and why \code{c\_dev} needs none.
+Four hyperparameters are sampled beside these and reach the model only through the prior on
+$\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$: \code{tau\_q} and \code{tau\_psi}, both
+\code{real<lower=0>} and flat, and \code{alpha\_q\_m} and \code{alpha\_psi\_m}, both
+\code{real<lower=0>} with $\mathrm{Exp}(1)$, being $\alpha - \frac12$ of \eqref{eq:ccoef}.
+At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ the whole \code{parameters} block is $164$
+named values, four of them per supernova, of which Stan samples $162$: a
+\code{sum\_to\_zero\_vector[N]} is an orthogonal transform carrying $N-1$ unconstrained
+coordinates, and there are two of them. Every prior above is flat or absent except the two
+on the basis coefficients; the paragraphs after \eqref{eq:ccoef} say what each bound is for
+and why \code{c\_dev} needs none.
 
 \medskip\noindent
 Both coefficient vectors carry the note's Eq.~(21) at the geometric-mean pivot
@@ -632,12 +626,11 @@ $\bar k = \exp[\overline{\ln k}]$:
   \tilde b_{k} \sim \mathcal{N}\!\left(0,\ \tau_{q}\,(k/\bar k_{q})^{-\alpha_{q}}\right) ,
   \qquad
   \tilde d_{k} \sim \mathcal{N}\!\left(0,\ \tau_{\psi}\,(k/\bar k_{\psi})^{-\alpha_{\psi}}\right) .
+  \label{eq:ccoef}
 \end{equation}
 Both are \emph{centred}: the data pin them, there being no gauge to remove their scale, so
 $\tau_{q}$ and $\tau_{\psi}$ simply are the scales of $q_{0}$ and $\turnzero$ at a mid-range
-mode. $R$ is a fixed \code{data} matrix over the coefficient block, the identity unless a
-preconditioner has been built; being constant its Jacobian is constant, so it changes no
-posterior.
+mode.
 
 \paragraph{Every prior here is flat.} Not one of the placement parameters carries a
 distributional assumption. Where a bound is present it is a box, flat inside; where a mean
