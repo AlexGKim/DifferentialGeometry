@@ -628,158 +628,90 @@ $\bar k = \exp[\overline{\ln k}]$:
   \tilde d_{k} \sim \mathcal{N}\!\left(0,\ \tau_{\psi}\,(k/\bar k_{\psi})^{-\alpha_{\psi}}\right) .
   \label{eq:ccoef}
 \end{equation}
-Both are \emph{centred}: the data pin them, there being no gauge to remove their scale, so
-$\tau_{q}$ and $\tau_{\psi}$ simply are the scales of $q_{0}$ and $\turnzero$ at a mid-range
-mode.
 
-\paragraph{Every prior here is flat.} Not one of the placement parameters carries a
-distributional assumption. Where a bound is present it is a box, flat inside; where a mean
-is named it is a free parameter, not a fitted population centre; and the two constrained
-blocks, $\langle x_{s}\rangle = 0$ and $\langle\colr - \bar c\rangle = 0$, are gauge-fixings
-rather than statements about how the objects are distributed. What a sum over realized
-values asserts is nothing, where a normal population prior would assert Gaussianity.
+\medskip\noindent
+Each of the seven in turn, with what carries it, what fixes its freedom, and what bounds
+it. Three things recur. A \emph{gauge} is a direction the likelihood is flat along, exactly
+or nearly, and is removed by a constraint. A \emph{flat tail} is the likelihood tending to a
+positive constant at infinity, and needs a bound, which a constraint does not supply. And
+naming a mean that is already identified is \emph{bookkeeping}, neither of those.
 
-\paragraph{$x_{s}$ and $b_{0}$: an exact gauge.} $q_{0}$ is expanded in Legendre degrees
-$1$ to $K_{q}-1$ and therefore contains no constant, so $b_{0}P_{0}$ with
-$P_{0} = 1/\sqrt{v_{hi}-v_{lo}}$ restores the degree-zero term. Only the sum
-$x_{s,n} + b_{0}P_{0}$ reaches \eqref{eq:ctrav}'s exponent, so
-$x_{s,n} \mapsto x_{s,n} + \epsilon$ with $b_{0} \mapsto b_{0} - \epsilon\sqrt{v_{hi}-v_{lo}}$
-leaves every prediction identical: the degeneracy is \emph{exact}, and
-$\sum_{n} x_{s,n} = 0$ fixes it at no cost, unlike $\Delta$'s near gauge below. What this
-replaces --- a named mean $\bar s$ plus deviations --- is the same model relabelled; what it
-buys is that $q_{0}$ is the population's log rate outright, mean included, rather than a
-shape with its mean parked among the per-supernova parameters. $b_{0}$ is held outside the
-block $R$ rotates for a specific reason: the same \code{traversal\_row} builds $q_{1}$, and
-the note's Eq.~(11) requires $\bar q_{1} = 0$, so widening the slice to $[1\!:\!K_{q}]$ would
-hand the departure mode a constant and break its gauge. It could not take the note's
-Eq.~(21) in any case, $(k/\bar k)^{-\alpha}$ diverging at $k = 0$.
+\paragraph{$\Delta_{n}$, from \code{delta\_t}.} A common shift of every $\Delta$ is a shift
+of the phase origin, which $q_{0}$ reshapes to absorb, so the mean is a near gauge: the
+per-object posterior standard deviation is $0.359$~d, thirty independent offsets would put
+$0.066$~d on their mean, and a hierarchical fit returned $0.344$~d. Deleting it with
+$\langle\Delta\rangle = 0$ cost $1.96$ nats over $1568$ epochs, so the box confines it
+instead and the fit keeps them. The bound is not optional: both tails are flat, every epoch
+leaving the phase window past $|\Delta| \sim 100$~d and the softened clamp saturating, with
+the density at $-156709.38$ at $300$~d and $-156709.38$ at $1000$~d. $\pm3$~d is $8.6$ times
+the largest $t_{0}$ uncertainty \ztf\ DR2 reports over the thirty, and no draw has exceeded
+$2.43$~d. The cost of not splitting the mean out is that it stays mixed across thirty
+coordinates at a scale ratio of $3.3$ to $4.0$, where a diagonal metric cannot scale it
+alone --- $\Delta$ is the only one of the seven whose common mode is the longer direction.
 
-\paragraph{$\Delta$: a near gauge, confined rather than deleted.} A common shift of every
-$\Delta$ is a shift of the phase origin, which $q_{0}$ --- a free function of $v$ ---
-reshapes to absorb, so the population mean is pinned by the basis's finite flexibility and
-not by the data. The fit says so directly: the per-supernova posterior standard deviation of
-$\Delta$ is $0.359$~d, thirty independently measured offsets would put
-$0.359/\sqrt{30} = 0.066$~d on their mean, and a hierarchical fit returned $0.344$~d, $5.2$
-times larger. An earlier version of this program deleted that direction with
-$\langle\Delta\rangle = 0$, at a measured cost of $1.96$ nats over $1568$ epochs
-($1.25\times10^{-3}$ an epoch, the realized spread unmoved at $0.2989$~d, $\chi^{2}$ per
-epoch moving from $5.229$ to $5.231$; the same comparison under the superseded likelihood
-gave $2.19$ nats). The box confines it instead, so the fit finds its own phase origin, keeps
-those nats, and leaves the $B$-to-$g$ offset in $\Delta$ rather than moving it into where
-$q_{0}$ puts its minimum in $v$. The price is that the common mode is the long direction of
-this block --- standard deviation $0.343$ and $0.437$ at $N = 30$ against a mean deviation
-of $0.104$ and $0.109$, a ratio of $3.3$ and $4.0$, and $1.64$ at $N = 100$ --- and a
-diagonal metric, assigning one scale per declared coordinate, has to straddle that ratio
-where every coordinate mixes the two. $\Delta$ is the only one of the four where the ratio
-exceeds unity; for $\peakmag$, $\colr$ and $x_{s}$ the common mode is the shorter direction.
+\paragraph{$x_{s,n}$, from \code{x\_s}.} With $b_{0}$ present, only $x_{s,n} + b_{0}P_{0}$
+reaches \eqref{eq:ctrav}, so the shift between them is an \emph{exact} gauge and
+$\sum_{n} x_{s,n} = 0$ removes it at no cost at all, unlike $\Delta$'s. The deviations
+inherit no propriety from that constraint: a ray inside the hyperplane drives one object's
+rate into the arclength clamp and another's to zero, each a constant light curve, and the
+density settles at $-2.47\times10^{5}$. Hence the wall. It is a sampling statement and not a
+declared bound because \code{stanc} rejects a bound on this type outright, and it is
+discontinuous, which costs nothing at $270$ times the realized deviation standard deviation
+of $0.073$.
 
-\paragraph{What each bound is for.} Three directions do not fall away, and in each the
-likelihood tends to a positive constant rather than to zero, so a flat prior over an
-infinite range would not integrate. As $\peakmag \to +\infty$ the predicted flux vanishes and
-the likelihood tends to $\exp(-\frac12\sum f^{2}/\sigma^{2})$. As $x_{s} \to -\infty$ the
-rate vanishes, the track freezes at the anchor and the model is a constant light curve,
-settling at $-4.83\times10^{6}$; as $x_{s} \to +\infty$ the rate diverges, every epoch is
-driven into the arclength clamp, and the model is a constant light curve again at a
-different constant, settling at $-2.93\times10^{6}$ --- the higher of the two, so the upward
-tail is the more reachable. As $|\Delta|$ grows past about $100$~d every epoch leaves the
-phase window, the softened clamp saturates, and the density reads $-156709.38$ at $300$~d
-and $-156709.38$ at $1000$~d. Each box is sited far outside anything reachable and is a
-statement about the archive rather than about supernovae: $\zp$ and $\peakmag$ are exactly
-degenerate in \eqref{eq:cflux}, so the magnitude origin is a convention already fixed at
-$\zp = 30$, in which $\peakmag = 30$ is a predicted flux of one archive unit against a
-sample spanning $1.5\times10^{4}$ to $7.8\times10^{5}$; and $\pm3$~d is $8.6$ times the
-largest $t_{0}$ uncertainty \ztf\ DR2 reports over the thirty.
+\paragraph{$b_{0}$, from \code{b\_0}.} It restores the degree-zero Legendre term that
+\code{traversal\_row}'s $[2\!:\!K_{q}]$ slice drops, so that $q_{0}$ is the population's log
+rate outright rather than a shape with its mean stored elsewhere. It is held outside the
+block $R$ rotates because the same row builds $q_{1}$, whose gauge requires
+$\bar q_{1} = 0$: widening the slice would hand the departure mode a constant. It could not
+take \eqref{eq:ccoef} in any case, $(k/\bar k)^{-\alpha}$ diverging at $k = 0$. Its box is
+needed because both tails are flat --- downward the rate vanishes and the track freezes at
+the anchor, settling at $-4.83\times10^{6}$; upward it diverges, every epoch is driven into
+the arclength clamp, settling at $-2.93\times10^{6}$, the higher of the two and so the more
+reachable --- and it is written on $b_{0}P_{0}$, the mean log rate itself, so that it
+survives a change of phase window.
 
-\code{sum\_to\_zero\_vector} admits no declared bound --- \code{stanc} rejects one
-outright --- so $x_{s}$'s wall is a sampling statement instead:
-\code{x\_s} \textasciitilde\ \code{uniform(-20, 20)} leaves the transform alone and
-contributes exactly zero inside the box, $-\infty$ outside. It is discontinuous, which costs nothing here: the
-wall stands at some $270$ times the realized deviation standard deviation of $0.073$ and is
-never met.
+\paragraph{$\mathbf{b}$, from \code{w\_coef} through $R$.} The first $K_{q}-1$ entries of
+$\mathbf{raw}$, carrying \eqref{eq:ccoef} with $\tau_{q}$ and $\alpha_{q}$. There is no
+gauge and no tail to bound; what there is instead is a prior that does real work, and this
+is the one place in the model where that is true. At $K_{q} = 16$ the posterior width
+reaches half the prior's by $k = 5$ and $7$ of the $15$ modes are prior-dominated, so the
+upper half of the basis is held up by \eqref{eq:ccoef} rather than by the data. That is the
+opposite of every placement prior above, which shrink by $10^{-4}$ and were removed for
+costing nothing.
 
-\paragraph{$\colr$ alone needs nothing.} Its deviations have no prior, and the reason is in
-the forward map rather than in the statistics. Inside the sum-to-zero hyperplane some
-component must run to $+\infty$, which drives that object's predicted $r$ flux up
-exponentially, and a Gaussian-in-flux likelihood punishes that doubly exponentially: walked
-out, the log density falls through $-4.67\times10^{6}$ at $t = 3$ and $-2.05\times10^{12}$
-at $t = 10$ to $-\infty$, and on the least favourable ray available --- the object with five
-$r$ epochs rising against the one with a hundred and thirteen falling --- faster still.
-Colour is the one placement direction the map does not clamp, and clamping is exactly what
-turns a runaway into a finite constant. The $\mathcal{N}(0,1)$ this replaces was shrinking by
-$8.3\times10^{-4}$, so no number moves. An earlier version also had
-$\colr \sim \mathcal{N}(0,1)$ centred on zero, which asserted a mean anchor colour of zero
-where three fits put it at $+0.060 \pm 0.013$ at $N = 30$ and $+0.0597 \pm 0.0032$ at
-$N = 100$; $\bar c$ carries it now, and the anchor conditions above record why the curve cannot.
+\paragraph{$\mathbf{d}$, from the same \code{w\_coef}.} The remaining $K_{\psi}-1$ entries,
+carrying \eqref{eq:ccoef} with $\tau_{\psi}$ and $\alpha_{\psi}$. The same story and more
+of it: at $K_{\psi} = 24$ the crossover is at $k = 3$ and $10$ of the $23$ modes are
+prior-dominated. Both vectors are \emph{centred} rather than non-centred --- the data pin
+them, there being no gauge to remove their scale --- so $\tau_{q}$ and $\tau_{\psi}$ simply
+are the scales of $q_{0}$ and $\turnzero$ at a mid-range mode.
 
-At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ that is $38$ coefficients and $164$ named
-values, four of them per supernova. Stan samples $162$ coordinates, not $164$: a
-\code{sum\_to\_zero\_vector}$[N]$ is an orthogonal transform carrying $N-1$ unconstrained
-coordinates, and there are two of them.
+\paragraph{$m_{g,n}^{\max}$, from \code{m\_peak}.} The only one of the seven with an
+\emph{exact} degeneracy, and it is already spent: predicted flux depends on $\peakmag$ and
+$\zp$ only through $\peakmag - \zp$, so pinning $\zp = 30$ fixes the gauge before the fit
+begins and no constraint appears here. One tail is flat, the faint one, where the predicted
+flux vanishes and the likelihood tends to $\exp(-\frac12\sum f^{2}/\sigma^{2})$ --- small
+but positive. The box closes it, and inherits the $\zp$ convention rather than asserting
+anything: $\peakmag = 30$ is a predicted flux of one archive unit and $\peakmag = 5$ is
+$10^{10}$, against a sample spanning $1.5\times10^{4}$ to $7.8\times10^{5}$. It replaces
+$\mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$, whose centre was read from the same photometry
+the likelihood reads and which shrank by $2.7\times10^{-4}$ to $3.5\times10^{-3}$.
 
-\subsection{The per-supernova parameters, one at a time}
-
-Each of the four is asked three questions, and they are not alternatives: a parameter can
-answer yes to more than one, and the answers call for different devices. \emph{Is there an
-exact degeneracy} --- a direction along which the likelihood is exactly constant? Then a
-constraint is right, because it deletes a coordinate that carries no information.
-\emph{Is there a near one}, where the likelihood is almost constant and only the basis's
-finite flexibility pins it? A constraint is still right, but it costs something and the cost
-is measured rather than assumed. \emph{Are the tails flat} --- does the likelihood tend to a
-positive constant at infinity? Then a bound or a proper prior is needed, and a constraint
-does not supply one. The three sum-to-zero blocks here settle that last point by example:
-under a flat prior one of them is proper and two are not.
-
-A fourth question is bookkeeping and not inference. Where a mean is identified, writing it
-as a named scalar plus deviations summing to zero is a reparameterization --- the same
-posterior over the same $N$ coordinates --- which makes the common mode one coordinate
-instead of $N$. That is all $\bar s$ and $\bar c$ are.
-
-\paragraph{$\peakmag$: an exact gauge, already fixed.} It is the only one of the four with
-an exact degeneracy. Predicted flux depends on $\peakmag$ and $\zp$ only through
-$\peakmag - \zp$, so a common shift of every $\peakmag$ against $\zp$ changes nothing, and
-pinning $\zp = 30$ is what fixes it --- the gauge is spent before the fit begins, which is
-why no constraint appears on $\peakmag$ here. Its one flat tail is the faint one: as
-$\peakmag \to +\infty$ the predicted flux vanishes and the likelihood tends to
-$\exp(-\frac12\sum f^{2}/\sigma^{2})$, small but positive. The box closes it, and because
-the magnitude origin is already a convention the bound inherits that convention rather than
-asserting anything. The prior it replaced,
-$\mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$, was shrinking by $2.7\times10^{-4}$ to
-$3.5\times10^{-3}$ and reading the same photometry the likelihood reads.
-
-\paragraph{$\colr$: no gauge, and the only one that needs no prior.} $\curve(0) = 0$ fixes
-the curve's anchor in both components, so $\colr$ \emph{is} the $g-r$ colour at the anchor
-and its mean is identified: the fits put it at $+0.060 \pm 0.013$ over thirty objects and
-$+0.0597 \pm 0.0032$ over a hundred, nineteen standard deviations from zero. Naming $\bar c$
-is therefore bookkeeping, not gauge-fixing. What is unusual is the tails. Inside the
-sum-to-zero hyperplane some component must run to $+\infty$, which drives that object's
-predicted $r$ flux up exponentially, and a Gaussian-in-flux likelihood punishes that doubly
-exponentially: walked out, the log density falls through $-4.67\times10^{6}$ at $t = 3$ and
-$-2.05\times10^{12}$ at $t = 10$ to $-\infty$. Checked on the least favourable ray
-available, the object with five $r$ epochs rising against the one with a hundred and
-thirteen falling, it diverges faster still, since the rising object is the punished one and
-a single epoch suffices. A flat prior on the deviations is proper on its own.
-
-\paragraph{$\Delta$: a near gauge, confined.} The degeneracy with $q_{0}$'s phase origin is
-approximate, not exact --- deleting it with $\langle\Delta\rangle = 0$ cost $1.96$ nats ---
-so $\Delta$ is boxed rather than constrained and the mean floats inside the box. It also has
-flat tails at both ends, the phase clamp saturating the model's dependence on $\Delta$
-altogether, so the bound is doing two jobs at once: confining the near gauge and supplying
-propriety. It is the only one of the four needing both.
-
-\paragraph{$\xstretch$: an exact gauge, fixed.} With $b_{0}$ restoring $q_{0}$'s
-degree-zero term, only $x_{s,n} + b_{0}P_{0}$ reaches the exponent, so the shift between
-them is an exact symmetry and $\langle\xstretch\rangle = 0$ removes it for nothing. Both
-tails are flat, which Section~5 of the note until recently recorded for only one of them,
-and the deviations inherit no propriety from their constraint: a ray inside the hyperplane
-sends one object to each plateau and settles at $-2.47\times10^{5}$. Hence the wall.
-
-\paragraph{Why $\colr$ differs.} Both constrained blocks are the same kind of object and
-behave differently, and the reason is in the forward map rather than in the statistics.
-Colour has no clamp, so a runaway direction drives a predicted flux to infinity and the
-likelihood kills it. Arclength and phase are both clamped, so every runaway saturates into a
-constant light curve instead, which is finite and therefore flat. The question to ask of any
-future constrained block is which of those two it is: whether the forward map clamps that
-direction or lets it diverge.
+\paragraph{$\colr_{n}$, from \code{c\_bar} and \code{c\_dev}.} $\curve(0) = 0$ pins the
+anchor in both components, so $\colr$ \emph{is} the $g-r$ colour there and its mean is
+identified, not degenerate: the fits put it at $+0.060 \pm 0.013$ over thirty objects and
+$+0.0597 \pm 0.0032$ over a hundred. Naming $\bar c$ is therefore bookkeeping, and it is
+needed because the curve cannot absorb a mean colour --- an offset is a translation,
+\eqref{eq:cturn} expands the tangent angle, and there is no translation mode. The
+deviations are the one block in the program with no prior at all, and need none: inside the
+hyperplane some component must run to $+\infty$, which drives that object's predicted $r$
+flux up exponentially where a Gaussian-in-flux likelihood punishes it doubly exponentially.
+Walked out, the density falls through $-4.67\times10^{6}$ at $t = 3$ and
+$-2.05\times10^{12}$ at $t = 10$ to $-\infty$, and faster still on the least favourable ray
+available. Colour is the only placement direction the forward map does not clamp, and
+clamping is exactly what turns a runaway into a finite constant --- which is why this works
+here and nowhere else.
 
 \subsection{What it reports}
 
