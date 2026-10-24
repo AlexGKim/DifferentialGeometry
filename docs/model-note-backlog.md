@@ -1279,3 +1279,50 @@ source draw to the digit. A parameter-wise mean of a nonlinear posterior need no
 the model fits, and on an unconverged run --- `R-hat` 1.44, effective size 8 --- it is not.
 This is the second time the same mistake has cost a measurement; the first put residuals at
 `chi2/N` 4.9 when every draw sat at 1.07.
+
+## Which priors the data actually overrules, and the shape of the ones it does not
+
+Open. Raised 2026-10-23, after the placement priors were constrained and the
+fitted scatter removed.
+
+The test is one number per parameter: the posterior width against the prior
+width at the same point. Below 0.3 the data decide and the prior could be
+anything; above 0.7 the prior decides and its shape is a modelling choice
+being made silently. Measured so far, at K = (24, 16) on `runs/stage3-k24`
+under that run's own mode-one convention for `tau`:
+
+| | crossover, first k with post/prior > 0.5 | prior-dominated (> 0.7) | data-dominated (< 0.3) |
+|---|---|---|---|
+| `b_til`, q_0 | k = 5 | 7 of 15 | 2 of 15 |
+| `d_til`, Psi_0 | k = 3 | 10 of 23 | 2 of 23 |
+
+So roughly half the basis is held up by Eq. (coefprior) rather than by the
+data, and the half that is held up is the half that sets smoothness. That is
+the opposite of what was found for the placement priors, which shrank by
+2.7e-4 to 8.3e-4 and were removed for costing nothing.
+
+Two things follow, neither done.
+
+**The shape is untestable from inside the fit.** One realization per mode
+gives nothing to test Gaussianity against, and it is doing real work. The
+move that weakens the shape without losing propriety is a heavier tail ---
+Student-t with inferred nu, or a horseshoe --- which lets one genuinely large
+high-k mode through while still shrinking the rest. Whether q_0 or Psi_0 has
+such a mode is itself unmeasured.
+
+**The same measurement has not been made on the three propriety priors.**
+`x_s_dev` and `c_dev` at N(0,1) and `delta_t` at N(0,3) are asserted to be
+four to forty times wider than the spreads they bound, which is an argument
+from the realized spread and not from the width ratio. Run the same table on
+them from `runs/stage3-common-gauge` when it finishes. If any comes out
+prior-dominated, the claim in Section 5 that it is a propriety condition and
+not a population model is wrong as stated.
+
+Related: whether those three need a prior at all. `sum_to_zero_vector` does
+not admit bounds, so the box used for `m_peak` and `c_bar` is unavailable,
+but the constraint itself may do the work --- it forces a compensating
+object, and for colour that direction drives the predicted flux to infinity
+where the likelihood dies. For `delta_t` both directions reach the phase
+clamp and saturate, so there the prior is probably load-bearing. Settle it by
+running with each removed rather than by arguing, as with the `<Delta>` = 0
+floor check.

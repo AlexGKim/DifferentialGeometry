@@ -708,20 +708,42 @@ That was a template-derived constant inside the prior rather than the start, and
 misplaced: the first hierarchical fits put the population mean at $-2.85$ and $-2.70$ at
 $K_{\psi} = 12$ and $24$, $2.3$ and $3.1$ standard deviations away, while the realized
 spread of $\xstretch$ across thirty objects was $0.12$ to $0.25$ against a prior width of
-unity, and no object drew as much as a tenth of its precision from it. $\peakmag \sim \mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$
-with $m_{g}^{\mathrm{bright}}$ the magnitude of the brightest good $g$ epoch, the SED-free
-anchor of Section~\ref{sec:samples}, and $\colr \sim \mathcal{N}(0, 1)$, a magnitude wide.
+unity, and no object drew as much as a tenth of its precision from it.
+
+$\peakmag$ and $\colr$ are written the same way. An earlier version of this section had
+$\peakmag \sim \mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$, centred on the magnitude of the
+brightest good $g$ epoch, and $\colr \sim \mathcal{N}(0, 1)$. The first read the same
+photometry the likelihood reads, a datum used twice, and the second asserted a mean anchor
+colour of zero where the fits put it at $+0.060 \pm 0.013$ over thirty objects and
+$+0.0597 \pm 0.0032$ over a hundred. In place of them, $\peakmag$ is flat on $[5, 30]$~mag
+and $\colr = \bar c + \delta_{c}$ with $\sum_{n}\delta_{c,n} = 0$ and $\bar c$ flat on
+$[-5, 5]$. Neither box is an assertion about supernovae: $\zp$ and $\peakmag$ are exactly
+degenerate, so the magnitude origin is a convention already fixed at $\zp = 30$, and in it
+$\peakmag = 30$ is a predicted flux of one archive unit against a sample spanning
+$1.5\times10^{4}$ to $7.8\times10^{5}$.
 
 None of these is informative against the data, and each is there to make the posterior
-proper. With flat priors the likelihood tends to a positive constant as
-$\xstretch \to -\infty$, where the supernova freezes at peak, so \eqref{eq:xsmean} cannot be
-left flat however uninformative a prior would be where the data are: $\bar s$ is given
-$\mathcal{N}(0, 10^{2})$ and the deviations $\mathcal{N}(0, 1)$, the first against a mean the
-data pin to $0.07$ and the second four to eight times wider than the spread it bounds, so
-each is a propriety condition and neither is a population model; as $\peakmag \to +\infty$ or
-$\colr \to -\infty$, where the predicted flux vanishes; and as $\alpha \to \infty$, where
-every mode but the first has gone and the fit is poor but finite. A chain started in any of
-those tails would stay there, and a flat prior over them integrates to infinity.
+proper. Three directions need bounding. With flat priors the likelihood tends to a positive
+constant as $\xstretch \to -\infty$, where the supernova freezes at peak, so
+\eqref{eq:xsmean} cannot be left flat however uninformative a prior would be where the data
+are: $\bar s$ is given $\mathcal{N}(0, 10^{2})$ and the deviations $\mathcal{N}(0, 1)$, the
+first against a mean the data pin to $0.07$ and the second four to eight times wider than
+the spread it bounds, so each is a propriety condition and neither is a population model.
+The same happens as $\peakmag \to +\infty$ or $\colr \to -\infty$, where the predicted flux
+vanishes, and the two boxes above are what close it. And as $\alpha \to \infty$ every mode
+but the first has gone and the fit is poor but finite. A chain started in any of those tails
+would stay there, and a flat prior over them integrates to infinity.
+
+The deviations of $\colr$ and the whole of $\Delta$ keep normal priors,
+$\mathcal{N}(0,1)$ and $\mathcal{N}(0, 3^{2})$, where $\peakmag$ and $\bar c$ take boxes.
+The asymmetry is not a judgement: \texttt{sum\_to\_zero\_vector} does not admit bounds, so a
+box is not available for a constrained block, and the widths are set the same way the others
+are --- the realized spread of $\Delta$ across thirty objects is $0.076$~d and of the colour
+deviations $0.255$~mag, so the two are forty and four times too wide to shape either.
+Whether either is needed at all is unmeasured: the sum-to-zero constraint forces a
+compensating object, and for colour the compensating direction drives the predicted flux to
+$+\infty$, where the Gaussian likelihood dies, which may make a flat prior proper on its own,
+while for $\Delta$ both directions reach the phase clamp and saturate, which would not.
 $\alpha_{q}$ is informed by $\tilde{\mathbf{a}}$ and $\tilde{\mathbf{b}}$ and
 $\alpha_{\psi}$ by $\tilde{\mathbf{c}}$ and $\tilde{\mathbf{d}}$, since normalizing
 $\tilde{\mathbf{a}}$ and $\tilde{\mathbf{c}}$ removes $\tau$ but not the relative decay
