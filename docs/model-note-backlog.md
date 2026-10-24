@@ -1318,11 +1318,37 @@ them from `runs/stage3-common-gauge` when it finishes. If any comes out
 prior-dominated, the claim in Section 5 that it is a propriety condition and
 not a population model is wrong as stated.
 
-Related: whether those three need a prior at all. `sum_to_zero_vector` does
-not admit bounds, so the box used for `m_peak` and `c_bar` is unavailable,
-but the constraint itself may do the work --- it forces a compensating
-object, and for colour that direction drives the predicted flux to infinity
-where the likelihood dies. For `delta_t` both directions reach the phase
-clamp and saturate, so there the prior is probably load-bearing. Settle it by
-running with each removed rather than by arguing, as with the `<Delta>` = 0
-floor check.
+Related: whether those three need a prior at all. **Measured 2026-10-23, and
+they differ.** Walking a ray to infinity inside the hyperplane --- component
+i up by t, component j down by t --- with the block's own Gaussian penalty
+added back, so what is left is the likelihood:
+
+| t | `c_dev`, lp + penalty | `delta_t`, lp + penalty |
+|---|---|---|
+| 0 | -8.35e4 | -8.35e4 |
+| 3 | -4.67e6 | -1.10e5 |
+| 10 | -2.05e12 | -2.19e5 |
+| 100 | -2.05e84 | -156709.38 |
+| 300 | -2.05e251 | -156709.38 |
+| 1000 | -inf | -156709.38 |
+
+`c_dev` is proper under a flat prior and the normal can go. In the hyperplane
+some component must run to +infinity, which drives that object's predicted r
+flux up, and a Gaussian-in-flux likelihood punishes that doubly
+exponentially. Checked on the worst ray available --- the object with 5 r
+epochs up, the one with 113 down, the minimum over the sample being 5 --- and
+it diverges faster, not slower, since the "up" object is the one being
+punished and one epoch suffices.
+
+`delta_t` is not proper and its normal is load-bearing. Past t = 100 every
+epoch is outside the phase window, the clamp saturates, the model stops
+depending on Delta and the density is flat to the digit: -156709.38 at t =
+300 and at t = 1000, change +0.00. The non-monotonicity before that --- the
+density *rises* from t = 10 to t = 100 --- is the clamp taking over, a fully
+clamped fit being bad but finite where a half-clamped one is worse.
+
+Not yet applied: dropping `c_dev ~ normal(0, 1)` from the three hierarchies.
+It would change no number, the per-object posterior sd of colour being 0.029
+mag against a prior width of 1, and the gain is the same as for `m_peak` and
+`c_bar` --- nothing asserted about a distribution. It does invalidate
+whatever fit is running.
