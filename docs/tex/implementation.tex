@@ -566,70 +566,68 @@ program that kept the term until that constant is restored.
 
 Seven quantities enter the forward map of \eqref{eq:cphase}--\eqref{eq:cflux}: the shared
 $b_{0}, \mathbf{b}, \mathbf{d}$ and, per supernova,
-$\Delta_{n}, x_{s,n}, m_{g,n}^{\max}, \colr_{n}$. Four are sampled as they stand; three
-are assembled in \code{transformed parameters}, with $P_{0} = 1/\sqrt{v_{hi}-v_{lo}}$:
-\begin{align}
-  \Delta_{n} &= \code{delta\_t}[n] , &
-  m_{g,n}^{\max} &= \code{m\_peak}[n] ,
-    \label{eq:cmapA}\\
-  x_{s,n} &= \code{x\_s}[n] , &
-  b_{0} &= \code{b\_0} ,
-    \label{eq:cmapB}\\
-  \colr_{n} &= \code{c\_bar} + \code{c\_dev}[n] , &
-  \code{x\_s\_tot}[n] &= x_{s,n} + b_{0}P_{0} ,
-    \label{eq:cmapC}\\
-  \mathbf{raw} &= R\,\code{w\_coef} , \qquad
-  \mathbf{b} = \mathbf{raw}_{1:K_{q}-1} , &
-  \mathbf{d} &= \mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2} .
-    \label{eq:cmapD}
-\end{align}
-The coefficients are the one place where a sampled vector is not a physical quantity.
-\code{w\_coef} has no meaning on its own: it is the vector the sampler moves on, and
-\eqref{eq:cmapD} turns it into $\mathbf{b}$ and $\mathbf{d}$ through $R$, a fixed
-$\bigl[(K_{q}{-}1)+(K_{\psi}{-}1)\bigr]^{2}$ matrix supplied as \code{data} and equal to the
-identity unless a preconditioner has been built. Because $R$ is constant its Jacobian is
-constant, so the change of variables alters no posterior --- it is a reparameterization
-chosen to improve conditioning, and $\mathbf{b}$ and $\mathbf{d}$ are what the model means
-either way. This is also why a rotation built at one $(K_{\psi}, K_{q})$ cannot be reused at
-another: $R$'s dimension is fixed by the basis it was measured in.
+$\Delta_{n}, x_{s,n}, m_{g,n}^{\max}, \colr_{n}$. Each is written below in terms of what
+\code{hier\_common.stan} actually samples, with $P_{0} = 1/\sqrt{v_{hi}-v_{lo}}$ and
+$\mathbf{raw} = R\,\code{w\_coef}$. No transformed parameter appears on the right.
 
-Only the combination $x_{s,n} + b_{0}P_{0}$ reaches \eqref{eq:ctrav}, and the program forms
-it once as \code{x\_s\_tot}; that is the exact gauge of the paragraph below, and the reason
-$\xstretch$ alone is not a rate but a departure from one. In this program
-$\mathbf{b} = \tilde{\mathbf{b}}$ and $\mathbf{d} = \tilde{\mathbf{d}}$ --- the note's
-Eq.~(11) is vacuous here, every one of its conditions naming a departure mode --- so the
-two names are kept only because \file{hier.stan} distinguishes them.
-
-\begin{tabular}{llll}
+\begin{tabular}{lll}
 \toprule
-\multicolumn{4}{l}{\textbf{\code{parameters}} --- sampled; $162$ unconstrained coordinates} \\
- & shape & prior & reaches the model as \\
+ & is & $=$ \\
 \midrule
-\code{w\_coef}      & $(K_{q}{-}1) + (K_{\psi}{-}1)$ & below & $\mathbf{raw} = R\,\code{w\_coef}$ \\
-\code{tau\_q}       & scalar $> 0$ & flat & scale of $\tilde{\mathbf{b}}$ \\
-\code{tau\_psi}     & scalar $> 0$ & flat & scale of $\tilde{\mathbf{d}}$ \\
-\code{alpha\_q\_m}  & scalar $> 0$ & $\mathrm{Exp}(1)$ & $\alpha_{q} - \frac12$ \\
-\code{alpha\_psi\_m} & scalar $> 0$ & $\mathrm{Exp}(1)$ & $\alpha_{\psi} - \frac12$ \\
-\code{b\_0}         & scalar, $b_{0}P_{0} \in [-20, 10]$ & flat & $q_{0}$'s degree-zero term \\
-\code{x\_s}         & \code{sum\_to\_zero\_vector}$[N]$ & flat, walled at $\pm20$ & $x_{s}$, with $\langle x_{s}\rangle = 0$ \\
-\code{c\_bar}       & scalar, $[-5, 5]$ & flat & mean of $\colr$ \\
-\code{c\_dev}       & \code{sum\_to\_zero\_vector}$[N]$ & \textbf{none} & $\colr = \code{c\_bar} + \code{c\_dev}$ \\
-\code{delta\_t}     & $N$, each in $[-3, 3]$ & flat & $\Delta$ \\
-\code{m\_peak}      & $N$, each in $[5, 30]$ & flat & $\peakmag$ \\
-\midrule
-\multicolumn{4}{l}{\textbf{\code{transformed parameters}} --- built from the above, not sampled} \\
-\midrule
-\code{x\_s\_tot}    & $N$ & --- & $\xstretch + b_{0}P_{0}$, \eqref{eq:ctrav}'s exponent \\
-\code{colr}         & $N$ & --- & $\colr$, by \eqref{eq:cmapC} \\
-\code{b\_til}, \code{d\_til} & $K_{q}{-}1$, $K_{\psi}{-}1$ & --- & the two slices of $\mathbf{raw}$ \\
-\code{b}, \code{d}  & $K_{q}{-}1$, $K_{\psi}{-}1$ & --- & $=\tilde{\mathbf{b}}, \tilde{\mathbf{d}}$; no gauge acts \\
+$\Delta_{n}$        & the offset from the catalogued $t_{0}$ & \code{delta\_t}$[n]$ \\
+$x_{s,n}$           & this supernova's departure from the mean log rate & \code{x\_s}$[n]$ \\
+$b_{0}$             & the mean log rate, $q_{0}$'s degree-zero term & \code{b\_0} \\
+$\mathbf{b}$        & $q_{0}$'s degrees $1$ to $K_{q}{-}1$ & $\mathbf{raw}_{1:K_{q}-1}$ \\
+$\mathbf{d}$        & $\turnzero$'s coefficients & $\mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2}$ \\
+$m_{g,n}^{\max}$    & the $g$ magnitude at the anchor & \code{m\_peak}$[n]$ \\
+$\colr_{n}$         & the $g-r$ colour at the anchor & \code{c\_bar} $+$ \code{c\_dev}$[n]$ \\
 \bottomrule
 \end{tabular}
 
 \medskip\noindent
-$\mathbf{raw}$ is sliced into $\tilde{\mathbf{b}}$, the first $K_{q}-1$ entries, and
-$\tilde{\mathbf{d}}$, the remaining $K_{\psi}-1$, and both carry the note's Eq.~(21) at the
-geometric-mean pivot $\bar k = \exp[\overline{\ln k}]$:
+Three remarks on the right-hand column. Only the sum $x_{s,n} + b_{0}P_{0}$ reaches
+\eqref{eq:ctrav}, which is the exact gauge of the paragraph below and the reason $\xstretch$
+alone is a departure from a rate and not a rate. $R$ is a fixed
+$\bigl[(K_{q}{-}1)+(K_{\psi}{-}1)\bigr]^{2}$ matrix supplied as \code{data}, the identity
+unless a preconditioner has been built; being constant its Jacobian is constant, so it
+changes no posterior, and a rotation built at one $(K_{\psi}, K_{q})$ cannot be reused at
+another because its dimension is fixed by the basis it was measured in. And
+\code{transformed parameters} holds only the six intermediates the table implies ---
+\code{x\_s\_tot}, \code{colr}, \code{b\_til}, \code{d\_til}, \code{b}, \code{d} --- of which
+the last two equal $\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$ here, the note's Eq.~(11)
+being vacuous in a program whose every gauge condition names a departure mode.
+
+\medskip\noindent
+What is sampled, in declaration order, which is also the order of the output columns:
+
+\begin{tabular}{lll}
+\toprule
+ & shape and support & prior \\
+\midrule
+\code{w\_coef}       & $(K_{q}{-}1) + (K_{\psi}{-}1)$ & Eq.~(21) below, through $R$ \\
+\code{tau\_q}        & scalar $> 0$ & flat \\
+\code{tau\_psi}      & scalar $> 0$ & flat \\
+\code{alpha\_q\_m}   & scalar $> 0$ & $\mathrm{Exp}(1)$ \\
+\code{alpha\_psi\_m} & scalar $> 0$ & $\mathrm{Exp}(1)$ \\
+\code{m\_peak}       & $N$, each in $[5, 30]$ & flat \\
+\code{c\_bar}        & scalar, $[-5, 5]$ & flat \\
+\code{c\_dev}        & \code{sum\_to\_zero\_vector}$[N]$ & \textbf{none} \\
+\code{b\_0}          & scalar, $b_{0}P_{0} \in [-20, 10]$ & flat \\
+\code{x\_s}          & \code{sum\_to\_zero\_vector}$[N]$ & flat, walled at $\pm 20$ \\
+\code{delta\_t}      & $N$, each in $[-3, 3]$ & flat \\
+\bottomrule
+\end{tabular}
+
+\medskip\noindent
+At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ that is $164$ named values, four of them per
+supernova, of which Stan samples $162$: a \code{sum\_to\_zero\_vector}$[N]$ is an orthogonal
+transform carrying $N-1$ unconstrained coordinates, and there are two of them. Every prior
+in the right-hand column is flat or absent except the two on the basis coefficients, and the
+paragraphs after Eq.~(21) say what each bound is for and why \code{c\_dev} needs none.
+
+\medskip\noindent
+Both coefficient vectors carry the note's Eq.~(21) at the geometric-mean pivot
+$\bar k = \exp[\overline{\ln k}]$:
 \begin{equation}
   \tilde b_{k} \sim \mathcal{N}\!\left(0,\ \tau_{q}\,(k/\bar k_{q})^{-\alpha_{q}}\right) ,
   \qquad
@@ -699,10 +697,10 @@ $\zp = 30$, in which $\peakmag = 30$ is a predicted flux of one archive unit aga
 sample spanning $1.5\times10^{4}$ to $7.8\times10^{5}$; and $\pm3$~d is $8.6$ times the
 largest $t_{0}$ uncertainty \ztf\ DR2 reports over the thirty.
 
-$x_{s}$'s wall is written as a sampling statement and not as a declared bound, because
-\code{sum\_to\_zero\_vector} admits no bounds --- \code{stanc} rejects the declaration
-outright --- while \code{x\_s \textasciitilde\ uniform(-20, 20)} contributes exactly zero
-inside the box and $-\infty$ outside. It is discontinuous, which costs nothing here: the
+\code{sum\_to\_zero\_vector} admits no declared bound --- \code{stanc} rejects one
+outright --- so $x_{s}$'s wall is a sampling statement instead:
+\code{x\_s} \textasciitilde\ \code{uniform(-20, 20)} leaves the transform alone and
+contributes exactly zero inside the box, $-\infty$ outside. It is discontinuous, which costs nothing here: the
 wall stands at some $270$ times the realized deviation standard deviation of $0.073$ and is
 never met.
 
