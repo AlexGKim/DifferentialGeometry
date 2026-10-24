@@ -564,8 +564,34 @@ program that kept the term until that constant is restored.
 
 \subsection{Everything the program samples}
 
+Seven quantities enter the forward map of \eqref{eq:cphase}--\eqref{eq:cflux}: the shared
+$b_{0}, \mathbf{b}, \mathbf{d}$ and, per supernova,
+$\Delta_{n}, x_{s,n}, m_{g,n}^{\max}, \colr_{n}$. Four are sampled as they stand; three
+are assembled in \code{transformed parameters}. Writing $P_{0} = 1/\sqrt{v_{hi}-v_{lo}}$ and
+$\mathbf{raw} = R\,\code{w\_coef}$:
+\begin{align}
+  \Delta_{n} &= \code{delta\_t}[n] , &
+  m_{g,n}^{\max} &= \code{m\_peak}[n] ,
+    \label{eq:cmapA}\\
+  x_{s,n} &= \code{x\_s}[n] , &
+  b_{0} &= \code{b\_0} ,
+    \label{eq:cmapB}\\
+  \colr_{n} &= \code{c\_bar} + \code{c\_dev}[n] , &
+  \mathbf{b} &= \mathbf{raw}_{1:K_{q}-1} ,
+    \label{eq:cmapC}\\
+  \mathbf{d} &= \mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2} . &&
+    \label{eq:cmapD}
+\end{align}
+Only the combination $x_{s,n} + b_{0}P_{0}$ reaches \eqref{eq:ctrav}, and the program
+forms it once as \code{x\_s\_tot}; that is the exact gauge of the paragraph below, and the
+reason $\xstretch$ alone is not a rate but a departure from one. In this program
+$\mathbf{b} = \tilde{\mathbf{b}}$ and $\mathbf{d} = \tilde{\mathbf{d}}$ --- the note's
+Eq.~(11) is vacuous here, every one of its conditions naming a departure mode --- so the
+two names are kept only because \file{hier.stan} distinguishes them.
+
 \begin{tabular}{llll}
 \toprule
+\multicolumn{4}{l}{\textbf{\code{parameters}} --- sampled; $162$ unconstrained coordinates} \\
  & shape & prior & reaches the model as \\
 \midrule
 \code{w\_coef}      & $(K_{q}{-}1) + (K_{\psi}{-}1)$ & below & $\mathbf{raw} = R\,\code{w\_coef}$ \\
@@ -579,6 +605,13 @@ program that kept the term until that constant is restored.
 \code{c\_dev}       & \code{sum\_to\_zero\_vector}$[N]$ & \textbf{none} & $\colr = \code{c\_bar} + \code{c\_dev}$ \\
 \code{delta\_t}     & $N$, each in $[-3, 3]$ & flat & $\Delta$ \\
 \code{m\_peak}      & $N$, each in $[5, 30]$ & flat & $\peakmag$ \\
+\midrule
+\multicolumn{4}{l}{\textbf{\code{transformed parameters}} --- built from the above, not sampled} \\
+\midrule
+\code{x\_s\_tot}    & $N$ & --- & $\xstretch + b_{0}P_{0}$, \eqref{eq:ctrav}'s exponent \\
+\code{colr}         & $N$ & --- & $\colr$, by \eqref{eq:cmapC} \\
+\code{b\_til}, \code{d\_til} & $K_{q}{-}1$, $K_{\psi}{-}1$ & --- & the two slices of $\mathbf{raw}$ \\
+\code{b}, \code{d}  & $K_{q}{-}1$, $K_{\psi}{-}1$ & --- & $=\tilde{\mathbf{b}}, \tilde{\mathbf{d}}$; no gauge acts \\
 \bottomrule
 \end{tabular}
 
