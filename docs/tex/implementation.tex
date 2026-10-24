@@ -567,8 +567,7 @@ program that kept the term until that constant is restored.
 Seven quantities enter the forward map of \eqref{eq:cphase}--\eqref{eq:cflux}: the shared
 $b_{0}, \mathbf{b}, \mathbf{d}$ and, per supernova,
 $\Delta_{n}, x_{s,n}, m_{g,n}^{\max}, \colr_{n}$. Four are sampled as they stand; three
-are assembled in \code{transformed parameters}. Writing $P_{0} = 1/\sqrt{v_{hi}-v_{lo}}$ and
-$\mathbf{raw} = R\,\code{w\_coef}$:
+are assembled in \code{transformed parameters}, with $P_{0} = 1/\sqrt{v_{hi}-v_{lo}}$:
 \begin{align}
   \Delta_{n} &= \code{delta\_t}[n] , &
   m_{g,n}^{\max} &= \code{m\_peak}[n] ,
@@ -577,14 +576,26 @@ $\mathbf{raw} = R\,\code{w\_coef}$:
   b_{0} &= \code{b\_0} ,
     \label{eq:cmapB}\\
   \colr_{n} &= \code{c\_bar} + \code{c\_dev}[n] , &
-  \mathbf{b} &= \mathbf{raw}_{1:K_{q}-1} ,
+  \code{x\_s\_tot}[n] &= x_{s,n} + b_{0}P_{0} ,
     \label{eq:cmapC}\\
-  \mathbf{d} &= \mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2} . &&
+  \mathbf{raw} &= R\,\code{w\_coef} , \qquad
+  \mathbf{b} = \mathbf{raw}_{1:K_{q}-1} , &
+  \mathbf{d} &= \mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2} .
     \label{eq:cmapD}
 \end{align}
-Only the combination $x_{s,n} + b_{0}P_{0}$ reaches \eqref{eq:ctrav}, and the program
-forms it once as \code{x\_s\_tot}; that is the exact gauge of the paragraph below, and the
-reason $\xstretch$ alone is not a rate but a departure from one. In this program
+The coefficients are the one place where a sampled vector is not a physical quantity.
+\code{w\_coef} has no meaning on its own: it is the vector the sampler moves on, and
+\eqref{eq:cmapD} turns it into $\mathbf{b}$ and $\mathbf{d}$ through $R$, a fixed
+$\bigl[(K_{q}{-}1)+(K_{\psi}{-}1)\bigr]^{2}$ matrix supplied as \code{data} and equal to the
+identity unless a preconditioner has been built. Because $R$ is constant its Jacobian is
+constant, so the change of variables alters no posterior --- it is a reparameterization
+chosen to improve conditioning, and $\mathbf{b}$ and $\mathbf{d}$ are what the model means
+either way. This is also why a rotation built at one $(K_{\psi}, K_{q})$ cannot be reused at
+another: $R$'s dimension is fixed by the basis it was measured in.
+
+Only the combination $x_{s,n} + b_{0}P_{0}$ reaches \eqref{eq:ctrav}, and the program forms
+it once as \code{x\_s\_tot}; that is the exact gauge of the paragraph below, and the reason
+$\xstretch$ alone is not a rate but a departure from one. In this program
 $\mathbf{b} = \tilde{\mathbf{b}}$ and $\mathbf{d} = \tilde{\mathbf{d}}$ --- the note's
 Eq.~(11) is vacuous here, every one of its conditions naming a departure mode --- so the
 two names are kept only because \file{hier.stan} distinguishes them.
