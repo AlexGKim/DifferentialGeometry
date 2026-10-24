@@ -634,6 +634,81 @@ values, four of them per supernova. Stan samples $161$ coordinates, not $164$: a
 \code{sum\_to\_zero\_vector}$[N]$ is an orthogonal transform carrying $N-1$ unconstrained
 coordinates, and there are three of them.
 
+\subsection{The per-supernova parameters, one at a time}
+
+Each of the four is asked three questions, and they are not alternatives: a parameter can
+answer yes to more than one, and the answers call for different devices. \emph{Is there an
+exact degeneracy} --- a direction along which the likelihood is exactly constant? Then a
+constraint is right, because it deletes a coordinate that carries no information.
+\emph{Is there a near one}, where the likelihood is almost constant and only the basis's
+finite flexibility pins it? A constraint is still right, but it costs something and the cost
+is measured rather than assumed. \emph{Are the tails flat} --- does the likelihood tend to a
+positive constant at infinity? Then a bound or a proper prior is needed, and a constraint
+does not supply one. The three sum-to-zero blocks here settle that last point by example:
+under a flat prior one of them is proper and two are not.
+
+A fourth question is bookkeeping and not inference. Where a mean is identified, writing it
+as a named scalar plus deviations summing to zero is a reparameterization --- the same
+posterior over the same $N$ coordinates --- which makes the common mode one coordinate
+instead of $N$. That is all $\bar s$ and $\bar c$ are.
+
+\paragraph{$\peakmag$: an exact gauge, already fixed.} It is the only one of the four with
+an exact degeneracy. Predicted flux depends on $\peakmag$ and $\zp$ only through
+$\peakmag - \zp$, so a common shift of every $\peakmag$ against $\zp$ changes nothing, and
+pinning $\zp = 30$ is what fixes it --- the gauge is spent before the fit begins, which is
+why no constraint appears on $\peakmag$ here. Its one flat tail is the faint one: as
+$\peakmag \to +\infty$ the predicted flux vanishes and the likelihood tends to
+$\exp(-\frac12\sum f^{2}/\sigma^{2})$, small but positive. The box closes it, and because
+the magnitude origin is already a convention the bound inherits that convention rather than
+asserting anything. The prior it replaced,
+$\mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$, was shrinking by $2.7\times10^{-4}$ to
+$3.5\times10^{-3}$ and reading the same photometry the likelihood reads.
+
+\paragraph{$\colr$: no gauge, and the only one that needs no prior.} $\curve(0) = 0$ fixes
+the curve's anchor in both components, so $\colr$ \emph{is} the $g-r$ colour at the anchor
+and its mean is identified: the fits put it at $+0.060 \pm 0.013$ over thirty objects and
+$+0.0597 \pm 0.0032$ over a hundred, nineteen standard deviations from zero. Naming $\bar c$
+is therefore bookkeeping, not gauge-fixing. What is unusual is the tails. Inside the
+sum-to-zero hyperplane some component must run to $+\infty$, which drives that object's
+predicted $r$ flux up exponentially, and a Gaussian-in-flux likelihood punishes that doubly
+exponentially: walked out, the log density falls through $-4.67\times10^{6}$ at $t = 3$ and
+$-2.05\times10^{12}$ at $t = 10$ to $-\infty$. Checked on the least favourable ray
+available, the object with five $r$ epochs rising against the one with a hundred and
+thirteen falling, it diverges faster still, since the rising object is the punished one and
+a single epoch suffices. A flat prior on the deviations is proper on its own.
+
+\paragraph{$\Delta$: a near gauge, and flat at both ends.} A common shift of every $\Delta$
+is a shift of the phase origin, which $q_{0}$ --- a free function of $v$ --- reshapes to
+absorb, so $\langle\Delta\rangle$ is pinned by the basis rather than by the data. The fit
+says so: the per-object posterior standard deviation is $0.359$~d, thirty independent
+offsets would put $0.066$~d on their mean, and the hierarchical fit returns $0.344$~d. The
+degeneracy is near and not exact, so the constraint has a price, measured at $1.96$ nats
+over $1568$ epochs. It is also the one parameter needing both devices, because the
+constraint buys no propriety here: past $|\Delta| \sim 100$~d every epoch is outside the
+phase window, the softened clamp saturates, the model stops depending on $\Delta$
+altogether, and the density reads $-156709.38$ at $t = 300$ and $-156709.38$ at $t = 1000$.
+
+\paragraph{$\xstretch$: no gauge, and flat at both ends.} The traversal basis is built as
+Legendre degrees $1$ to $K_{q}-1$ with the constant dropped, and shifted Legendre modes of
+degree one and above integrate to zero, so no combination of $\mathbf{b}$ can produce a
+constant and $\bar s$ is the sole carrier of the mean log rate. It is identified, and naming
+it is again bookkeeping. Both tails are flat, which Section~5 of the note until recently
+recorded for only one of them. Downward the rate vanishes, the track freezes at the anchor
+and the model is a constant light curve, settling at $-4.83\times10^{6}$. Upward the rate
+diverges, every epoch is driven into the arclength clamp, and the model is a constant light
+curve again at a different constant, settling at $-2.93\times10^{6}$ --- the higher of the
+two, so the unnamed tail was the more reachable one. The deviations inherit nothing from
+their constraint: a ray inside the hyperplane sends one object to each plateau and settles
+at $-2.47\times10^{5}$.
+
+\paragraph{Why $\colr$ differs from the other two.} The three constrained blocks are the
+same kind of object and behave differently, and the reason is in the forward map rather
+than in the statistics. Colour has no clamp, so a runaway direction drives a predicted flux
+to infinity and the likelihood kills it. Arclength and phase are both clamped, so every
+runaway saturates into a constant light curve instead, which is finite and therefore flat.
+The question to ask of any future constrained block is which of those two it is: whether
+the forward map clamps that direction or lets it diverge.
+
 \subsection{What it reports}
 
 Per draw: $\alpha_{q}$ and $\alpha_{\psi}$; $\curv(0) =
