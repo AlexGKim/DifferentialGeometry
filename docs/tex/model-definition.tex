@@ -723,12 +723,21 @@ $\peakmag = 30$ is a predicted flux of one archive unit against a sample spannin
 $1.5\times10^{4}$ to $7.8\times10^{5}$.
 
 None of these is informative against the data, and each is there to make the posterior
-proper. Three directions need bounding. With flat priors the likelihood tends to a positive
-constant as $\xstretch \to -\infty$, where the supernova freezes at peak, so
-\eqref{eq:xsmean} cannot be left flat however uninformative a prior would be where the data
-are: $\bar s$ is given $\mathcal{N}(0, 10^{2})$ and the deviations $\mathcal{N}(0, 1)$, the
-first against a mean the data pin to $0.07$ and the second four to eight times wider than
-the spread it bounds, so each is a propriety condition and neither is a population model.
+proper. With flat priors the likelihood tends to a positive constant in \emph{both} tails of
+$\xstretch$, not one. As $\xstretch \to -\infty$ the rate $\dd\arc/\dd\phase$ vanishes, the
+track freezes at the anchor and the model is a constant light curve; as
+$\xstretch \to +\infty$ the rate diverges, every epoch is driven into the arclength clamp,
+and the model is a constant light curve again, at a different constant. Walked out from a
+\salt\ start at thirty objects, the log density settles to $-4.83\times10^{6}$ downward and
+to $-2.93\times10^{6}$ upward, each flat to four decimals over a further factor of two in
+$|\xstretch|$ --- and the upward plateau, the one an earlier version of this section did not
+name, is the higher of the two. So \eqref{eq:xsmean} cannot be left flat however
+uninformative a prior would be where the data are: $\bar s$ is given $\mathcal{N}(0, 10^{2})$
+and the deviations $\mathcal{N}(0, 1)$, the first against a mean the data pin to $0.07$ and
+the second four to eight times wider than the spread it bounds, so each is a propriety
+condition and neither is a population model. The deviations need their own prior and do not
+inherit propriety from the constraint: a ray inside the sum-to-zero hyperplane sends one
+object to each plateau and settles at $-2.47\times10^{5}$, flat to four decimals.
 The same happens as $\peakmag \to +\infty$ or $\colr \to -\infty$, where the predicted flux
 vanishes, and the two boxes above are what close it. And as $\alpha \to \infty$ every mode
 but the first has gone and the fit is poor but finite. A chain started in any of those tails

@@ -1347,6 +1347,28 @@ depending on Delta and the density is flat to the digit: -156709.38 at t =
 density *rises* from t = 10 to t = 100 --- is the clamp taking over, a fully
 clamped fit being bad but finite where a half-clamped one is worse.
 
+The same test on the `x_s` block, and all of it is load-bearing. Both tails
+of `s_bar` are flat, not just the one Section 5 named:
+
+| | plateau | flat from |
+|---|---|---|
+| `s_bar` down (rate -> 0, track frozen at the anchor) | -4.83e6 | s_bar = -53 |
+| `s_bar` up (rate -> inf, every epoch in the arclength clamp) | -2.93e6 | s_bar = +47 |
+| `x_s_dev`, inside the hyperplane | -2.47e5 | t = 50 |
+
+Each is flat to four decimals over a further factor of two or more. The
+upward tail is the one Section 5 omitted and is the *higher* plateau of the
+two, so it is the more dangerous runaway, not the lesser. Both ends produce a
+constant light curve --- frozen at the anchor one way, pinned at the clamp
+the other --- which is why each is a positive constant rather than zero.
+
+`x_s_dev` does not inherit propriety from the sum-to-zero constraint the way
+`c_dev` does, and the reason is structural: colour has no clamp, so the
+compensating object's flux runs to infinity and the likelihood dies, whereas
+arclength is clamped at both ends and every runaway saturates. That is the
+test to apply to any future constrained block --- does the forward map clamp
+that direction, or let it diverge.
+
 Not yet applied: dropping `c_dev ~ normal(0, 1)` from the three hierarchies.
 It would change no number, the per-object posterior sd of colour being 0.029
 mag against a prior width of 1, and the gain is the same as for `m_peak` and
