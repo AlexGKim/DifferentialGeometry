@@ -8,7 +8,7 @@ from dgsn.data.sample import (N_VALID_PER_FIFTH, analysis_sample, median_x1, sta
                               training_split, x1_fifth)
 from dgsn.salt.globals import fit_globals
 from dgsn.stan import data as D
-from dgsn.stan.hier_data import build, inits, n_coef, pack, unpack
+from dgsn.stan.hier_data import _v_span, build, inits, n_coef, pack, unpack
 from dgsn.stan.run import log_prob, model
 
 K_PSI, K_Q = 12, 8
@@ -66,7 +66,7 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
     # coordinate and their values are identically zero, so x_s is s_bar,
     # colr is c_bar and delta_t is zero.
     p2 = dict(m_peak=float(ini["m_peak"][0]), colr=float(ini["c_bar"]),
-              x_s=float(ini["s_bar"]),
+              x_s=float(ini["b_0"]) / np.sqrt(_v_span()),
               x_p=ini["mu_p"] + float(ini["u_p"][0]),
               x_psi=ini["mu_psi"] + float(ini["u_psi"][0]),
               delta_t=0.0)
@@ -89,8 +89,8 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
         extra += float(np.sum(-np.log(w) - 0.5 * (ini[k] / w) ** 2))
     extra += -(ini["alpha_q_m"] + ini["alpha_psi_m"])
     extra += -0.5 * sum(float(np.sum(np.square(ini[k]))) for k in ("u_p", "u_psi"))
-    extra += -0.5 * (float(ini["s_bar"]) / 10.0) ** 2
-    extra += -0.5 * float(np.sum(np.square(ini["x_s_dev"])))
+    # b_0 and x_s are flat on their supports, so neither adds a term; the
+    # uniform wall on x_s contributes exactly 0 inside the box.
     extra += -0.5 * float(np.sum(np.square(ini["c_dev"])))
     extra += -0.5 * float(np.sum(np.square(np.asarray(ini["delta_t"]) / 3.0)))
     print(f"single_sn likelihood {lp2:.6f}, hier lp - priors {lph - extra:.6f}")

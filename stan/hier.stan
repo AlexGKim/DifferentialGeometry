@@ -91,8 +91,17 @@ parameters {
   // would assume it is Gaussian.  sum_to_zero_vector is an orthogonal
   // transform carrying N_sn - 1 unconstrained coordinates, so it adds no
   // degeneracy of its own.
-  real s_bar;
-  sum_to_zero_vector[N_sn] x_s_dev;
+  // The mean log rate as q_0's own k = 0 coefficient, and the per-supernova
+  // rate as deviations summing to zero.  b_0 restores the degree-zero
+  // Legendre term that traversal_row's [2:Kq] slice drops, P_0 = 1/sqrt(vhi -
+  // vlo), and is held outside the rotated block because the same row builds
+  // q_1, whose gauge requires qbar_1 = 0.  (b_0, x_s) carry an exact gauge --
+  // only their sum reaches the exponent -- so sum(x_s) = 0 fixes it at no
+  // cost.  The bound is written on the mean log rate so it survives a change
+  // of phase window, and it is needed: both tails are flat, at -4.83e6 frozen
+  // and -2.93e6 clamped.  See hier_common.stan for the full argument.
+  real<lower = -20 * sqrt(vhi - vlo), upper = 10 * sqrt(vhi - vlo)> b_0;
+  sum_to_zero_vector[N_sn] x_s;
   // The amplitudes with sampled locations, as deviations about them: the
   // first fit's longest direction was the common mode of the per-SN block
   // riding with its location (corr(mu_psi, mean x_psi) = +1.00), and
@@ -102,10 +111,21 @@ parameters {
   // left to fall into.
   vector[N_sn] u_p;                // x_p = mu_p + u_p
   vector[N_sn] u_psi;              // x_psi = mu_psi + u_psi
-  sum_to_zero_vector[N_sn] delta_t;   // <Delta> = 0, a gauge
+  // Delta flat on a box, per object, with no parameter for the mean; see
+  // hier_common.stan for the measurements.  In brief: <Delta> is a near
+  // gauge worth 1.96 nats over 1568 epochs, the box confines it rather than
+  // deleting it, the bound is what makes the flat prior proper -- both tails
+  // are flat, the phase clamp saturating the model's dependence on Delta
+  // entirely -- and +-3 d is 8.6 times the largest t0 uncertainty DR2
+  // reports over the thirty.  The cost is that the common mode, the long
+  // direction of this block at a ratio of 3.3 to 4.0 over the deviations at
+  // N = 30, is left mixed across all thirty coordinates where a diagonal
+  // metric cannot scale it on its own.
+  vector<lower=-3, upper=3>[N_sn] delta_t;
 }
 transformed parameters {
-  vector[N_sn] x_s = s_bar + x_s_dev;
+  // what reaches the exponent: the deviation plus q_0's degree-zero term
+  vector[N_sn] x_s_tot = x_s + b_0 * inv_sqrt(vhi - vlo);
   vector[N_sn] x_p = mu_p + u_p;
   vector[N_sn] x_psi = mu_psi + u_psi;
   vector[N_sn] colr = c_bar + c_dev;
@@ -159,16 +179,20 @@ model {
   // the normal below is four to eight times too wide to shape either.  What
   // they replace is a prior centred on a \salt\ track's -3.0, which was 2.3
   // to 3.1 sigma from where the data put the mean.
-  s_bar ~ normal(0, 10);
-  x_s_dev ~ normal(0, 1);
-  // Propriety only, and far looser than the data: the realized spread of
-  // Delta over thirty objects is 0.076 d and of the colour deviations
-  // 0.255 mag.  m_peak and c_bar are flat on their boxes.
-  delta_t ~ normal(0, 3);
-  c_dev ~ normal(0, 1);
+  // b_0 and x_s are flat; x_s needs a wall because both ends of a hyperplane
+  // ray saturate into constant light curves, the density flat at -2.47e5.  A
+  // declared bound is impossible on a sum_to_zero_vector, so this is a
+  // sampling statement, contributing exactly 0 inside.
+  x_s ~ uniform(-20, 20);
+  // c_dev has no prior and needs none: colour is the only placement direction
+  // the forward map does not clamp, so a runaway inside the sum-to-zero
+  // hyperplane drives a predicted r flux to infinity where the Gaussian-in-
+  // flux likelihood kills it, and the flat prior is proper on its own.  See
+  // hier_common.stan for the measurement.  m_peak, c_bar and delta_t are flat
+  // on their boxes.
   target += reduce_sum(partial_sum, sn_index, grainsize,
                        dt, f, sig_f, band, start, stop, z,
-                       m_peak, colr, x_s, x_p, x_psi, delta_t,
+                       m_peak, colr, x_s_tot, x_p, x_psi, delta_t,
                        a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
                        Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
                        edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
@@ -200,7 +224,7 @@ generated quantities {
     int lo = start[n];
     int hi = stop[n];
     matrix[hi - lo + 1, 4] lf = log_flux(dt[lo:hi], band[lo:hi], z[n],
-        m_peak[n], colr[n], x_s[n], x_p[n], x_psi[n], delta_t[n],
+        m_peak[n], colr[n], x_s_tot[n], x_p[n], x_psi[n], delta_t[n],
         a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
         Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
         edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
@@ -210,7 +234,7 @@ generated quantities {
       frac_clamped += (abs(lf[i, 4] - lf[i, 3]) > eps_s * (smax - smin));
     }
     {
-      vector[2] ends = arclength([pmin + 5, pmax - 5]', x_s[n], b + x_p[n] * a, Kq, vlo, vhi,
+      vector[2] ends = arclength([pmin + 5, pmax - 5]', x_s_tot[n], b + x_p[n] * a, Kq, vlo, vhi,
                                  delta_p, m, J, edges_v, Xv_nodes, jacw_v, xg, wg);
       s_pmin[n] = ends[1];
       s_pmax[n] = ends[2];

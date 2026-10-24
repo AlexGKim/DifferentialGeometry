@@ -20,16 +20,20 @@ from cmdstanpy import from_csv, write_stan_json
 from dgsn.data.sample import analysis_sample, median_x1, stage3_sample, x1_fifth
 from dgsn.salt.globals import fit_globals
 from dgsn.stan import data as D
-from dgsn.stan.hier_data import build, inits, inits_from_optimize, inits_from_run
+from dgsn.stan.hier_data import _v_span, build, inits, inits_from_optimize, inits_from_run
 from dgsn.stan.run import (chain_csvs, log_prob, model, sample_four,
                            seconds_per_gradient)
 
 K_PSI, K_Q = 12, 8      # the smallest orders; override with --k-psi/--k-q
 BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m"}
 # flat on a box, so the unconstrained scale is a scaled logit, not a log
-BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0)}
+# b_0's box is declared on the mean log rate, b_0/sqrt(vhi - vlo), so it is
+# computed here from the same span rather than written as a number.
+_B0 = np.sqrt(_v_span())
+BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "delta_t": (-3.0, 3.0),
+            "b_0": (-20.0 * _B0, 10.0 * _B0)}
 GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
-                  "mu_p_rel", "mu_psi_rel", "c_bar", "s_bar"]
+                  "mu_p_rel", "mu_psi_rel", "c_bar", "b_0"]
 
 
 def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
@@ -41,22 +45,20 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     # of length N carries N - 1 coordinates though it is reported as N.  Index
     # by the constrained length and every block after it is off by one, which
     # showed up here as a finite-difference mismatch of 87.
-    short = {"x_s_dev": 1, "c_dev": 1, "delta_t": 1}
+    short = {"x_s": 1, "c_dev": 1}
     flat = []
     for n in names:
         v = np.atleast_1d(np.asarray(point[n], dtype=float))
         flat += [(n, i) for i in range(len(v) - short.get(n, 0))]
     rng = np.random.default_rng(seed)
-    # The three sum_to_zero_vector blocks cannot be moved one element at a
-    # time: the constraint is then violated and Stan refuses to unconstrain
-    # the point.  Their forward paths are covered elsewhere.  x_s reaches the
-    # map as s_bar + x_s_dev and colr as c_bar + c_dev, and both scalars are
-    # checked here; delta_t has no scalar companion, <Delta> = 0 having left
-    # it none, and is covered instead by single_sn.stan, where it is an
-    # unconstrained real and
-    # tests/test_single_sn.py::test_gradient_vs_finite_differences walks the
-    # same log_flux with it.
-    frozen = {"x_s_dev", "c_dev", "delta_t"}
+    # The two sum_to_zero_vector blocks cannot be moved one element at a time:
+    # the constraint is then violated and Stan refuses to unconstrain the
+    # point.  Their forward paths are covered here anyway, x_s reaching the map
+    # as s_bar + x_s_dev and colr as c_bar + c_dev with both scalars checked.
+    # delta_t is no longer among them --- it is an ordinary boxed vector now,
+    # so it moves one element at a time like any other and is checked directly,
+    # through BOUNDED2's logit factor.
+    frozen = {"x_s", "c_dev"}
     movable = [j for j, (nm, _) in enumerate(flat) if nm not in frozen]
     idx = rng.choice(movable, min(n_coords, len(movable)), replace=False)
     worst = 0.0
@@ -144,10 +146,15 @@ def report(fit, names, sample, data):
     print("\n-2 lp per epoch by x1 fifth (mean over objects):", " ".join(f"{q}: {per_ep[fifth.to_numpy() == q].mean():.2f}" for q in range(5)))
     worst = np.argsort(per_ep)[-3:][::-1]
     print("worst objects:", ", ".join(f"{names[i]} ({per_ep[i]:.1f}, x1 {sample.loc[names[i]].x1:+.2f})" for i in worst))
-    # <Delta> = 0 is imposed, so the mean below is a check on the constraint
-    # surviving the roundtrip through text, not a fitted quantity.
-    print(f"delta_t: mean over objects {dl.mean():+.3e} d (constrained to zero), "
-          f"sd of object means {dl.mean(0).std():.3f}")
+    # <Delta> floats inside the box, so its mean is a fitted quantity again and
+    # the long direction of the block.  Report it beside the spread it sits on,
+    # and beside the bound, since a mean approaching +-3 would mean the box has
+    # stopped being a propriety device and started being a prior.
+    com = dl.mean(1)
+    print(f"delta_t: <Delta> {com.mean():+.3f} +- {com.std():.3f} d "
+          f"(box +-3, closest approach {3 - np.abs(dl).max():.2f} d), "
+          f"sd of object means {dl.mean(0).std():.3f}, "
+          f"common/deviation sd ratio {com.std() / (dl - com[:, None]).std(0).mean():.2f}")
 
 
 # The parameters block of hier.stan in declaration order, and which are
@@ -230,20 +237,27 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
         # about them: mu_p and mu_psi are the slowest-mixing directions
         # measured, so four chains sharing them would leave the check
         # blind to exactly what it is meant to test.
-        # The three sum_to_zero blocks have to stay on their hyperplanes, or
-        # the start is rejected as violating its own constraint.
-        for key, w in (("x_s_dev", 0.3), ("c_dev", 0.3), ("delta_t", 0.5)):
+        # The two sum_to_zero blocks have to stay on their hyperplanes, or the
+        # start is rejected as violating its own constraint.
+        for key, w in (("x_s", 0.3), ("c_dev", 0.3)):
             if key in s:
-                j = w * rng.normal(size=len(s[key]))
+                j = w * rng.normal(size=len(np.atleast_1d(s[key])))
                 s[key] = s[key] + j - j.mean()
         for key, w in (("mu_p", 1.0), ("mu_psi", 1.0), ("c_bar", 0.3),
-                       ("s_bar", 0.3)):
+                       ("b_0", 0.9)):
             if key in s:
                 s[key] = s[key] + w * float(rng.normal())
         for key, w in (("m_peak", 0.3), ("x_s", 0.3),
                        ("u_p", 1.0), ("u_psi", 1.0)):
             if key in s:
-                s[key] = s[key] + w * rng.normal(size=len(s[key]))
+                s[key] = s[key] + w * rng.normal(size=len(np.atleast_1d(s[key])))
+        # delta_t is boxed: disperse it, including its mean, which is the
+        # direction the check most needs to see, then clip back inside.  A
+        # start on the wrong side of a declared bound is rejected outright.
+        if "delta_t" in s:
+            v = np.atleast_1d(np.asarray(s["delta_t"], dtype=float))
+            v = v + 0.5 * rng.normal(size=len(v)) + 0.3 * float(rng.normal())
+            s["delta_t"] = np.clip(v, -3.0 + 1e-6, 3.0 - 1e-6)
         starts.append(s)
     return starts
 

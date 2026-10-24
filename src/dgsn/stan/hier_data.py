@@ -18,6 +18,16 @@ from dgsn.salt.tracks import per_sn_start
 from dgsn.stan import data as D
 
 INIT_ALPHA = 2.0        # alpha at the start; the ridge of the SALT2 fits uses the same
+DELTA_BOUND = 3.0       # d; must match <lower=-3, upper=3> on delta_t in the hierarchies
+
+
+def _v_span() -> float:
+    """``vhi - vlo`` of Eq. (vmap), which sets P_0 = 1/sqrt(vhi - vlo).
+
+    Stan builds this in ``transformed data``; the same two ``asinh`` calls are
+    repeated here only to place ``b_0``, never to evaluate the basis."""
+    return float(np.arcsinh(D.MODEL_WINDOW[1] / D.DELTA_P)
+                 - np.arcsinh(D.MODEL_WINDOW[0] / D.DELTA_P))
 
 
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
@@ -110,8 +120,10 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         # start is the same point in colr either way
         c_bar=float(colr0.mean()),
         c_dev=colr0 - colr0.mean(),
-        s_bar=G["x_s"],                # the mean log rate; the deviations carry the rest
-        x_s_dev=np.zeros(len(names)),  # sums to zero, as sum_to_zero_vector requires
+        # the mean log rate is q_0's k = 0 coefficient now, so the SALT2 value
+        # enters as b_0 = sqrt(vhi - vlo) * x_s rather than as a named mean
+        b_0=float(G["x_s"]) * np.sqrt(_v_span()),
+        x_s=np.zeros(len(names)),      # sums to zero, as sum_to_zero_vector requires
         delta_t=np.zeros(len(names)),  # likewise, and <Delta> = 0 is the gauge
     )
     if mode:
@@ -179,7 +191,7 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
     # transformed parameter, but an inits dict has to name what is sampled.
     keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
-            "s_bar", "x_s_dev", "c_bar", "c_dev", "delta_t", "m_peak"]
+            "b_0", "x_s", "c_bar", "c_dev", "delta_t", "m_peak"]
     if mode:
         keys += ["mu_psi", "u_psi"]
     if trav:
@@ -188,8 +200,12 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     # Back onto the constraint surfaces after the roundtrip through text: the
     # mode is written at 18 significant figures, whose sum is no longer
     # exactly zero, and sum_to_zero_vector requires that it is.
-    for k in ("x_s_dev", "c_dev", "delta_t"):
-        out[k] = out[k] - np.mean(out[k])
+    for k in ("x_s", "c_dev"):
+        v = np.asarray(out[k], dtype=float)
+        out[k] = v - v.mean()
+    # delta_t is boxed, not constrained: clip instead of project.
+    out["delta_t"] = np.clip(np.asarray(out["delta_t"], dtype=float),
+                             -DELTA_BOUND + 1e-6, DELTA_BOUND - 1e-6)
     if verbose:
         print(f"optimize start: lp {float(m['lp__']):.1f}")
     return out
@@ -229,17 +245,25 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
             if np.shape(v) == np.shape(np.asarray(out[k], dtype=float)):
                 out[k] = v if np.ndim(out[k]) else float(v)
                 carried.append(k)
-    # A source that predates the constrained placements carries colr whole and
-    # a delta_t with a mean in it.  Split the one and project the other, or the
-    # start violates the constraint it is handed to and is rejected.
+    # A source that predates the constrained placements carries colr whole.
+    # Split it, or c_bar and c_dev keep their \salt\ values while everything
+    # around them comes from the posterior.
     if "colr" in src and "c_bar" in out:
         c = np.asarray(src["colr"], dtype=float)
         if c.shape == np.shape(out["c_dev"]):
             out["c_bar"], out["c_dev"] = float(c.mean()), c - c.mean()
             carried.append("colr -> c_bar, c_dev")
-    for k in ("x_s_dev", "c_dev", "delta_t"):
+    for k in ("x_s", "c_dev"):
         if k in out:
             out[k] = np.asarray(out[k], dtype=float) - np.mean(out[k])
+    # delta_t is declared on a box now, not on the sum-to-zero hyperplane, so
+    # it is clipped rather than projected: a source drawn under a wider prior
+    # can sit outside the bound, and a start outside its own support is
+    # rejected.  The largest |Delta| ever drawn is 2.43 d, so this normally
+    # does nothing.
+    if "delta_t" in out:
+        out["delta_t"] = np.clip(np.asarray(out["delta_t"], dtype=float),
+                                 -DELTA_BOUND + 1e-6, DELTA_BOUND - 1e-6)
 
     # the coefficient block, by name, so a shorter source lands in the right slots
     # From the relabeled blocks, not from w_coef: w_coef is the sampled vector
@@ -260,11 +284,11 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
     out["w_coef"] = raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw)
     # A source from before Eq. (xsmean) carries x_s itself; split it the way
     # the gauge now does, which is exactly how the constraint defines it.
-    if "x_s" in src and "s_bar" in out and "s_bar" not in src:
+    if "x_s" in src and "b_0" in out and "b_0" not in src:
         xs = np.asarray(src["x_s"], dtype=float)
-        out["s_bar"] = float(xs.mean())
-        out["x_s_dev"] = xs - xs.mean()
-        carried.append("x_s as s_bar + x_s_dev")
+        out["b_0"] = float(xs.mean()) * np.sqrt(_v_span())
+        out["x_s"] = xs - xs.mean()
+        carried.append("x_s as b_0 + x_s")
     # the new modes start unused
     zeroed = [k for k in ("mu_p", "mu_psi") if k in out and k not in src]
     for k in zeroed:

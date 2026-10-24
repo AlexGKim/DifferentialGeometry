@@ -87,25 +87,79 @@ parameters {
   // -3.0.  c_bar is flat on a box for the same reason m_peak is.
   real<lower=-5, upper=5> c_bar;
   sum_to_zero_vector[N_sn] c_dev;
-  // Eq. (xsmean): the mean log rate named, the deviations summing to zero.
-  real s_bar;
-  sum_to_zero_vector[N_sn] x_s_dev;
-  // <Delta> = 0, which is a gauge and not a choice of population.  A common
-  // shift of every Delta is a shift of the phase origin, and q_0 is a free
-  // function of v that reshapes to absorb it, so the mean is pinned by the
-  // basis's finite flexibility rather than by the data.  Measured: the
-  // per-object posterior sd of Delta is 0.359 d, so thirty independent
-  // offsets would put 0.359/sqrt(30) = 0.066 d on their mean, and the fit
-  // returns 0.344 d --- 5.2 times larger, the common mode carrying nearly
-  // all the uncertainty of a single object.  Fixing it to zero removes that
-  // direction and sends the B-to-g offset where it is identified, into
-  // where q_0 puts its own minimum in v.  mu_delta and s_delta go with it,
-  // and so does the s_delta ridge of Appendix A, which was a ridge in the
-  // scale of a population this program no longer posits.
-  sum_to_zero_vector[N_sn] delta_t;
+  // The mean log rate as q_0's own k = 0 coefficient, and the per-supernova
+  // rate as deviations summing to zero.
+  //
+  // q_0 is expanded in Legendre degrees 1..Kq-1 and so contains no constant;
+  // b_0 restores the degree-zero term, P_0 = 1/sqrt(vhi - vlo).  It is held
+  // here rather than inside the rotated coefficient block for one reason: the
+  // same traversal_row builds q_1, and Eq. (gauge) requires qbar_1 = 0, so
+  // widening the slice to [1:Kq] would hand the departure mode a constant and
+  // break its gauge.  Since P_0 is constant, b_0 * P_0 is a constant in the
+  // exponent and the two forms are identical -- b_0 is the k = 0 coefficient,
+  // stored outside the vector R mixes.  It cannot take Eq. (coefprior) in any
+  // case: (k/kbar)^-alpha diverges at k = 0 and kbar = exp(mean log k) is
+  // undefined there.
+  //
+  // (b_0, x_s) carry an EXACT gauge: x_s -> x_s + eps with
+  // b_0 -> b_0 - eps sqrt(vhi - vlo) leaves every prediction identical, since
+  // only their sum reaches the exponent.  sum(x_s) = 0 fixes it exactly, and
+  // unlike <Delta> = 0 there is nothing to pay for doing so.  What this
+  // replaces, s_bar + x_s_dev, is the same model relabelled; what it buys is
+  // that q_0 is now the population's log rate outright, mean included, rather
+  // than a shape with its mean parked in the per-supernova block.
+  //
+  // The bound is on the mean log rate, not on b_0, so it survives a change of
+  // phase window: b_0/sqrt(vhi - vlo) in [-20, 10] against a posterior near
+  // -2.9.  It is needed.  Both tails are flat -- downward the rate vanishes
+  // and the track freezes at the anchor, settling at -4.83e6; upward it
+  // diverges, every epoch is driven into the arclength clamp, settling at
+  // -2.93e6 -- so no width of flat prior would have been proper.
+  real<lower = -20 * sqrt(vhi - vlo), upper = 10 * sqrt(vhi - vlo)> b_0;
+  sum_to_zero_vector[N_sn] x_s;
+  // Delta: flat on a box, per object, with no parameter for the mean.
+  //
+  // <Delta> is a near gauge and not an exact one.  A common shift of every
+  // Delta is a shift of the phase origin, which q_0 -- a free function of v
+  // -- reshapes to absorb, so the mean is pinned by the basis's finite
+  // flexibility rather than by the data: the per-object posterior sd is
+  // 0.359 d, thirty independent offsets would put 0.359/sqrt(30) = 0.066 d
+  // on their mean, and a hierarchical fit returned 0.344 d, 5.2 times
+  // larger.  An earlier version fixed <Delta> = 0 and deleted the direction
+  // at a measured cost of 1.96 nats over 1568 epochs; the box confines it
+  // instead, so the fit finds its own phase origin, keeps those nats, and
+  // leaves the B-to-g offset in Delta rather than in q_0's minimum.
+  //
+  // The bound is what makes the flat prior proper, and it is needed: with
+  // Delta unbounded the likelihood does not fall away.  Past |Delta| ~ 100 d
+  // every epoch is outside the phase window, the softened clamp saturates,
+  // the model stops depending on Delta at all, and the log density reads
+  // -156709.38 at 300 d and -156709.38 at 1000 d.  Both tails are flat, so
+  // no amount of width would have sufficed.
+  //
+  // Why +-3 d.  Over 1800 draws at N = 30 and N = 100 the largest |Delta|
+  // ever drawn was 2.43 d and the largest deviation about the mean 1.085 d.
+  // It is also 8.6 times the largest t0 uncertainty DR2 reports over the
+  // thirty (0.350 d) and 3.7 times the largest over the training sample
+  // (0.816 d), so like m_peak's box it is a statement about the archive and
+  // not about supernovae.
+  //
+  // What this costs.  The common mode is the long direction of this block,
+  // sd 0.343 and 0.437 at N = 30 against a mean deviation sd of 0.104 and
+  // 0.109 -- a ratio of 3.3 and 4.0 -- and 1.64 at N = 100.  A diagonal
+  // metric assigns one scale per declared coordinate, and every coordinate
+  // here mixes the common mode with the deviations, so that ratio is
+  // conditioning the metric has to straddle.  Naming the mean would have
+  // split them; it is deliberately not named, and chain pace is therefore
+  // the thing to watch.  Delta is the only one of the four per-supernova
+  // parameters where the ratio exceeds one: for m_peak, colr and x_s the
+  // common mode is the shorter direction.
+  vector<lower=-3, upper=3>[N_sn] delta_t;
 }
 transformed parameters {
-  vector[N_sn] x_s = s_bar + x_s_dev;
+  // what reaches the exponent: the per-supernova deviation plus q_0's own
+  // degree-zero term, P_0 = 1/sqrt(vhi - vlo)
+  vector[N_sn] x_s_tot = x_s + b_0 * inv_sqrt(vhi - vlo);
   vector[N_sn] colr = c_bar + c_dev;
   vector[Kq - 1] b_til;
   vector[Kpsi - 1] d_til;
@@ -131,17 +185,31 @@ model {
   // Propriety, as Section 5 requires: with a flat prior the likelihood tends
   // to a positive constant as x_s -> -infinity, where the supernova freezes
   // at peak.  Neither of these is a population model.
-  s_bar ~ normal(0, 10);
-  x_s_dev ~ normal(0, 1);
-  // Propriety only, and deliberately far looser than the data: the realized
-  // spread of Delta across thirty objects is 0.076 d and of the colour
-  // deviations 0.255 mag, so these are forty and four times too wide to
-  // shape either.  m_peak and c_bar are flat on their boxes.
-  delta_t ~ normal(0, 3);
-  c_dev ~ normal(0, 1);
+  // b_0 and x_s are flat: the box on b_0 is the whole prior, and x_s needs
+  // a wall because both ends of a hyperplane ray saturate -- one object's
+  // rate clamped, another's frozen, each a constant light curve, the
+  // density flat at -2.47e5 from t = 50 outward.  The wall sits at 270
+  // times the realized deviation sd of 0.073 and is never reached; a
+  // declared bound is impossible on a sum_to_zero_vector, so it is a
+  // sampling statement, which contributes exactly 0 inside.
+  x_s ~ uniform(-20, 20);
+  // c_dev has no prior at all, and needs none.  It is the one block here
+  // whose flat prior is already proper: inside the sum-to-zero hyperplane
+  // some component must run to +infinity, which drives that object's
+  // predicted r flux up exponentially, and a Gaussian-in-flux likelihood
+  // punishes that doubly exponentially -- walked out, the log density falls
+  // through -4.67e6 at t = 3 and -2.05e12 at t = 10 to -inf, and on the least
+  // favourable ray available (the object with five r epochs rising against
+  // the one with a hundred and thirteen falling) it diverges faster still.
+  // Colour is the only placement direction the forward map does not clamp,
+  // which is why this works here and nowhere else: arclength and phase
+  // saturate into constant light curves, which are finite and therefore flat.
+  // The N(0,1) this replaces was shrinking by 8.3e-4, so no number moves.
+  //
+  // m_peak, c_bar and delta_t are flat on their boxes.
   target += reduce_sum(partial_sum, sn_index, grainsize,
                        dt, f, sig_f, band, start, stop, z,
-                       m_peak, colr, x_s, x_p_zero, x_psi_zero, delta_t,
+                       m_peak, colr, x_s_tot, x_p_zero, x_psi_zero, delta_t,
                        a_zero, b, c_zero, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
                        Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
                        edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
@@ -161,7 +229,7 @@ generated quantities {
     int lo = start[n];
     int hi = stop[n];
     matrix[hi - lo + 1, 4] lf = log_flux(dt[lo:hi], band[lo:hi], z[n],
-        m_peak[n], colr[n], x_s[n], 0, 0, delta_t[n],
+        m_peak[n], colr[n], x_s_tot[n], 0, 0, delta_t[n],
         a_zero, b, c_zero, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
         Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
         edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
@@ -171,7 +239,7 @@ generated quantities {
       frac_clamped += (abs(lf[i, 4] - lf[i, 3]) > eps_s * (smax - smin));
     }
     {
-      vector[2] ends = arclength([pmin + 5, pmax - 5]', x_s[n], b, Kq, vlo, vhi,
+      vector[2] ends = arclength([pmin + 5, pmax - 5]', x_s_tot[n], b, Kq, vlo, vhi,
                                  delta_p, m, J, edges_v, Xv_nodes, jacw_v, xg, wg);
       s_pmin[n] = ends[1];
       s_pmax[n] = ends[2];

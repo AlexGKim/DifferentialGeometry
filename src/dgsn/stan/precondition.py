@@ -34,7 +34,7 @@ from pathlib import Path
 
 import numpy as np
 
-from dgsn.stan.hier_data import n_coef, pack, unpack
+from dgsn.stan.hier_data import _v_span, n_coef, pack, unpack
 from dgsn.stan.run import chain_csvs, fixed_param, log_prob
 
 HYPER = ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi")
@@ -120,7 +120,8 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
     # x_s and colr are transformed parameters in a finished run's output, but
     # have to be assembled from their pieces in an inits dict
     per["x_s"] = (np.asarray(point["x_s"], dtype=float) if "x_s" in point
-                  else float(point["s_bar"]) + np.asarray(point["x_s_dev"], dtype=float))
+                  else np.asarray(point["x_s"], dtype=float)
+                       + float(point["b_0"]) / np.sqrt(_v_span()))
     per["colr"] = (np.asarray(point["colr"], dtype=float) if "colr" in point
                    else float(point["c_bar"]) + np.asarray(point["c_dev"], dtype=float))
     per["x_p"] = float(point["mu_p"]) + np.asarray(point["u_p"], dtype=float)
@@ -295,9 +296,9 @@ def from_optimize(data: dict, inits: dict, k_psi: int, k_q: int, name: str = "hi
 
     mode = optimize(name, data, inits, jacobian=False)
     n = int(data["N_sn"])
-    point = {k: float(mode[k]) for k in HYPER + ("mu_p", "mu_psi", "s_bar", "c_bar")}
+    point = {k: float(mode[k]) for k in HYPER + ("mu_p", "mu_psi", "b_0", "c_bar")}
     point["w_coef"] = np.array([mode[f"w_coef[{i}]"] for i in range(1, n_coef(k_psi, k_q) + 1)])
-    for v in ("m_peak", "x_s_dev", "c_dev", "delta_t", "u_p", "u_psi"):
+    for v in ("m_peak", "x_s", "c_dev", "delta_t", "u_p", "u_psi"):
         point[v] = np.array([mode[f"{v}[{i}]"] for i in range(1, n + 1)])
     raw, hyper, per_sn = pieces(point, k_psi, k_q)
     return rotation(fisher(data, raw, hyper, per_sn, k_psi, k_q))

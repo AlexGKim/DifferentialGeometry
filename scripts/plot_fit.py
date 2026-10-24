@@ -42,7 +42,7 @@ from dgsn.data.sample import analysis_sample, training_split  # noqa: E402
 from dgsn.stan.run import chain_csvs, fixed_param  # noqa: E402
 
 GLOBALS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
-           "mu_p_rel", "mu_psi_rel", "c_bar", "s_bar"]
+           "mu_p_rel", "mu_psi_rel", "c_bar", "b_0"]
 LOGGED = {"tau_q", "tau_psi"}                 # plotted as log10, their range spanning decades
 CHAIN_COLOURS = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]
 GRID_KEYS = ["Kpsi", "Kq", "m", "J", "delta", "delta_p", "pmin", "pmax",
