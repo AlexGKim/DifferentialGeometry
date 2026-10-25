@@ -25,14 +25,14 @@ from dgsn.stan.run import (chain_csvs, log_prob, model, sample_four,
                            seconds_per_gradient)
 
 K_PSI, K_Q = 12, 8      # the smallest orders; override with --k-psi/--k-q
-BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m"}
+BOUNDED = {"alpha_q_m", "alpha_psi_m"}
 # flat on a box, so the unconstrained scale is a scaled logit, not a log
 # b_0's box is declared on the mean log rate, b_0/sqrt(vhi - vlo), so it is
 # computed here from the same span rather than written as a number.
 _B0 = np.sqrt(_v_span())
 BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "mu_delta": (-3.0, 3.0),
             "b_0": (-20.0 * _B0, 10.0 * _B0)}
-GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
+GLOBAL_SCALARS = ["alpha_q", "alpha_psi",
                   "mu_p_rel", "mu_psi_rel", "c_bar", "b_0"]
 
 
@@ -159,7 +159,7 @@ def report(fit, names, sample, data):
 
 # The parameters block of hier.stan in declaration order, and which are
 # log-transformed to the unconstrained space.
-PARAMS = ["z_a", "b_til", "z_c", "d_til", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
+PARAMS = ["z_a", "b_til", "z_c", "d_til", "alpha_q_m", "alpha_psi_m",
           "mu_p", "mu_psi",
           "m_peak", "c_bar", "c_dev", "x_s", "u_p", "u_psi", "mu_delta", "d_dev"]
 
@@ -221,8 +221,8 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
             if key in co:
                 co[key] = co[key] + 0.5 * rng.normal(size=len(co[key]))
         # the centred pair in coefficient units: half the prior width at the start
-        for key, tau, alpha_m, K in (("b_til", ini["tau_q"], ini["alpha_q_m"], k_q),
-                                     ("d_til", ini["tau_psi"], ini["alpha_psi_m"], k_psi)):
+        for key, tau, alpha_m, K in (("b_til", D.TAU_Q, ini["alpha_q_m"], k_q),
+                                     ("d_til", D.TAU_PSI, ini["alpha_psi_m"], k_psi)):
             kk = np.arange(1, K)
             w = tau * (kk / np.exp(np.log(kk).mean())) ** -(alpha_m + 0.5)
             co[key] = co[key] + 0.5 * w * rng.normal(size=K - 1)
@@ -343,7 +343,7 @@ def main():
         ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode, trav=trav,
                                   polish=False)
     print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
-    print(f"start: tau_q {ini['tau_q']:.2f} tau_psi {ini['tau_psi']:.2f}, "
+    print(f"start: tau_q {D.TAU_Q:.2f} tau_psi {D.TAU_PSI:.2f} (data), "
           f"|w_coef| {np.linalg.norm(ini['w_coef']):.2f}, "
           + (f" mu_p {ini['mu_p']:.2f}" if 'mu_p' in ini else "")
           + (f" mu_psi {ini['mu_psi']:.2f}" if 'mu_psi' in ini else ''))

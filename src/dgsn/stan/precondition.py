@@ -37,7 +37,8 @@ import numpy as np
 from dgsn.stan.hier_data import _v_span, n_coef, pack, unpack
 from dgsn.stan.run import chain_csvs, fixed_param, log_prob
 
-HYPER = ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi")
+# tau_q and tau_psi are ``data`` now, so they are read from the data dict
+HYPER = ("alpha_q_m", "alpha_psi_m")
 
 
 def _flux(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int) -> np.ndarray:
@@ -83,8 +84,8 @@ def fisher(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k
     # prior precision: std_normal on z_a, z_c; Eq. (coefprior) at the pivot on
     # b_til, d_til, which is the only part of the prior that is not unit
     kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
-    wq = float(hyper["tau_q"]) * (kq / np.exp(np.log(kq).mean())) ** -(float(hyper["alpha_q_m"]) + 0.5)
-    wp = float(hyper["tau_psi"]) * (kp / np.exp(np.log(kp).mean())) ** -(float(hyper["alpha_psi_m"]) + 0.5)
+    wq = float(data["tau_q"]) * (kq / np.exp(np.log(kq).mean())) ** -(float(hyper["alpha_q_m"]) + 0.5)
+    wp = float(data["tau_psi"]) * (kp / np.exp(np.log(kp).mean())) ** -(float(hyper["alpha_psi_m"]) + 0.5)
     prior = pack(np.ones(k_q - 1), wq ** -2, np.ones(k_psi - 1), wp ** -2)
     return F + np.diag(prior)
 

@@ -54,8 +54,6 @@ def main():
     ini = dict(
         w_coef=raw if R is None else np.linalg.solve(R, raw),
         # the source run predates the pivot: its tau is the scale at mode one
-        tau_q=hyper["tau_q"] / kbq ** (hyper["alpha_q_m"] + 0.5),
-        tau_psi=hyper["tau_psi"] / kbp ** (hyper["alpha_psi_m"] + 0.5),
         alpha_q_m=hyper["alpha_q_m"], alpha_psi_m=hyper["alpha_psi_m"],
         mu_p=float(np.mean(per_sn["x_p"])), mu_psi=float(np.mean(per_sn["x_psi"])),
         delta_t=per_sn["delta_t"] - np.mean(per_sn["delta_t"]),

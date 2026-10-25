@@ -44,7 +44,7 @@ def main():
             data = build(names, kp, kq, sample=sample)
             ini = inits(names, kp, kq, x1_ref, sample=sample, globals_=fit_globals(kp, kq, x1_ref))
             raw = np.asarray(ini["w_coef"], dtype=float)
-            hyper = {k: ini[k] for k in ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi")}
+            hyper = {k: ini[k] for k in ("alpha_q_m", "alpha_psi_m")}
             # pieces() assembles x_s from s_bar and x_s_dev, so this follows the
             # parameterization rather than restating it
             from dgsn.stan.precondition import pieces

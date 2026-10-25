@@ -55,6 +55,13 @@ J_POINTS = 8                 # Gauss-Legendre points per panel
 # the per-supernova deviations to sum to zero; kept for single_sn.stan, where
 # one object has no population to sum over, and as a starting value.
 XS_BAR = -3.0
+
+# Eq. (ccoef)'s scales, held fixed rather than sampled; see the data block of
+# the hierarchies for why.  Measured from the posterior of
+# runs/stage3-common-split at (K_psi, K_q) = (24, 16): tau_q 0.809 +- 0.201,
+# tau_psi 2.237 +- 0.569.  They are K-specific and a sweep must re-measure them.
+TAU_Q = 0.809
+TAU_PSI = 2.237
 K_PSI = 24                   # turning order, Section 2.3
 K_Q = 16                     # traversal order at stage 2, remeasured in v by scripts/salt_orders.py
 

@@ -55,6 +55,8 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), grainsize=int(grainsize),
         R=np.eye(n_coef(k_psi, k_q, mode, trav)) if R is None else np.asarray(R, dtype=float),
+        # Eq. (ccoef)'s scales are data now, not sampled; see data.py
+        tau_q=float(D.TAU_Q), tau_psi=float(D.TAU_PSI),
     )
     return data
 
@@ -87,21 +89,19 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
           tau: dict | None = None, R=None, mode: bool = True,
           trav: bool = True) -> dict:
     """Initial values: per-supernova from SALT2 and the sample, global
-    functions from the SALT2 fits.  ``tau`` defaults to the norm the SALT2
-    coefficients imply at ``INIT_ALPHA``, so that ``z`` starts near unit scale
-    --- the centred pair starts at the coefficients themselves, and ``tau``
-    at the width their prior wants."""
+    functions from the SALT2 fits.  The centred pair starts at the coefficients
+    themselves; ``z`` is put on unit scale by the same power law.  ``tau`` is
+    no longer an initial value --- Eq. (ccoef)'s scales are ``data``, fixed at
+    ``D.TAU_Q`` and ``D.TAU_PSI`` --- and the argument is kept only so that a
+    caller can still override the weights used for ``a`` and ``c``."""
     sample = analysis_sample() if sample is None else sample
     G = globals_ if globals_ is not None else fit_globals(k_psi, k_q, x1_ref)
     kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
-    # the pivot of hier.stan: tau is the scale at the geometric-mean mode
+    # the pivot of hier.stan: the scale is read at the geometric-mean mode.  It
+    # is data now, so ``tau`` no longer starts anything; the weights below are
+    # still needed to put a and c on unit scale for the non-centred blocks.
     wq = (kq / np.exp(np.log(kq).mean())) ** -INIT_ALPHA
     wp = (kp / np.exp(np.log(kp).mean())) ** -INIT_ALPHA
-    if tau is None:
-        # the width the centred prior wants at the start: tau^2 = mean((b_k / k^-alpha)^2);
-        # a and c do not enter, the gauge having removed their scale
-        tau = dict(q=float(np.sqrt(np.mean((G["b"] / wq) ** 2))),
-                   psi=float(np.sqrt(np.mean((G["d"] / wp) ** 2))))
     per = [per_sn_start(sample.loc[n]) for n in names]
     colr0 = np.array([q["colr"] for q in per])
     if not trav:
@@ -114,7 +114,6 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         # w = R^-1 raw, so that the start is the same point whatever rotation
         # is in force
         w_coef=raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw),
-        tau_q=tau["q"], tau_psi=tau["psi"],
         alpha_q_m=INIT_ALPHA - 0.5, alpha_psi_m=INIT_ALPHA - 0.5,
         m_peak=np.array([p["m_peak"] for p in per]),
         # the anchor colour as a named mean and deviations about it; the
@@ -138,7 +137,7 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
 def _from_mode(mode: dict, name: str):
     """One parameter out of an ``optimize`` result, scalar or vector.
 
-    CmdStan reports ``tau_q`` but ``d_dev[1]``, so the shape has to be
+    CmdStan reports ``alpha_q_m`` but ``d_dev[1]``, so the shape has to be
     discovered rather than assumed."""
     if name in mode:
         return float(mode[name])
@@ -182,17 +181,14 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     well converge, and whether they earn their time is now an open question
     to be measured rather than an answered one.
 
-    ``tau_q`` and ``tau_psi`` need no help: the gauge removes the scale of
-    ``a`` and ``c``, so they are informed by the centred ``b_til`` and
-    ``d_til`` and land within a factor of 1.7 of their posteriors, as do both
-    scatters.
+    ``tau_q`` and ``tau_psi`` need no start at all now, being ``data``.
     """
     from dgsn.stan.run import optimize
 
     m = optimize(program, data, start, jacobian=False, polish=polish)
     # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
     # transformed parameter, but an inits dict has to name what is sampled.
-    keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
+    keys = ["w_coef", "alpha_q_m", "alpha_psi_m",
             "b_0", "x_s", "c_bar", "c_dev", "mu_delta", "d_dev", "m_peak"]
     if mode:
         keys += ["mu_psi", "u_psi"]

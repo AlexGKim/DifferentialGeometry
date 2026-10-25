@@ -33,6 +33,23 @@ data {
   array[N_sn] int<lower=1> stop;
   vector[N_sn] z;
   int<lower=1> grainsize;
+  // Eq. (ccoef)'s scales, held as data rather than sampled.  Sampling them
+  // put the worst-conditioned direction in the posterior: tau_psi and the
+  // overall scale of d_til are locked at corr(log tau, log||d||) = +0.82,
+  // and over three chains of 500 draws that direction reached ESS 17 for
+  // ||d|| and 30 for tau_psi, against 66 and 579 for the q pair.  Every
+  // coefficient has to move with tau, so the sampler traverses one thin
+  // ridge in 24 dimensions.  alpha stays sampled: it is not in the ridge
+  // (corr with log tau_psi is +0.13) and mixes freely at ESS 927.
+  //
+  // The values are measured, not assumed, and they are K-specific: the
+  // posterior of runs/stage3-common-split at (K_psi, K_q) = (24, 16) gave
+  // tau_q 0.809 +- 0.201 and tau_psi 2.237 +- 0.569.  A sweep over K has to
+  // re-measure them.  What is given up is the 25 percent spread in each,
+  // which no longer propagates into the coefficients, so their posterior
+  // here is slightly too narrow.
+  real<lower=0> tau_q;
+  real<lower=0> tau_psi;
   // As hier.stan, but over the shorter block: z_a, b_til, d_til, with no z_c.
   matrix[2 * (Kq - 1) + (Kpsi - 1), 2 * (Kq - 1) + (Kpsi - 1)] R;
 }
@@ -56,8 +73,6 @@ transformed data {
 }
 parameters {
   vector[2 * (Kq - 1) + (Kpsi - 1)] w_coef;
-  real<lower=0> tau_q;
-  real<lower=0> tau_psi;
   real<lower=0> alpha_q_m;         // alpha - 1/2, Eq. (coefprior)
   real<lower=0> alpha_psi_m;
   real mu_p;
