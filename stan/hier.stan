@@ -121,9 +121,17 @@ parameters {
   // direction of this block at a ratio of 3.3 to 4.0 over the deviations at
   // N = 30, is left mixed across all thirty coordinates where a diagonal
   // metric cannot scale it on its own.
-  vector<lower=-3, upper=3>[N_sn] delta_t;
+  // Delta as mu_delta + deviations summing to zero; see hier_common.stan.  The
+  // mean is named so a diagonal metric can scale the common mode on its own,
+  // measured as the slowest-mixing direction when it was not.  mu_delta takes
+  // a declared bound and the deviations a wall, sum_to_zero_vector admitting
+  // none, and both are needed: with the mean held, a hyperplane ray saturates
+  // the phase clamp and the density goes flat.
+  real<lower=-3, upper=3> mu_delta;
+  sum_to_zero_vector[N_sn] d_dev;
 }
 transformed parameters {
+  vector[N_sn] delta_t = mu_delta + d_dev;
   // what reaches the exponent: the deviation plus q_0's degree-zero term
   vector[N_sn] x_s_tot = x_s + b_0 * inv_sqrt(vhi - vlo);
   vector[N_sn] x_p = mu_p + u_p;
@@ -184,6 +192,7 @@ model {
   // declared bound is impossible on a sum_to_zero_vector, so this is a
   // sampling statement, contributing exactly 0 inside.
   x_s ~ uniform(-20, 20);
+  d_dev ~ uniform(-3, 3);   // see the declaration; mu_delta is flat on its box
   // c_dev has no prior and needs none: colour is the only placement direction
   // the forward map does not clamp, so a runaway inside the sum-to-zero
   // hyperplane drives a predicted r flux to infinity where the Gaussian-in-

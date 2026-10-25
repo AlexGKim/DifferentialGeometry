@@ -30,7 +30,7 @@ BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m"}
 # b_0's box is declared on the mean log rate, b_0/sqrt(vhi - vlo), so it is
 # computed here from the same span rather than written as a number.
 _B0 = np.sqrt(_v_span())
-BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "delta_t": (-3.0, 3.0),
+BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "mu_delta": (-3.0, 3.0),
             "b_0": (-20.0 * _B0, 10.0 * _B0)}
 GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
                   "mu_p_rel", "mu_psi_rel", "c_bar", "b_0"]
@@ -45,7 +45,7 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     # of length N carries N - 1 coordinates though it is reported as N.  Index
     # by the constrained length and every block after it is off by one, which
     # showed up here as a finite-difference mismatch of 87.
-    short = {"x_s": 1, "c_dev": 1}
+    short = {"x_s": 1, "c_dev": 1, "d_dev": 1}
     flat = []
     for n in names:
         v = np.atleast_1d(np.asarray(point[n], dtype=float))
@@ -58,7 +58,7 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     # delta_t is no longer among them --- it is an ordinary boxed vector now,
     # so it moves one element at a time like any other and is checked directly,
     # through BOUNDED2's logit factor.
-    frozen = {"x_s", "c_dev"}
+    frozen = {"x_s", "c_dev", "d_dev"}
     movable = [j for j, (nm, _) in enumerate(flat) if nm not in frozen]
     idx = rng.choice(movable, min(n_coords, len(movable)), replace=False)
     worst = 0.0
@@ -161,7 +161,7 @@ def report(fit, names, sample, data):
 # log-transformed to the unconstrained space.
 PARAMS = ["z_a", "b_til", "z_c", "d_til", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
           "mu_p", "mu_psi",
-          "m_peak", "c_bar", "c_dev", "x_s", "u_p", "u_psi", "delta_t"]
+          "m_peak", "c_bar", "c_dev", "x_s", "u_p", "u_psi", "mu_delta", "d_dev"]
 
 
 def warm_start(run_dir):
@@ -239,7 +239,7 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
         # blind to exactly what it is meant to test.
         # The two sum_to_zero blocks have to stay on their hyperplanes, or the
         # start is rejected as violating its own constraint.
-        for key, w in (("x_s", 0.3), ("c_dev", 0.3)):
+        for key, w in (("x_s", 0.3), ("c_dev", 0.3), ("d_dev", 0.5)):
             if key in s:
                 j = w * rng.normal(size=len(np.atleast_1d(s[key])))
                 s[key] = s[key] + j - j.mean()
@@ -254,10 +254,9 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
         # delta_t is boxed: disperse it, including its mean, which is the
         # direction the check most needs to see, then clip back inside.  A
         # start on the wrong side of a declared bound is rejected outright.
-        if "delta_t" in s:
-            v = np.atleast_1d(np.asarray(s["delta_t"], dtype=float))
-            v = v + 0.5 * rng.normal(size=len(v)) + 0.3 * float(rng.normal())
-            s["delta_t"] = np.clip(v, -3.0 + 1e-6, 3.0 - 1e-6)
+        if "mu_delta" in s:
+            s["mu_delta"] = float(np.clip(s["mu_delta"] + 0.3 * rng.normal(),
+                                          -3.0 + 1e-6, 3.0 - 1e-6))
         starts.append(s)
     return starts
 

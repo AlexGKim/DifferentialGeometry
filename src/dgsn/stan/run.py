@@ -129,14 +129,14 @@ def optimize(name: str, data: dict, inits: dict, polish: bool = True,
             # significant figures, whose sum is no longer exactly zero, and a
             # restart handed a constrained value that violates its constraint
             # is rejected.  Project it back.
-            for k in ("x_s", "c_dev"):
+            for k in ("x_s", "c_dev", "d_dev"):
                 if k in ini:
                     ini[k] = ini[k] - np.mean(ini[k])
             # delta_t is bounded rather than constrained, and the same
             # rounding can put it a hair outside its box, which is rejected
             # for the same reason.  Pull it back inside.
-            if "delta_t" in ini:
-                ini["delta_t"] = np.clip(ini["delta_t"], -3.0 + 1e-6, 3.0 - 1e-6)
+            if "mu_delta" in ini:
+                ini["mu_delta"] = float(np.clip(ini["mu_delta"], -3.0 + 1e-6, 3.0 - 1e-6))
             return ini
 
         for _ in range(4):

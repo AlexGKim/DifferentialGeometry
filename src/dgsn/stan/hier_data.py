@@ -18,7 +18,8 @@ from dgsn.salt.tracks import per_sn_start
 from dgsn.stan import data as D
 
 INIT_ALPHA = 2.0        # alpha at the start; the ridge of the SALT2 fits uses the same
-DELTA_BOUND = 3.0       # d; must match <lower=-3, upper=3> on delta_t in the hierarchies
+DELTA_BOUND = 3.0       # d; must match <lower=-3, upper=3> on mu_delta and the
+                        # uniform wall on d_dev in the hierarchies
 
 
 def _v_span() -> float:
@@ -124,7 +125,8 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         # enters as b_0 = sqrt(vhi - vlo) * x_s rather than as a named mean
         b_0=float(G["x_s"]) * np.sqrt(_v_span()),
         x_s=np.zeros(len(names)),      # sums to zero, as sum_to_zero_vector requires
-        delta_t=np.zeros(len(names)),  # likewise, and <Delta> = 0 is the gauge
+        mu_delta=0.0,                  # the near gauge, named so the metric can
+        d_dev=np.zeros(len(names)),    # scale it; deviations sum to zero
     )
     if mode:
         out.update(mu_psi=G["x_psi"], u_psi=np.zeros(len(names)))
@@ -136,7 +138,7 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
 def _from_mode(mode: dict, name: str):
     """One parameter out of an ``optimize`` result, scalar or vector.
 
-    CmdStan reports ``tau_q`` but ``delta_t[1]``, so the shape has to be
+    CmdStan reports ``tau_q`` but ``d_dev[1]``, so the shape has to be
     discovered rather than assumed."""
     if name in mode:
         return float(mode[name])
@@ -191,7 +193,7 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
     # transformed parameter, but an inits dict has to name what is sampled.
     keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
-            "b_0", "x_s", "c_bar", "c_dev", "delta_t", "m_peak"]
+            "b_0", "x_s", "c_bar", "c_dev", "mu_delta", "d_dev", "m_peak"]
     if mode:
         keys += ["mu_psi", "u_psi"]
     if trav:
@@ -200,12 +202,11 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     # Back onto the constraint surfaces after the roundtrip through text: the
     # mode is written at 18 significant figures, whose sum is no longer
     # exactly zero, and sum_to_zero_vector requires that it is.
-    for k in ("x_s", "c_dev"):
+    for k in ("x_s", "c_dev", "d_dev"):
         v = np.asarray(out[k], dtype=float)
         out[k] = v - v.mean()
-    # delta_t is boxed, not constrained: clip instead of project.
-    out["delta_t"] = np.clip(np.asarray(out["delta_t"], dtype=float),
-                             -DELTA_BOUND + 1e-6, DELTA_BOUND - 1e-6)
+    out["mu_delta"] = float(np.clip(out["mu_delta"],
+                                    -DELTA_BOUND + 1e-6, DELTA_BOUND - 1e-6))
     if verbose:
         print(f"optimize start: lp {float(m['lp__']):.1f}")
     return out
@@ -253,7 +254,7 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
         if c.shape == np.shape(out["c_dev"]):
             out["c_bar"], out["c_dev"] = float(c.mean()), c - c.mean()
             carried.append("colr -> c_bar, c_dev")
-    for k in ("x_s", "c_dev"):
+    for k in ("x_s", "c_dev", "d_dev"):
         if k in out:
             out[k] = np.asarray(out[k], dtype=float) - np.mean(out[k])
     # delta_t is declared on a box now, not on the sum-to-zero hyperplane, so
@@ -261,9 +262,14 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
     # can sit outside the bound, and a start outside its own support is
     # rejected.  The largest |Delta| ever drawn is 2.43 d, so this normally
     # does nothing.
-    if "delta_t" in out:
-        out["delta_t"] = np.clip(np.asarray(out["delta_t"], dtype=float),
-                                 -DELTA_BOUND + 1e-6, DELTA_BOUND - 1e-6)
+    # a source that predates the split carries delta_t whole: separate it
+    if "delta_t" in src and "mu_delta" in out:
+        dt = np.asarray(src["delta_t"], dtype=float)
+        if dt.shape == np.shape(out["d_dev"]):
+            out["mu_delta"] = float(np.clip(dt.mean(), -DELTA_BOUND + 1e-6,
+                                            DELTA_BOUND - 1e-6))
+            out["d_dev"] = dt - dt.mean()
+            carried.append("delta_t as mu_delta + d_dev")
 
     # the coefficient block, by name, so a shorter source lands in the right slots
     # From the relabeled blocks, not from w_coef: w_coef is the sampled vector

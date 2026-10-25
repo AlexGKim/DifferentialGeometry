@@ -63,8 +63,8 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
     d2.update(D.prior_data(prior_on=False, mu_p=ini["mu_p"], mu_psi=ini["mu_psi"], mu_delta=0.0,
                            s_delta=1.0, xs_bar=D.XS_BAR, m_bright=ep["m_bright"]))
     # At one object the three sum_to_zero_vector blocks carry no free
-    # coordinate and their values are identically zero, so x_s is s_bar,
-    # colr is c_bar and delta_t is zero.
+    # coordinate and their values are identically zero, so x_s is b_0 P_0,
+    # colr is c_bar and delta_t is mu_delta, which starts at zero.
     p2 = dict(m_peak=float(ini["m_peak"][0]), colr=float(ini["c_bar"]),
               x_s=float(ini["b_0"]) / np.sqrt(_v_span()),
               x_p=ini["mu_p"] + float(ini["u_p"][0]),
@@ -89,10 +89,9 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
         extra += float(np.sum(-np.log(w) - 0.5 * (ini[k] / w) ** 2))
     extra += -(ini["alpha_q_m"] + ini["alpha_psi_m"])
     extra += -0.5 * sum(float(np.sum(np.square(ini[k]))) for k in ("u_p", "u_psi"))
-    # b_0 and x_s are flat on their supports, so neither adds a term; the
-    # uniform wall on x_s contributes exactly 0 inside the box.
-    extra += -0.5 * float(np.sum(np.square(ini["c_dev"])))
-    extra += -0.5 * float(np.sum(np.square(np.asarray(ini["delta_t"]) / 3.0)))
+    # Nothing else contributes.  b_0, mu_delta, c_bar and m_peak are flat on
+    # their boxes; c_dev has no prior at all; and the uniform walls on x_s and
+    # d_dev are exactly 0 inside, which is where the start is.
     print(f"single_sn likelihood {lp2:.6f}, hier lp - priors {lph - extra:.6f}")
     assert abs((lph - extra) - lp2) < 1e-6
 

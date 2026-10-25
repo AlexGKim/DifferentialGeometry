@@ -154,9 +154,38 @@ parameters {
   // the thing to watch.  Delta is the only one of the four per-supernova
   // parameters where the ratio exceeds one: for m_peak, colr and x_s the
   // common mode is the shorter direction.
-  vector<lower=-3, upper=3>[N_sn] delta_t;
+  // Delta as a mean plus deviations summing to zero.
+  //
+  // <Delta> is a near gauge: a common shift of every Delta is a shift of the
+  // phase origin, which q_0 reshapes to absorb.  Deleting it outright with
+  // <Delta> = 0 cost 1.96 nats over 1568 epochs, so it is kept, named and
+  // bounded rather than removed -- the fit finds its own phase origin and
+  // keeps those nats.
+  //
+  // Why it is named rather than left implicit in a per-object vector.  A
+  // diagonal metric assigns one scale per declared coordinate; in a plain
+  // thirty-vector every coordinate mixes the common mode with the deviations,
+  // so the metric has to straddle whatever their ratio is.  Measured on
+  // runs/stage3-common-flat-unsplit, where Delta was that plain vector, the
+  // common mode was the slowest-mixing direction in the posterior -- lag-1
+  // autocorrelation +0.77 against +0.50 for lp__ and -0.12 for its own
+  // deviations -- while two of four chains sat at the treedepth cap on every
+  // draw and the adapted stepsizes disagreed by a factor of 6.3.  Naming it
+  // gives the metric a coordinate it can scale on its own.
+  //
+  // Both pieces are bounded, and both bounds are needed.  mu_delta takes a
+  // declared bound, so it is smooth.  The deviations take a wall instead,
+  // sum_to_zero_vector admitting no declared bound: with mu_delta held, a
+  // hyperplane ray drives one object's epochs out of the phase window one way
+  // and another's the other, the softened clamp saturates, and the density
+  // goes flat -- -156709.38 at t = 300 and at t = 1000.  Together they put
+  // Delta in [-6, 6], against a largest draw ever seen of 2.43 d and a
+  // largest deviation of 1.085 d, so neither is ever met.
+  real<lower=-3, upper=3> mu_delta;
+  sum_to_zero_vector[N_sn] d_dev;
 }
 transformed parameters {
+  vector[N_sn] delta_t = mu_delta + d_dev;
   // what reaches the exponent: the per-supernova deviation plus q_0's own
   // degree-zero term, P_0 = 1/sqrt(vhi - vlo)
   vector[N_sn] x_s_tot = x_s + b_0 * inv_sqrt(vhi - vlo);
@@ -193,6 +222,7 @@ model {
   // declared bound is impossible on a sum_to_zero_vector, so it is a
   // sampling statement, which contributes exactly 0 inside.
   x_s ~ uniform(-20, 20);
+  d_dev ~ uniform(-3, 3);   // see the declaration; mu_delta is flat on its box
   // c_dev has no prior at all, and needs none.  It is the one block here
   // whose flat prior is already proper: inside the sum-to-zero hyperplane
   // some component must run to +infinity, which drives that object's

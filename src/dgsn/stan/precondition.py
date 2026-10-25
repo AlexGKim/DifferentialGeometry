@@ -116,7 +116,10 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
         raw = w if R_src is None else np.asarray(R_src, dtype=float) @ w
     hyper = {k: float(point[k]) for k in HYPER}
     per = {"m_peak": np.asarray(point["m_peak"], dtype=float),
-           "delta_t": np.asarray(point["delta_t"], dtype=float)}
+           "delta_t": (np.asarray(point["delta_t"], dtype=float)
+                       if "delta_t" in point
+                       else float(point["mu_delta"])
+                            + np.asarray(point["d_dev"], dtype=float))}
     # x_s and colr are transformed parameters in a finished run's output, but
     # have to be assembled from their pieces in an inits dict
     per["x_s"] = (np.asarray(point["x_s"], dtype=float) if "x_s" in point
@@ -296,9 +299,9 @@ def from_optimize(data: dict, inits: dict, k_psi: int, k_q: int, name: str = "hi
 
     mode = optimize(name, data, inits, jacobian=False)
     n = int(data["N_sn"])
-    point = {k: float(mode[k]) for k in HYPER + ("mu_p", "mu_psi", "b_0", "c_bar")}
+    point = {k: float(mode[k]) for k in HYPER + ("mu_p", "mu_psi", "b_0", "c_bar", "mu_delta")}
     point["w_coef"] = np.array([mode[f"w_coef[{i}]"] for i in range(1, n_coef(k_psi, k_q) + 1)])
-    for v in ("m_peak", "x_s", "c_dev", "delta_t", "u_p", "u_psi"):
+    for v in ("m_peak", "x_s", "c_dev", "d_dev", "u_p", "u_psi"):
         point[v] = np.array([mode[f"{v}[{i}]"] for i in range(1, n + 1)])
     raw, hyper, per_sn = pieces(point, k_psi, k_q)
     return rotation(fisher(data, raw, hyper, per_sn, k_psi, k_q))
