@@ -537,10 +537,11 @@ $\mathbf{raw} = R\,\code{w\_coef}$. No transformed parameter appears on the righ
 \toprule
  & $=$ & \code{parameters} declaration, and prior \\
 \midrule
-                 $m_{g,n}^{\max}$ & \code{m\_peak}$[n]$
+$m_{g,n}^{\max}$ & \code{m\_peak}$[n]$
                  & \code{vector<lower=5, upper=30>[N\_sn]}, flat \\[2pt]
-                                  $\Delta_{n}$     & \code{delta\_t}$[n]$
-                 & \code{vector<lower=-3, upper=3>[N\_sn]}, flat \\[2pt]
+$\Delta_{n}$     & \code{mu\_delta} $+$ \code{d\_dev}$[n]$
+                 & \code{real<lower=-3, upper=3>}, flat, and
+                   \code{sum\_to\_zero\_vector[N\_sn]}, flat, walled at $\pm 3$ \\[2pt]
 $x_{s,n}$        & \code{x\_s}$[n]$
                  & \code{sum\_to\_zero\_vector[N\_sn]}, flat, walled at $\pm 20$ \\[2pt]
 $\colr_{n}$      & \code{c\_bar} $+$ \code{c\_dev}$[n]$
@@ -548,7 +549,7 @@ $\colr_{n}$      & \code{c\_bar} $+$ \code{c\_dev}$[n]$
                    \code{sum\_to\_zero\_vector[N\_sn]}, \textbf{no prior} \\
 $b_{0}$          & \code{b\_0}
                  & \code{real<lower = -20 * sqrt(vhi - vlo),} \code{upper = 10 * sqrt(vhi - vlo)>}, flat \\[2pt]
-                 $\mathbf{b}$     & $\mathbf{raw}_{1:K_{q}-1}$
+$\mathbf{b}$     & $\mathbf{raw}_{1:K_{q}-1}$
                  & \code{vector[(Kq - 1) + (Kpsi - 1)] w\_coef}, Eq.~(21) below \\[2pt]
 $\mathbf{d}$     & $\mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2}$
                  & the same \code{w\_coef}, Eq.~(21) below \\[2pt]
@@ -563,8 +564,9 @@ $\bigl[(K_{q}{-}1)+(K_{\psi}{-}1)\bigr]^{2}$ matrix supplied as \code{data}, the
 unless a preconditioner has been built; being constant its Jacobian is constant, so it
 changes no posterior, and a rotation built at one $(K_{\psi}, K_{q})$ cannot be reused at
 another because its dimension is fixed by the basis it was measured in. And
-\code{transformed parameters} holds only the six intermediates the table implies ---
-\code{x\_s\_tot}, \code{colr}, \code{b\_til}, \code{d\_til}, \code{b}, \code{d} --- of which
+\code{transformed parameters} holds only the seven intermediates the table implies ---
+\code{delta\_t}, \code{x\_s\_tot}, \code{colr}, \code{b\_til}, \code{d\_til}, \code{b},
+\code{d} --- of which
 the last two equal $\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$ here, the note's Eq.~(11)
 being vacuous in a program whose every gauge condition names a departure mode.
 
@@ -573,10 +575,10 @@ Four hyperparameters are sampled beside these and reach the model only through t
 $\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$: \code{tau\_q} and \code{tau\_psi}, both
 \code{real<lower=0>} and flat, and \code{alpha\_q\_m} and \code{alpha\_psi\_m}, both
 \code{real<lower=0>} with $\mathrm{Exp}(1)$, being $\alpha - \frac12$ of \eqref{eq:ccoef}.
-At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ the whole \code{parameters} block is $164$
+At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ the whole \code{parameters} block is $165$
 named values, four of them per supernova, of which Stan samples $162$: a
 \code{sum\_to\_zero\_vector[N]} is an orthogonal transform carrying $N-1$ unconstrained
-coordinates, and there are two of them. Every prior above is flat or absent except the two
+coordinates, and there are three of them. Every prior above is flat or absent except the two
 on the basis coefficients; the paragraphs after \eqref{eq:ccoef} say what each bound is for
 and why \code{c\_dev} needs none.
 
@@ -605,22 +607,40 @@ but positive. The box closes it, and inherits the $\zp$ convention rather than a
 anything: $\peakmag = 30$ is a predicted flux of one archive unit and $\peakmag = 5$ is
 $10^{10}$, against a sample spanning $1.5\times10^{4}$ to $7.8\times10^{5}$.
 
-\paragraph{$\Delta_{n}$, from \code{delta\_t}.} A common shift of every $\Delta$ is a shift
-of the phase origin, which $q_{0}$ reshapes to absorb, so the mean is a near gauge: the
-per-object posterior standard deviation is $0.359$~d, thirty independent offsets would put
-$0.066$~d on their mean, and a hierarchical fit returned $0.344$~d. Deleting it with
-$\langle\Delta\rangle = 0$ cost $1.96$ nats over $1568$ epochs, so the box confines it
-instead and the fit keeps them. The bound is not optional: both tails are flat, every epoch
-leaving the phase window past $|\Delta| \sim 100$~d and the softened clamp saturating, with
-the density at $-156709.38$ at $300$~d and $-156709.38$ at $1000$~d. $\pm3$~d is $8.6$ times
-the largest $t_{0}$ uncertainty \ztf\ DR2 reports over the thirty, and no draw has exceeded
-$2.43$~d. The cost of not splitting the mean out is that it stays mixed across thirty
-coordinates at a scale ratio of $3.3$ to $4.0$, where a diagonal metric cannot scale it
-alone --- $\Delta$ is the only one of the seven whose common mode is the longer direction.
+\paragraph{$\Delta_{n}$, from \code{mu\_delta} and \code{d\_dev}.} A common shift of every
+$\Delta$ is a shift of the phase origin, which $q_{0}$ reshapes to absorb, so the mean is a
+near gauge and not an exact one: the per-object posterior standard deviation is $0.359$~d,
+thirty independent offsets would put $0.066$~d on their mean, and a hierarchical fit
+returned $0.344$~d. Deleting it with $\langle\Delta\rangle = 0$ costs only $1.96$ nats over
+$1568$ epochs, yet it is kept, named and bounded, for a reason that is about the sampler
+and not the fit.
+
+A diagonal metric assigns one scale per declared coordinate. Left as a plain
+$N$-vector, every coordinate of $\Delta$ mixes the common mode with the deviations, and the
+metric has to straddle both; named, the common mode is a coordinate the metric can scale on
+its own. The three treatments have been run on the same data under this likelihood, and
+they separate cleanly by the fraction of post-warmup draws that exhaust the treedepth cap:
+$\langle\Delta\rangle = 0$ gave $100\%$ on both chains that cleared warmup, at the smallest
+stepsizes anything here has reached; a plain boxed vector gave $100\%$ on two chains of
+four; and \code{mu\_delta} with deviations gives $0\%$ on three of four, at stepsizes two to
+eight times larger. Deleting the mean is the worst of the three, which is not obvious ---
+the explanation is that it relocates the difficulty rather than removing it, the $B$-to-$g$
+offset having nowhere left to go but $q_{0}$'s shape, and the coefficient block is already
+the worst-conditioned part of this posterior.
+
+Both pieces are bounded and both bounds are needed. \code{mu\_delta} takes a declared bound
+and is therefore smooth; the deviations take a wall instead, \code{sum\_to\_zero\_vector}
+admitting none. With the mean held, a hyperplane ray drives one object's epochs out of the
+phase window one way and another's the other, the softened clamp saturates, and the density
+goes flat --- $-156709.38$ at $t = 300$ and $-156709.38$ at $t = 1000$. Together the two put
+$\Delta$ in $[-6, 6]$, against a largest draw ever seen of $2.43$~d and a largest deviation
+of $1.085$~d, so neither bound is ever met; $\pm3$~d is also $8.6$ times the largest $t_{0}$
+uncertainty \ztf\ DR2 reports over the thirty.
 
 \paragraph{$x_{s,n}$, from \code{x\_s}.} With $b_{0}$ present, only $x_{s,n} + b_{0}P_{0}$
 reaches \eqref{eq:ctrav}, so the shift between them is an \emph{exact} gauge and
-$\sum_{n} x_{s,n} = 0$ removes it at no cost at all, unlike $\Delta$'s. The deviations
+$\sum_{n} x_{s,n} = 0$ removes it at no cost at all, where $\Delta$'s is only approximate
+and is confined rather than removed. The deviations
 inherit no propriety from that constraint: a ray inside the hyperplane drives one object's
 rate into the arclength clamp and another's to zero, each a constant light curve, and the
 density settles at $-2.47\times10^{5}$. Hence the wall. It is a sampling statement and not a
