@@ -417,19 +417,6 @@ $m_{g}^{\max}$ the $g$ magnitude and $\colr$ the $g-r$ colour there rather than 
 combination, and $\psi(0) = -\pi/2$ adds that the curve leaves the origin along
 $(0, -1)$, the reddening direction.
 
-$\curve(0) = 0$ also settles where a population mean colour can live, which is not
-obvious and is easy to get wrong. A common colour offset is a \emph{translation} of the
-curve along $(0,-1)$, and \eqref{eq:cturn} expands the tangent \emph{angle}: the
-parameterization has no translation mode at all, and $\curve(0) = 0$ would pin it even if
-it had one. Reshaping $\turnzero$ cannot stand in, because a reshaped curve must still pass
-through the origin at an anchor that sits inside the observed range. So the sample's mean
-anchor colour --- measured at $+0.060 \pm 0.013$ over thirty objects and
-$+0.0597 \pm 0.0032$ over a hundred --- has to be carried by a parameter beside the curve
-and cannot be absorbed into it. This is the one place where the colour and the rate are not
-symmetric: $q_{0}$'s mean \emph{is} available inside its own basis, the constant Legendre
-mode being a function the expansion can simply include, whereas the curve's has no
-counterpart.
-
 \subsection{The two shared functions}
 
 Both are expanded in a basis of shifted Legendre polynomials, in a coordinate that
@@ -469,23 +456,9 @@ is a smooth broad curve spanning $-4.85$ to $0.01$ over the data window, bottomi
 $v \simeq 0.37$ and flattening by $v \simeq 2.7$; $x_{s}$ is the dotted line, and $q_{0}$
 oscillates about it with zero mean under $\int\dd v$. Dashed: the fit at $K_{q} = 8$ and
 $16$, whose residuals in the log over the data window have root-mean-square $0.085$ and
-$0.038$. The maximum residual barely moves between the two, $0.221$ against $0.202$, because
-it lives in the five-day margins outside the data window and not in the body: the order is
-set by the edges. Both coordinates do the same work --- they spend resolution where the
-function turns, which in phase and in arclength is a vanishing fraction of the interval. The
-track is an illustration of what the basis has to represent and is not fitted; nothing here
-reaches a likelihood. Produced by \file{scripts/plot\_traversal.py}.}
+$0.038$.  Produced by \file{scripts/plot\_traversal.py}.}
 \label{fig:coords}
 \end{figure}
-
-\paragraph{There is no gauge.} Every condition of the note's Eq.~(11) names a departure
-mode, and this program has none: $\bar q_{1} = 0$ and $\langle q_{1},q_{1}\rangle = 1$ are
-conditions on $q_{1}$, and $\langle q_{0},q_{1}\rangle = 0$ fixes $q_{0}$'s component along
-it. So $\mathbf{b} = \tilde{\mathbf{b}}$ and $\mathbf{d} = \tilde{\mathbf{d}}$: no
-normalization, no orthogonalization, and $G_{\arc}$, still built by the shared
-\code{transformed data} include, is never read. $q_{0}$ and $\turnzero$ are functions the
-data determine outright, with no coordinate freedom left to fix and no sign convention to
-relabel afterwards.
 
 Because $x_{s}$ is a constant in \eqref{eq:ctrav} and the basis carries no constant, the two
 cannot trade: $x_{s}$ is the mean log rate and $q_{0}$ its shape, exactly and by
@@ -552,18 +525,6 @@ Nothing is converted to magnitudes and negative fluxes are ordinary measurements
 is a \code{reduce\_sum} over supernovae, and $\hat f_{i}$ is the tapered flux, so an epoch
 outside the window has its residual suppressed.
 
-The variance used to carry a second term, $(k\sigma_{b}\hat f_{i})^{2}$ with
-$k = 0.4\ln 10$ --- a fractional scatter with one fitted scalar per band --- and a
-log-determinant beside it. Both are gone, and $\sigma_{g}, \sigma_{r}$ with them, since
-with the second term removed they appear nowhere and a flat prior on a parameter the
-likelihood does not see leaves the posterior improper. The log-determinant was not optional
-while the variance depended on the parameters: $\sum(f-\hat f)^{2}/\sigma^{2}$ alone falls
-monotonically in $\sigma$, so the fit would drive $\sigma_{b}$ to infinity. With
-$\sigma_{f,i}$ data, $\sum\ln\sigma_{f,i}^{2}$ is an additive constant. Two consequences
-for reading output: \code{lp\_sn} is now exactly $-\chi^{2}/2$, so a fit quality reads
-straight off it, and a log-likelihood from this program is not comparable with one from a
-program that kept the term until that constant is restored.
-
 \subsection{Everything the program samples}
 
 Seven quantities enter the forward map of \eqref{eq:cphase}--\eqref{eq:cflux}: the shared
@@ -576,21 +537,21 @@ $\mathbf{raw} = R\,\code{w\_coef}$. No transformed parameter appears on the righ
 \toprule
  & $=$ & \code{parameters} declaration, and prior \\
 \midrule
-$\Delta_{n}$     & \code{delta\_t}$[n]$
+                 $m_{g,n}^{\max}$ & \code{m\_peak}$[n]$
+                 & \code{vector<lower=5, upper=30>[N\_sn]}, flat \\[2pt]
+                                  $\Delta_{n}$     & \code{delta\_t}$[n]$
                  & \code{vector<lower=-3, upper=3>[N\_sn]}, flat \\[2pt]
 $x_{s,n}$        & \code{x\_s}$[n]$
                  & \code{sum\_to\_zero\_vector[N\_sn]}, flat, walled at $\pm 20$ \\[2pt]
-$b_{0}$          & \code{b\_0}
-                 & \code{real<lower = -20 * sqrt(vhi - vlo),} \code{upper = 10 * sqrt(vhi - vlo)>}, flat \\[2pt]
-$\mathbf{b}$     & $\mathbf{raw}_{1:K_{q}-1}$
-                 & \code{vector[(Kq - 1) + (Kpsi - 1)] w\_coef}, Eq.~(21) below \\[2pt]
-$\mathbf{d}$     & $\mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2}$
-                 & the same \code{w\_coef}, Eq.~(21) below \\[2pt]
-$m_{g,n}^{\max}$ & \code{m\_peak}$[n]$
-                 & \code{vector<lower=5, upper=30>[N\_sn]}, flat \\[2pt]
 $\colr_{n}$      & \code{c\_bar} $+$ \code{c\_dev}$[n]$
                  & \code{real<lower=-5, upper=5>}, flat, and
                    \code{sum\_to\_zero\_vector[N\_sn]}, \textbf{no prior} \\
+$b_{0}$          & \code{b\_0}
+                 & \code{real<lower = -20 * sqrt(vhi - vlo),} \code{upper = 10 * sqrt(vhi - vlo)>}, flat \\[2pt]
+                 $\mathbf{b}$     & $\mathbf{raw}_{1:K_{q}-1}$
+                 & \code{vector[(Kq - 1) + (Kpsi - 1)] w\_coef}, Eq.~(21) below \\[2pt]
+$\mathbf{d}$     & $\mathbf{raw}_{K_{q}:K_{q}+K_{\psi}-2}$
+                 & the same \code{w\_coef}, Eq.~(21) below \\[2pt]
 \bottomrule
 \end{tabular}
 
@@ -629,12 +590,20 @@ $\bar k = \exp[\overline{\ln k}]$:
   \label{eq:ccoef}
 \end{equation}
 
-\medskip\noindent
 Each of the seven in turn, with what carries it, what fixes its freedom, and what bounds
 it. Three things recur. A \emph{gauge} is a direction the likelihood is flat along, exactly
 or nearly, and is removed by a constraint. A \emph{flat tail} is the likelihood tending to a
 positive constant at infinity, and needs a bound, which a constraint does not supply. And
 naming a mean that is already identified is \emph{bookkeeping}, neither of those.
+
+\paragraph{$m_{g,n}^{\max}$, from \code{m\_peak}.} The only one of the seven with an
+\emph{exact} degeneracy, and it is already spent: predicted flux depends on $\peakmag$ and
+$\zp$ only through $\peakmag - \zp$, so pinning $\zp = 30$ fixes the gauge before the fit
+begins and no constraint appears here. One tail is flat, the faint one, where the predicted
+flux vanishes and the likelihood tends to $\exp(-\frac12\sum f^{2}/\sigma^{2})$ --- small
+but positive. The box closes it, and inherits the $\zp$ convention rather than asserting
+anything: $\peakmag = 30$ is a predicted flux of one archive unit and $\peakmag = 5$ is
+$10^{10}$, against a sample spanning $1.5\times10^{4}$ to $7.8\times10^{5}$.
 
 \paragraph{$\Delta_{n}$, from \code{delta\_t}.} A common shift of every $\Delta$ is a shift
 of the phase origin, which $q_{0}$ reshapes to absorb, so the mean is a near gauge: the
@@ -658,6 +627,21 @@ density settles at $-2.47\times10^{5}$. Hence the wall. It is a sampling stateme
 declared bound because \code{stanc} rejects a bound on this type outright, and it is
 discontinuous, which costs nothing at $270$ times the realized deviation standard deviation
 of $0.073$.
+
+\paragraph{$\colr_{n}$, from \code{c\_bar} and \code{c\_dev}.} $\curve(0) = 0$ pins the
+anchor in both components, so $\colr$ \emph{is} the $g-r$ colour there and its mean is
+identified, not degenerate: the fits put it at $+0.060 \pm 0.013$ over thirty objects and
+$+0.0597 \pm 0.0032$ over a hundred. Naming $\bar c$ is therefore bookkeeping, and it is
+needed because the curve cannot absorb a mean colour --- an offset is a translation,
+\eqref{eq:cturn} expands the tangent angle, and there is no translation mode. The
+deviations are the one block in the program with no prior at all, and need none: inside the
+hyperplane some component must run to $+\infty$, which drives that object's predicted $r$
+flux up exponentially where a Gaussian-in-flux likelihood punishes it doubly exponentially.
+Walked out, the density falls through $-4.67\times10^{6}$ at $t = 3$ and
+$-2.05\times10^{12}$ at $t = 10$ to $-\infty$, and faster still on the least favourable ray
+available. Colour is the only placement direction the forward map does not clamp, and
+clamping is exactly what turns a runaway into a finite constant --- which is why this works
+here and nowhere else.
 
 \paragraph{$b_{0}$, from \code{b\_0}.} It restores the degree-zero Legendre term that
 \code{traversal\_row}'s $[2\!:\!K_{q}]$ slice drops, so that $q_{0}$ is the population's log
@@ -686,32 +670,6 @@ of it: at $K_{\psi} = 24$ the crossover is at $k = 3$ and $10$ of the $23$ modes
 prior-dominated. Both vectors are \emph{centred} rather than non-centred --- the data pin
 them, there being no gauge to remove their scale --- so $\tau_{q}$ and $\tau_{\psi}$ simply
 are the scales of $q_{0}$ and $\turnzero$ at a mid-range mode.
-
-\paragraph{$m_{g,n}^{\max}$, from \code{m\_peak}.} The only one of the seven with an
-\emph{exact} degeneracy, and it is already spent: predicted flux depends on $\peakmag$ and
-$\zp$ only through $\peakmag - \zp$, so pinning $\zp = 30$ fixes the gauge before the fit
-begins and no constraint appears here. One tail is flat, the faint one, where the predicted
-flux vanishes and the likelihood tends to $\exp(-\frac12\sum f^{2}/\sigma^{2})$ --- small
-but positive. The box closes it, and inherits the $\zp$ convention rather than asserting
-anything: $\peakmag = 30$ is a predicted flux of one archive unit and $\peakmag = 5$ is
-$10^{10}$, against a sample spanning $1.5\times10^{4}$ to $7.8\times10^{5}$. It replaces
-$\mathcal{N}(m_{g}^{\mathrm{bright}}, 1)$, whose centre was read from the same photometry
-the likelihood reads and which shrank by $2.7\times10^{-4}$ to $3.5\times10^{-3}$.
-
-\paragraph{$\colr_{n}$, from \code{c\_bar} and \code{c\_dev}.} $\curve(0) = 0$ pins the
-anchor in both components, so $\colr$ \emph{is} the $g-r$ colour there and its mean is
-identified, not degenerate: the fits put it at $+0.060 \pm 0.013$ over thirty objects and
-$+0.0597 \pm 0.0032$ over a hundred. Naming $\bar c$ is therefore bookkeeping, and it is
-needed because the curve cannot absorb a mean colour --- an offset is a translation,
-\eqref{eq:cturn} expands the tangent angle, and there is no translation mode. The
-deviations are the one block in the program with no prior at all, and need none: inside the
-hyperplane some component must run to $+\infty$, which drives that object's predicted $r$
-flux up exponentially where a Gaussian-in-flux likelihood punishes it doubly exponentially.
-Walked out, the density falls through $-4.67\times10^{6}$ at $t = 3$ and
-$-2.05\times10^{12}$ at $t = 10$ to $-\infty$, and faster still on the least favourable ray
-available. Colour is the only placement direction the forward map does not clamp, and
-clamping is exactly what turns a runaway into a finite constant --- which is why this works
-here and nowhere else.
 
 \subsection{What it reports}
 
