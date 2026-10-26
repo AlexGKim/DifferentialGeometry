@@ -21,7 +21,11 @@ data {
   array[N_sn] int<lower=1> start;
   array[N_sn] int<lower=1> stop;
   vector[N_sn] z;
-  // the raw coefficients, as hier.stan's parameters block holds them
+  // the raw coefficients, as hier.stan's parameters block holds them.  In a
+  // mode-free program (hier_common.stan) there is no z_a and no z_c; pass
+  // has_mode = 0 and they are ignored, the gauge being vacuous there.  They
+  // cannot simply be passed as zeros: the gauge divides by ||at||.
+  int<lower=0, upper=1> has_mode;
   vector[Kq - 1] z_a;
   vector[Kq - 1] b_til;
   vector[Kpsi - 1] z_c;
@@ -48,10 +52,10 @@ generated quantities {
     // the gauge of hier.stan, Eq. (gauge)
     vector[Kq - 1] at = pow(kq, -(alpha_q_m + 0.5)) .* z_a;
     vector[Kpsi - 1] ct = pow(kpsi, -(alpha_psi_m + 0.5)) .* z_c;
-    vector[Kq - 1] a = at / sqrt(dot_self(at));
-    vector[Kq - 1] b = b_til - dot_product(b_til, a) * a;
-    vector[Kpsi - 1] c = ct / sqrt(quad_form(Gs, ct));
-    vector[Kpsi - 1] d = d_til - (d_til' * Gs * c) * c;
+    vector[Kq - 1] a = has_mode ? at / sqrt(dot_self(at)) : rep_vector(0.0, Kq - 1);
+    vector[Kq - 1] b = has_mode ? b_til - dot_product(b_til, a) * a : b_til;
+    vector[Kpsi - 1] c = has_mode ? ct / sqrt(quad_form(Gs, ct)) : rep_vector(0.0, Kpsi - 1);
+    vector[Kpsi - 1] d = has_mode ? d_til - (d_til' * Gs * c) * c : d_til;
     for (n in 1:N_sn) {
       int lo = start[n];
       int hi = stop[n];

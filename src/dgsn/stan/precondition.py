@@ -41,9 +41,15 @@ from dgsn.stan.run import chain_csvs, fixed_param, log_prob
 HYPER = ("alpha_q_m", "alpha_psi_m")
 
 
-def _flux(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int) -> np.ndarray:
+def _flux(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int,
+          mode: bool = True, trav: bool = True) -> np.ndarray:
     d = {k: v for k, v in data.items() if k not in ("grainsize", "R", "f", "sig_f", "m_bright", "xs_bar")}
-    d.update(unpack(raw, k_psi, k_q))
+    parts = unpack(raw, k_psi, k_q, mode, trav)
+    # jacobian.stan declares all four blocks; the absent ones are passed as
+    # zeros and ignored, has_mode telling it the gauge does not apply
+    d.update(z_a=parts.get("z_a", np.zeros(k_q - 1)), b_til=parts["b_til"],
+             z_c=parts.get("z_c", np.zeros(k_psi - 1)), d_til=parts["d_til"],
+             has_mode=int(bool(mode and trav)))
     d.update(alpha_q_m=float(hyper["alpha_q_m"]), alpha_psi_m=float(hyper["alpha_psi_m"]))
     d.update({k: np.asarray(per_sn[k], dtype=float) for k in
               ("m_peak", "colr", "x_s", "x_p", "x_psi", "delta_t")})
@@ -51,32 +57,32 @@ def _flux(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_
 
 
 def jacobian(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int,
-             h: float = 1e-3) -> tuple[np.ndarray, np.ndarray]:
+             h: float = 1e-3, mode: bool = True, trav: bool = True) -> tuple[np.ndarray, np.ndarray]:
     """``d log f_i / d raw_k`` at the given point, and the fluxes there.
 
     Central differences: ``2 n_coef + 1`` evaluations of the forward map over
     the whole epoch set, which is seconds at the sizes these fits run at."""
-    n = n_coef(k_psi, k_q)
-    base = _flux(data, raw, hyper, per_sn, k_psi, k_q)
+    n = n_coef(k_psi, k_q, mode, trav)
+    base = _flux(data, raw, hyper, per_sn, k_psi, k_q, mode, trav)
     J = np.empty((len(base), n))
     for k in range(n):
         up, dn = raw.astype(float).copy(), raw.astype(float).copy()
         up[k] += h
         dn[k] -= h
-        J[:, k] = (_flux(data, up, hyper, per_sn, k_psi, k_q)
-                   - _flux(data, dn, hyper, per_sn, k_psi, k_q)) / (2 * h)
+        J[:, k] = (_flux(data, up, hyper, per_sn, k_psi, k_q, mode, trav)
+                   - _flux(data, dn, hyper, per_sn, k_psi, k_q, mode, trav)) / (2 * h)
     return J, np.exp(base)
 
 
 def fisher(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int,
-           h: float = 1e-3) -> np.ndarray:
+           h: float = 1e-3, mode: bool = True, trav: bool = True) -> np.ndarray:
     """``J' Sigma^-1 J`` plus the prior precision, over the coefficients.
 
     The likelihood is Gaussian in flux, so with ``J`` the derivative of the
     *log* flux the weight of epoch ``i`` is ``(f_i / sigma_{f,i})^2``.  The
     variance is the archive's error alone, as the fit's now is: Eq. (like)
     carried a second, fitted term and no longer does."""
-    J, f = jacobian(data, raw, hyper, per_sn, k_psi, k_q, h)
+    J, f = jacobian(data, raw, hyper, per_sn, k_psi, k_q, h, mode, trav)
     sig_f = np.asarray(data["sig_f"], dtype=float)
     W = (f / sig_f) ** 2
     F = J.T @ (W[:, None] * J)
@@ -86,7 +92,8 @@ def fisher(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k
     kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
     wq = float(data["tau_q"]) * (kq / np.exp(np.log(kq).mean())) ** -(float(hyper["alpha_q_m"]) + 0.5)
     wp = float(data["tau_psi"]) * (kp / np.exp(np.log(kp).mean())) ** -(float(hyper["alpha_psi_m"]) + 0.5)
-    prior = pack(np.ones(k_q - 1), wq ** -2, np.ones(k_psi - 1), wp ** -2)
+    prior = (pack(np.ones(k_q - 1), wq ** -2, np.ones(k_psi - 1), wp ** -2)
+             if mode and trav else pack(wq ** -2, wp ** -2))
     return F + np.diag(prior)
 
 
@@ -121,15 +128,23 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
                        if "delta_t" in point
                        else float(point["mu_delta"])
                             + np.asarray(point["d_dev"], dtype=float))}
-    # x_s and colr are transformed parameters in a finished run's output, but
-    # have to be assembled from their pieces in an inits dict
-    per["x_s"] = (np.asarray(point["x_s"], dtype=float) if "x_s" in point
+    # x_s_tot and colr are transformed parameters in a finished run's output and
+    # have to be assembled from their pieces in an inits dict.  For x_s it is
+    # the total that reaches the forward map, x_s + b_0 P_0, not the sampled
+    # deviation: taking the deviation would evaluate the Fisher information at
+    # a point the model never visits, off by the whole mean log rate.
+    per["x_s"] = (np.asarray(point["x_s_tot"], dtype=float) if "x_s_tot" in point
                   else np.asarray(point["x_s"], dtype=float)
                        + float(point["b_0"]) / np.sqrt(_v_span()))
     per["colr"] = (np.asarray(point["colr"], dtype=float) if "colr" in point
                    else float(point["c_bar"]) + np.asarray(point["c_dev"], dtype=float))
-    per["x_p"] = float(point["mu_p"]) + np.asarray(point["u_p"], dtype=float)
-    per["x_psi"] = float(point["mu_psi"]) + np.asarray(point["u_psi"], dtype=float)
+    # The departure amplitudes exist only where the modes do.  hier_common has
+    # neither, and passes literal zeros to the forward map in their place.
+    nsn = len(per["m_peak"])
+    per["x_p"] = (float(point["mu_p"]) + np.asarray(point["u_p"], dtype=float)
+                  if "mu_p" in point else np.zeros(nsn))
+    per["x_psi"] = (float(point["mu_psi"]) + np.asarray(point["u_psi"], dtype=float)
+                    if "mu_psi" in point else np.zeros(nsn))
     return raw, hyper, per
 
 
@@ -347,4 +362,7 @@ def from_run(out_dir, data: dict, k_psi: int, k_q: int, per_sn: dict | None = No
         lp = log_prob("hier", data, point)[0]
         print(f"carried across the gauge span: lambda {lam:.4f}, mu {mu:+.4f}; "
               f"lp at the carried point {lp:.1f} ({-2 * lp / int(data['N']):.2f} per epoch)")
-    return rotation(fisher(data, raw, hyper, src_per, k_psi, k_q))
+    # the layout follows the data: a mode-free run carries two coefficient
+    # blocks where hier.stan carries four
+    mode = trav = (len(raw) == n_coef(k_psi, k_q))
+    return rotation(fisher(data, raw, hyper, src_per, k_psi, k_q, mode=mode, trav=trav))
