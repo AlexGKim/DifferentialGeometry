@@ -88,6 +88,8 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
         w = tau * (kk / np.exp(np.log(kk).mean())) ** -2.0
         extra += float(np.sum(-np.log(w) - 0.5 * (ini[k] / w) ** 2))
     extra += -(ini["alpha_q_m"] + ini["alpha_psi_m"])
+    # the half-normal tail bound on Eq. (ccoef)'s scales
+    extra += -0.5 * sum((float(ini[k]) / 10.0) ** 2 for k in ("tau_q", "tau_psi"))
     extra += -0.5 * sum(float(np.sum(np.square(ini[k]))) for k in ("u_p", "u_psi"))
     # Nothing else contributes.  b_0, mu_delta, c_bar and m_peak are flat on
     # their boxes; c_dev has no prior at all; and the uniform walls on x_s and

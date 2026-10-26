@@ -56,13 +56,25 @@ transformed data {
 }
 parameters {
   vector[2 * (Kq - 1) + (Kpsi - 1)] w_coef;
-  // Eq. (ccoef)'s scales, sampled.  Holding them as data instead was
-  // tried (runs/stage3-common-fixtau) and is recorded in data.py: it
-  // raised the efficiency of ||d|| ninefold, from ESS 18 to 71, and it
-  // tightened the stepsize spread to 1.7x, but it also stiffened the
-  // scale direction -- Rhat on ||d|| went 1.004 -> 1.273 and kappa0 to
-  // 7.8 -- because with tau held, departures from the fixed scale cost
-  // prior density quadratically where before tau could move with them.
+  // Eq. (ccoef)'s scales, sampled under a half-normal that acts as a tail
+  // bound and nothing more.  Three treatments have now been tried.  Flat on
+  // (0, inf) leaves nothing to bound tau's excursions and gives the ridge
+  // this posterior's worst direction: corr(log tau_psi, log||d||) = +0.82,
+  // ESS 18 for ||d|| over 1500 draws.  Holding tau as data
+  // (runs/stage3-common-fixtau) raised that to 71 and tightened the stepsize
+  // spread to 1.7x, but stiffened the scale -- Rhat on ||d|| 1.004 -> 1.273,
+  // kappa0 7.8 -- because departures from a held scale cost prior density
+  // quadratically where before tau could move with them.  The half-normal is
+  // the interpolation: tau still breathes with ||d||, but its excursions are
+  // curved rather than free.
+  //
+  // The scale is 10 for both, which is a tail bound and not a fit to the
+  // observed amplitudes.  tau_q sits at 0.81 and tau_psi at 2.24, so the
+  // prior's gradient is of order tau/100 against a likelihood term of order
+  // (K-1)/tau ~ 10 -- a few parts in a thousand, so it does not shape either
+  // in the bulk.  Setting it anywhere near the observed values would, and
+  // would also put either a template or the data's own answer inside the
+  // prior, which Section 5 removed for x_s and m_peak respectively.
   real<lower=0> tau_q;
   real<lower=0> tau_psi;
   real<lower=0> alpha_q_m;         // alpha - 1/2, Eq. (coefprior)
@@ -159,6 +171,8 @@ model {
   z_a ~ std_normal();
   b_til ~ normal(0, tau_q * pow(kq / kbar_q, -(alpha_q_m + 0.5)));
   d_til ~ normal(0, tau_psi * pow(kpsi / kbar_psi, -(alpha_psi_m + 0.5)));
+  tau_q ~ normal(0, 10);           // half-normal: tau is <lower=0>
+  tau_psi ~ normal(0, 10);
   alpha_q_m ~ exponential(1);      // Section 5: alpha - 1/2 ~ Exp(1)
   alpha_psi_m ~ exponential(1);
   u_p ~ std_normal();              // x_p ~ N(mu_p, 1)
