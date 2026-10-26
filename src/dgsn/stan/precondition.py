@@ -37,8 +37,7 @@ import numpy as np
 from dgsn.stan.hier_data import _v_span, n_coef, pack, unpack
 from dgsn.stan.run import chain_csvs, fixed_param, log_prob
 
-# tau_q and tau_psi are ``data`` now, so they are read from the data dict
-HYPER = ("alpha_q_m", "alpha_psi_m")
+HYPER = ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi")
 
 
 def _flux(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int,
@@ -90,8 +89,12 @@ def fisher(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k
     # prior precision: std_normal on z_a, z_c; Eq. (coefprior) at the pivot on
     # b_til, d_til, which is the only part of the prior that is not unit
     kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
-    wq = float(data["tau_q"]) * (kq / np.exp(np.log(kq).mean())) ** -(float(hyper["alpha_q_m"]) + 0.5)
-    wp = float(data["tau_psi"]) * (kp / np.exp(np.log(kp).mean())) ** -(float(hyper["alpha_psi_m"]) + 0.5)
+    # sampled in the hierarchies, but a program that holds them as data puts
+    # them in the data dict instead; take whichever is there
+    tq = float(hyper["tau_q"]) if "tau_q" in hyper else float(data["tau_q"])
+    tp = float(hyper["tau_psi"]) if "tau_psi" in hyper else float(data["tau_psi"])
+    wq = tq * (kq / np.exp(np.log(kq).mean())) ** -(float(hyper["alpha_q_m"]) + 0.5)
+    wp = tp * (kp / np.exp(np.log(kp).mean())) ** -(float(hyper["alpha_psi_m"]) + 0.5)
     prior = (pack(np.ones(k_q - 1), wq ** -2, np.ones(k_psi - 1), wp ** -2)
              if mode and trav else pack(wq ** -2, wp ** -2))
     return F + np.diag(prior)
@@ -122,7 +125,7 @@ def pieces(point: dict, k_psi: int, k_q: int, R_src=None) -> tuple[np.ndarray, d
     else:
         w = np.atleast_1d(np.asarray(point["w_coef"], dtype=float))
         raw = w if R_src is None else np.asarray(R_src, dtype=float) @ w
-    hyper = {k: float(point[k]) for k in HYPER}
+    hyper = {k: float(point[k]) for k in HYPER if k in point}
     per = {"m_peak": np.asarray(point["m_peak"], dtype=float),
            "delta_t": (np.asarray(point["delta_t"], dtype=float)
                        if "delta_t" in point

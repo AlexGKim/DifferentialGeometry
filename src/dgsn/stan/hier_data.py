@@ -55,8 +55,6 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), grainsize=int(grainsize),
         R=np.eye(n_coef(k_psi, k_q, mode, trav)) if R is None else np.asarray(R, dtype=float),
-        # Eq. (ccoef)'s scales are data now, not sampled; see data.py
-        tau_q=float(D.TAU_Q), tau_psi=float(D.TAU_PSI),
     )
     return data
 
@@ -97,11 +95,13 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
     sample = analysis_sample() if sample is None else sample
     G = globals_ if globals_ is not None else fit_globals(k_psi, k_q, x1_ref)
     kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
-    # the pivot of hier.stan: the scale is read at the geometric-mean mode.  It
-    # is data now, so ``tau`` no longer starts anything; the weights below are
-    # still needed to put a and c on unit scale for the non-centred blocks.
+    # the pivot of hier.stan: tau is the scale at the geometric-mean mode
     wq = (kq / np.exp(np.log(kq).mean())) ** -INIT_ALPHA
     wp = (kp / np.exp(np.log(kp).mean())) ** -INIT_ALPHA
+    if tau is None:
+        # the measured scales of D.TAU_Q, D.TAU_PSI; starting there costs the
+        # chain nothing and is where a fit at this K has been seen to land
+        tau = dict(q=float(D.TAU_Q), psi=float(D.TAU_PSI))
     per = [per_sn_start(sample.loc[n]) for n in names]
     colr0 = np.array([q["colr"] for q in per])
     if not trav:
@@ -114,6 +114,7 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         # w = R^-1 raw, so that the start is the same point whatever rotation
         # is in force
         w_coef=raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw),
+        tau_q=tau["q"], tau_psi=tau["psi"],
         alpha_q_m=INIT_ALPHA - 0.5, alpha_psi_m=INIT_ALPHA - 0.5,
         m_peak=np.array([p["m_peak"] for p in per]),
         # the anchor colour as a named mean and deviations about it; the
@@ -188,7 +189,7 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     m = optimize(program, data, start, jacobian=False, polish=polish)
     # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
     # transformed parameter, but an inits dict has to name what is sampled.
-    keys = ["w_coef", "alpha_q_m", "alpha_psi_m",
+    keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
             "b_0", "x_s", "c_bar", "c_dev", "mu_delta", "d_dev", "m_peak"]
     if mode:
         keys += ["mu_psi", "u_psi"]

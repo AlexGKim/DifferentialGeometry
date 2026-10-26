@@ -83,7 +83,7 @@ def test_hier_matches_single_sn_on_one_object(sample, names, G):
     parts = unpack(raw, K_PSI, K_Q)
     ini = dict(ini, **parts)
     extra = -0.5 * sum(float(np.sum(np.square(ini[k]))) for k in ("z_a", "z_c"))
-    for k, tau, K in (("b_til", D.TAU_Q, K_Q), ("d_til", D.TAU_PSI, K_PSI)):
+    for k, tau, K in (("b_til", ini["tau_q"], K_Q), ("d_til", ini["tau_psi"], K_PSI)):
         kk = np.arange(1, K)
         w = tau * (kk / np.exp(np.log(kk).mean())) ** -2.0
         extra += float(np.sum(-np.log(w) - 0.5 * (ini[k] / w) ** 2))

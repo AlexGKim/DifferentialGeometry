@@ -34,23 +34,6 @@ data {
   array[N_sn] int<lower=1> stop;
   vector[N_sn] z;
   int<lower=1> grainsize;
-  // Eq. (ccoef)'s scales, held as data rather than sampled.  Sampling them
-  // put the worst-conditioned direction in the posterior: tau_psi and the
-  // overall scale of d_til are locked at corr(log tau, log||d||) = +0.82,
-  // and over three chains of 500 draws that direction reached ESS 17 for
-  // ||d|| and 30 for tau_psi, against 66 and 579 for the q pair.  Every
-  // coefficient has to move with tau, so the sampler traverses one thin
-  // ridge in 24 dimensions.  alpha stays sampled: it is not in the ridge
-  // (corr with log tau_psi is +0.13) and mixes freely at ESS 927.
-  //
-  // The values are measured, not assumed, and they are K-specific: the
-  // posterior of runs/stage3-common-split at (K_psi, K_q) = (24, 16) gave
-  // tau_q 0.809 +- 0.201 and tau_psi 2.237 +- 0.569.  A sweep over K has to
-  // re-measure them.  What is given up is the 25 percent spread in each,
-  // which no longer propagates into the coefficients, so their posterior
-  // here is slightly too narrow.
-  real<lower=0> tau_q;
-  real<lower=0> tau_psi;
   // Over the shorter block: b_til and d_til alone, no z_a and no z_c.
   matrix[(Kq - 1) + (Kpsi - 1), (Kq - 1) + (Kpsi - 1)] R;
 }
@@ -75,6 +58,15 @@ transformed data {
 }
 parameters {
   vector[(Kq - 1) + (Kpsi - 1)] w_coef;
+  // Eq. (ccoef)'s scales, sampled.  Holding them as data instead was
+  // tried (runs/stage3-common-fixtau) and is recorded in data.py: it
+  // raised the efficiency of ||d|| ninefold, from ESS 18 to 71, and it
+  // tightened the stepsize spread to 1.7x, but it also stiffened the
+  // scale direction -- Rhat on ||d|| went 1.004 -> 1.273 and kappa0 to
+  // 7.8 -- because with tau held, departures from the fixed scale cost
+  // prior density quadratically where before tau could move with them.
+  real<lower=0> tau_q;
+  real<lower=0> tau_psi;
   real<lower=0> alpha_q_m;         // alpha - 1/2, Eq. (coefprior)
   real<lower=0> alpha_psi_m;
   // Eq. (xsmean)'s device, applied to every placement parameter whose
