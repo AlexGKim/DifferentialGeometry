@@ -110,8 +110,14 @@ def corner(d: pd.DataFrame, path: Path) -> None:
 
 
 def evaluate(grid: dict, draw: pd.Series, idx: int, z: float, k_psi: int, k_q: int,
-             p_eval: np.ndarray, s_eval: np.ndarray) -> dict:
+             p_eval: np.ndarray, s_eval: np.ndarray,
+             dt_obs: np.ndarray | None = None,
+             band_obs: np.ndarray | None = None) -> dict:
     """One draw's curve and light curve, from forward.stan.
+
+    ``dt_obs``/``band_obs`` add the observed epochs to the same call, so that
+    ``f_obs`` is the model at the data in one forward evaluation rather than
+    an interpolation off the plotting grid.
 
     ``idx`` is the supernova's 1-based position in the fit.  The sign-relabeled
     amplitudes are used where the fit provides them, so that chains in opposite
@@ -119,25 +125,35 @@ def evaluate(grid: dict, draw: pd.Series, idx: int, z: float, k_psi: int, k_q: i
     def vec(name, n):
         return np.array([draw[f"{name}.{i}"] for i in range(1, n)])
 
-    a = vec("a_rel" if "a_rel.1" in draw else "a", k_q)
-    c = vec("c_rel" if "c_rel.1" in draw else "c", k_psi)
-    x_p = draw.get(f"x_p_rel.{idx}", draw.get(f"x_p.{idx}"))
-    x_psi = draw.get(f"x_psi_rel.{idx}", draw.get(f"x_psi.{idx}"))
+    # The mode-free ladder (--no-trav-mode) has no a, c, x_p or x_psi at all:
+    # forward.stan still wants them, and zeros reproduce what hier_common
+    # evaluates, which passes a_zero, c_zero and 0, 0 into log_flux.
+    has_mode = "a.1" in draw or "a_rel.1" in draw
+    a = vec("a_rel" if "a_rel.1" in draw else "a", k_q) if has_mode else np.zeros(k_q - 1)
+    c = vec("c_rel" if "c_rel.1" in draw else "c", k_psi) if has_mode else np.zeros(k_psi - 1)
+    x_p = draw.get(f"x_p_rel.{idx}", draw.get(f"x_p.{idx}", 0.0)) if has_mode else 0.0
+    x_psi = draw.get(f"x_psi_rel.{idx}", draw.get(f"x_psi.{idx}", 0.0)) if has_mode else 0.0
     # magnitudes at rest-frame phase p are asked for as dt = p (1 + z) + delta_t,
     # the model carrying dt back to p by Eq. (modeltime)
     dt = np.concatenate([p_eval * (1 + z) + draw[f"delta_t.{idx}"]] * 2)
     band = np.concatenate([np.ones(len(p_eval), int), 2 * np.ones(len(p_eval), int)])
+    if dt_obs is not None:
+        dt = np.concatenate([dt, np.asarray(dt_obs, float)])
+        band = np.concatenate([band, np.asarray(band_obs, int)])
     data = dict(grid)
     data.update(a=a, b=vec("b", k_q), c=c, d=vec("d", k_psi),
                 m_peak=float(draw[f"m_peak.{idx}"]), colr=float(draw[f"colr.{idx}"]),
-                x_s=float(draw[f"x_s.{idx}"]), x_p=float(x_p), x_psi=float(x_psi),
+                x_s=float(draw.get(f"x_s_tot.{idx}", draw.get(f"x_s.{idx}"))),
+                x_p=float(x_p), x_psi=float(x_psi),
                 delta_t=float(draw[f"delta_t.{idx}"]), z=float(z),
                 Np=len(p_eval), p_eval=p_eval, Ns=len(s_eval), s_eval=s_eval,
                 N=len(dt), band=band, dt=dt)
     out = fixed_param("forward", data)
     f = out["f_hat"]
-    return dict(gamma=out["gamma"], s_of_p=out["s_of_p"], f_g=f[:len(p_eval)],
-                f_r=f[len(p_eval):], m_peak=float(draw[f"m_peak.{idx}"]),
+    return dict(gamma=out["gamma"], s_of_p=out["s_of_p"], psi=out["psi"], f_g=f[:len(p_eval)],
+                f_r=f[len(p_eval):2 * len(p_eval)],
+                f_obs=f[2 * len(p_eval):] if dt_obs is not None else None,
+                m_peak=float(draw[f"m_peak.{idx}"]),
                 colr=float(draw[f"colr.{idx}"]))
 
 
