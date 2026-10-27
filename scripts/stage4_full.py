@@ -79,7 +79,23 @@ def main():
     ap.add_argument("--precondition-from", default=None, metavar="DIR",
                     help="rotate the coefficients by the Fisher information at the posterior "
                          "mean of the run in DIR; built at a start instead it makes things worse")
+    ap.add_argument("--no-mode", action="store_true",
+                    help="hier_nomode.stan: Eq. (curvlin) without x_psi Psi_1, so one "
+                         "shared curve and no turning mode")
+    ap.add_argument("--no-trav-mode", action="store_true",
+                    help="hier_common.stan: also without x_p q_1, so one shared rate "
+                         "profile as well; implies --no-mode, that being the only "
+                         "program built for the combination")
     args = ap.parse_args()
+
+    # The same three nested hierarchies stage 3 chooses between.  Until
+    # 2026-10-27 this program ran "hier" unconditionally, so a stage-4 run
+    # could not be the model a stage-3 run had been testing.
+    if args.no_trav_mode:
+        args.no_mode = True           # hier_common drops both departure modes
+    prog = ("hier_common" if args.no_trav_mode
+            else "hier_nomode" if args.no_mode else "hier")
+    mode, trav = not args.no_mode, not args.no_trav_mode
 
     sample = analysis_sample()
     train, _ = training_split()
@@ -89,8 +105,9 @@ def main():
     # grainsize: one slice per thread per chain, so reduce_sum splits the
     # sample rather than handing one worker everything
     grain = max(1, len(names) // max(1, args.threads))
-    data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample)
-    print(f"{len(names)} objects, {data['N']} epochs, K = ({args.k_psi}, {args.k_q}), "
+    data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample,
+                 mode=mode, trav=trav)
+    print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({args.k_psi}, {args.k_q}), "
           f"grainsize {grain}, x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
 
     if args.report:
@@ -101,7 +118,8 @@ def main():
 
     x1_ref = median_x1()
     G = fit_globals(args.k_psi, args.k_q, x1_ref)
-    ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G)
+    ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G,
+                mode=mode, trav=trav)
 
     R = None
     if args.precondition_from:
@@ -114,15 +132,17 @@ def main():
         from dgsn.stan.precondition import pieces
         per = pieces(ini, args.k_psi, args.k_q)[2]
         R = from_run(args.precondition_from, data, args.k_psi, args.k_q, per_sn=per)
-        data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample, R=R)
-        ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G, R=R)
+        data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample, R=R,
+                     mode=mode, trav=trav)
+        ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G, R=R,
+                    mode=mode, trav=trav)
         print(f"preconditioned from {args.precondition_from} "
               f"({source_size(args.precondition_from)} objects -> {len(names)}), "
               f"rotation condition {np.linalg.cond(R):.1e}")
 
-    lp0, worst = gradient_check(data, ini)
+    lp0, worst = gradient_check(data, ini, name=prog)
     print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")
-    full, nodes = cost(data, ini)
+    full, nodes = cost(data, ini, name=prog)
     per_grad = full - 0.03                      # process launch, ~30 ms
     leap = 2 ** args.max_treedepth - 1
     # Threading buys far less than its thread count once four chains contend for
@@ -139,7 +159,7 @@ def main():
         return
 
     t = time.time()
-    res = sample_four("hier", data, ini, out, seed=1, threads_per_chain=args.threads,
+    res = sample_four(prog, data, ini, out, seed=1, threads_per_chain=args.threads,
                       iter_warmup=args.iter, iter_sampling=args.iter,
                       max_treedepth=args.max_treedepth,
                       metric="dense_e" if args.dense else None,
@@ -149,7 +169,9 @@ def main():
         print(f"progress: grep -h Iteration {out}/chain-*.log | tail -4")
         print(f"when done: python scripts/stage4_full.py --report --out {out}"
               + (f" --n-sn {args.n_sn}" if args.n_sn else "")
-              + f" --k-psi {args.k_psi} --k-q {args.k_q}")
+              + f" --k-psi {args.k_psi} --k-q {args.k_q}"
+              + (" --no-trav-mode" if args.no_trav_mode else
+                 " --no-mode" if args.no_mode else ""))
         return
     print(f"\nfour chains in {time.time() - t:.0f} s wall")
     report(res, names, sample, data)

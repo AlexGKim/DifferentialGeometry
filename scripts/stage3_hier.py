@@ -118,24 +118,34 @@ def report(fit, names, sample, data):
             print(f"{v}: R_hat max {rows.R_hat.max():.3f}, ESS_bulk min {rows.ESS_bulk.min():.0f}")
     d = fit.draws_pd()
     chains = sorted(d.chain__.unique())
-    branch = f"flip_q {[int(d[d.chain__ == c].flip_q.mean().round()) for c in chains]}"
-    switch = int((d.groupby('chain__').flip_q.nunique() > 1).sum())
-    if "flip_psi" in d.columns:
-        branch += f", flip_psi {[int(d[d.chain__ == c].flip_psi.mean().round()) for c in chains]}"
-        switch += int((d.groupby('chain__').flip_psi.nunique() > 1).sum())
-    print(f"\nsign branches per chain: {branch}; draws switching within a chain: {switch}")
+    # hier_common.stan has neither sign branch: both went with their modes, so
+    # every quantity is already in one branch.  flip_psi was guarded here and
+    # flip_q was not, which crashed every --no-trav-mode report after the
+    # chains had finished.
+    if "flip_q" in d.columns:
+        branch = f"flip_q {[int(d[d.chain__ == c].flip_q.mean().round()) for c in chains]}"
+        switch = int((d.groupby('chain__').flip_q.nunique() > 1).sum())
+        if "flip_psi" in d.columns:
+            branch += f", flip_psi {[int(d[d.chain__ == c].flip_psi.mean().round()) for c in chains]}"
+            switch += int((d.groupby('chain__').flip_psi.nunique() > 1).sum())
+        print(f"\nsign branches per chain: {branch}; draws switching within a chain: {switch}")
     print(f"frac_tapered mean {d.frac_tapered.mean():.2e} max {d.frac_tapered.max():.2e}; frac_clamped mean {d.frac_clamped.mean():.2e} max {d.frac_clamped.max():.2e}")
     print(f"seconds per gradient (upper bound): {seconds_per_gradient(fit):.2e}; treedepth median {d.treedepth__.median():.0f}, leapfrogs/draw median {d.n_leapfrog__.median():.0f}")
     # per-SN: x_psi width vs prior, timing-block correlations, interval check
-    xs = fit.stan_variable("x_s"); xp = fit.stan_variable("x_p_rel"); dl = fit.stan_variable("delta_t")
+    xs = fit.stan_variable("x_s_tot" if "x_s_tot[1]" in summ.index else "x_s")
+    dl = fit.stan_variable("delta_t")
+    has_trav = "x_p_rel[1]" in summ.index
+    xp = fit.stan_variable("x_p_rel") if has_trav else np.zeros_like(dl)
     has_mode = "x_psi_rel[1]" in summ.index
-    xpsi = fit.stan_variable("x_psi_rel") if has_mode else np.zeros_like(xp)
+    xpsi = fit.stan_variable("x_psi_rel") if has_mode else np.zeros_like(dl)
     corr = lambda u, v: np.array([np.corrcoef(u[:, i], v[:, i])[0, 1] for i in range(u.shape[1])])
     print(f"\nper-SN posterior sd of"
           + (f" x_psi: median {np.median(xpsi.std(0)):.2f} (prior 1);" if has_mode else "")
-          + f" x_p {np.median(xp.std(0)):.2f}; delta_t {np.median(dl.std(0)):.2f} d")
-    print(f"per-SN correlations, median over objects: x_s-x_p {np.median(corr(xs, xp)):+.2f}, "
-          f"x_p-delta {np.median(corr(xp, dl)):+.2f}, x_s-delta {np.median(corr(xs, dl)):+.2f}"
+          + (f" x_p {np.median(xp.std(0)):.2f};" if has_trav else "")
+          + f" x_s {np.median(xs.std(0)):.3f}; delta_t {np.median(dl.std(0)):.2f} d")
+    print(f"per-SN correlations, median over objects: x_s-delta {np.median(corr(xs, dl)):+.2f}"
+          + (f", x_s-x_p {np.median(corr(xs, xp)):+.2f}, x_p-delta {np.median(corr(xp, dl)):+.2f}"
+             if has_trav else "")
           + (f", x_psi-delta {np.median(corr(xpsi, dl)):+.2f}" if has_mode else ""))
     smin, smax = fit.stan_variable("s_pmin").mean(0), fit.stan_variable("s_pmax").mean(0)
     print(f"s(-15 d) range over objects [{smin.min():.2f}, {smin.max():.2f}], s(+40 d) [{smax.min():.2f}, {smax.max():.2f}] against {D.ARC_RANGE}")
