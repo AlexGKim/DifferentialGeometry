@@ -340,12 +340,16 @@ def from_run(out_dir, data: dict, k_psi: int, k_q: int, per_sn: dict | None = No
              verbose: bool = True) -> np.ndarray:
     """``R`` built at the posterior mean of the run in ``out_dir``.
 
-    A rotation may be reused across sample sizes: the coefficients it turns
-    are the same 36 however many supernovae there are, and the Fisher
-    information over them grows close to proportionally with the sample, a
-    uniform scaling that Stan's diagonal metric absorbs by itself.  What
-    might not carry is the *shape*, more objects constraining different
-    combinations, and that is a question for measurement.
+    The coefficients it turns are the same however many supernovae there are,
+    and the Fisher information over them grows close to proportionally with
+    the sample, a uniform scaling that Stan's diagonal metric absorbs by
+    itself.  That is the argument for reuse across sample sizes, not a
+    measurement of it: ``runs/TRANSFER-VERDICT.txt`` has the rotation built
+    where the model fits the data, per-supernova parameters included, so it
+    is not a portable artifact, and whether its *shape* survives a change of
+    sample size --- more objects constraining different combinations --- was
+    still open when this was written.  Across a change of ``K_psi`` or
+    ``K_q`` there is no reuse at all; the guard below says why.
 
     A change of gauge span is carried by ``carry``.  A change of sample is
     not: the source knows nothing of the objects it never saw, so ``per_sn``
@@ -365,7 +369,22 @@ def from_run(out_dir, data: dict, k_psi: int, k_q: int, per_sn: dict | None = No
         lp = log_prob("hier", data, point)[0]
         print(f"carried across the gauge span: lambda {lam:.4f}, mu {mu:+.4f}; "
               f"lp at the carried point {lp:.1f} ({-2 * lp / int(data['N']):.2f} per epoch)")
-    # the layout follows the data: a mode-free run carries two coefficient
-    # blocks where hier.stan carries four
-    mode = trav = (len(raw) == n_coef(k_psi, k_q))
+    # The layout follows the data: hier.stan carries four coefficient blocks,
+    # hier_nomode three, hier_common two.  Which one is read off the length,
+    # and a length belonging to none of them is an error rather than a guess.
+    # unpack slices a prefix, so a source at a larger K used to be accepted
+    # silently: a (24, 16) source read at (12, 8) put b_til[7:15] where d_til
+    # belongs, filling the turning coefficients from the rate ones, and the
+    # run then printed a plausible condition number and passed the gradient
+    # check, which tests Stan's gradient against its own log density and not
+    # the rotation's provenance.
+    layouts = {n_coef(k_psi, k_q, m, t): (m, t)
+               for m, t in ((True, True), (False, True), (False, False))}
+    if len(raw) not in layouts:
+        raise ValueError(
+            f"{out_dir} carries {len(raw)} coefficients and this fit wants "
+            f"{sorted(layouts)} at K = ({k_psi}, {k_q}); a rotation cannot be "
+            "carried across a change of K_psi or K_q, so build the source at "
+            "this fit's K or run the fit at the source's")
+    mode, trav = layouts[len(raw)]
     return rotation(fisher(data, raw, hyper, src_per, k_psi, k_q, mode=mode, trav=trav))
