@@ -32,7 +32,9 @@ def _v_span() -> float:
 
 
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
-          sample=None, R=None, mode: bool = True, trav: bool = True) -> dict:
+          sample=None, R=None, mode: bool = True, trav: bool = True,
+          prior_shape: int = 0, sigma_q=None, sigma_psi=None, alpha_q=None,
+          alpha_psi=None, nu_coef: float = 1.0) -> dict:
     """The data block of ``hier.stan`` for the objects ``names``.
 
     ``mode=False`` is for ``hier_nomode.stan``, where Eq. (curvlin) carries no
@@ -55,6 +57,19 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), grainsize=int(grainsize),
         R=np.eye(n_coef(k_psi, k_q, mode, trav)) if R is None else np.asarray(R, dtype=float),
+    )
+    # Eq. (coefprior)'s treatment, read only by stan/hier_common_scale.stan.
+    # The other programs sample the scales unconditionally and ignore these;
+    # CmdStan reads the names a program declares and leaves the rest, so one
+    # data dict serves every program and the arms of a ladder cannot drift
+    # apart through their data.
+    data.update(
+        prior_shape=int(prior_shape),
+        sigma_q_fix=float(D.TAU_Q if sigma_q is None else sigma_q),
+        sigma_psi_fix=float(D.TAU_PSI if sigma_psi is None else sigma_psi),
+        alpha_q_fix=float(D.ALPHA_Q if alpha_q is None else alpha_q),
+        alpha_psi_fix=float(D.ALPHA_PSI if alpha_psi is None else alpha_psi),
+        nu_coef=float(nu_coef),
     )
     return data
 

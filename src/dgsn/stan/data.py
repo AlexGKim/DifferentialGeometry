@@ -62,6 +62,14 @@ XS_BAR = -3.0
 # tau_psi 2.237 +- 0.569.  They are K-specific and a sweep must re-measure them.
 TAU_Q = 0.809
 TAU_PSI = 2.237
+# The decay exponents of the same equation, from the same posterior, for the
+# arms of scripts/scale_ladder.py that hold them: alpha_q 0.816 +- 0.228,
+# alpha_psi 0.633 +- 0.122.  These are alpha itself, not alpha - 1/2.  Like
+# the taus they are K-specific, and tau_psi is the one of the four the
+# reference run did not resolve -- Rhat 1.193, ESS 17 of 1620 draws -- so a
+# held tau_psi is held at a value with a 27% standard error on it.
+ALPHA_Q = 0.816
+ALPHA_PSI = 0.633
 K_PSI = 24                   # turning order, Section 2.3
 K_Q = 16                     # traversal order at stage 2, remeasured in v by scripts/salt_orders.py
 

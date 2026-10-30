@@ -37,7 +37,8 @@ def chain_csvs(out_dir) -> list[Path]:
     return got
 
 
-THREADED = {"hier", "hier_nomode", "hier_common"}   # compiled with STAN_THREADS, for reduce_sum
+THREADED = {"hier", "hier_nomode", "hier_common", "hier_common_scale"}
+# compiled with STAN_THREADS, for reduce_sum
 
 
 def _cpp_options(name: str) -> dict | None:
