@@ -542,40 +542,51 @@ dropping an epoch that makes one would leave the objective discontinuous. Each b
 therefore softened rather than enforced. Taking the phase window first, whose bounds are
 fixed and the same for every supernova: with
 $w_{i} = [\phase_{i} - \phase_{\min}]/[\phase_{\max} - \phase_{\min}]$,
-$\mathrm{sp}(x) = \epsilon\log(1 + e^{x/\epsilon})$ and $\epsilon = 0.01$, one percent of
-that range, the phase is soft-clamped and the flux tapered,
+$\mathrm{sp}(x) = \epsilon\log(1 + e^{x/\epsilon})$ and $\epsilon = 10^{-3}$, one part in a
+thousand of that range, the phase is soft-clamped and the epoch's weight tapered,
 \begin{equation}
   \hat\phase_{i} = \phase_{\min} + (\phase_{\max} - \phase_{\min})
     \bigl[\mathrm{sp}(w_{i}) - \mathrm{sp}(w_{i}-1)\bigr] ,
   \qquad
-  \hat f_{i} \;\longmapsto\; \hat f_{i}\,
+  \mathcal{T}_{i} =
     \exp\!\bigl[-\bigl(\mathrm{sp}_{t}(-w_{i}) + \mathrm{sp}_{t}(w_{i}-1)\bigr)^{2}
       /\epsilon_{t}^{2}\bigr] ,
   \label{eq:soft}
 \end{equation}
 with $\mathrm{sp}_{t}$ the same softplus at width $\epsilon_{t}/10$ and
-$\epsilon_{t} = 0.02$, one fiftieth of the range. Both are $C^{\infty}$ in $\allpars$ and
-send the predicted flux to zero outside. The taper wants a turn-off scale distinct from its
-softplus width, which is why $\epsilon_{t}$ appears: the suppression at the edge is half a
-percent, indistinguishable from unity a day
-inside, and the flux is down by $e^{-1}$ at $\epsilon_{t}$ outside the window and gone at
-$2\epsilon_{t}$. The clamp needs no second scale; it agrees with the model to exponential
-accuracy inside and moves an epoch at the edge itself inward by $\epsilon\ln 2$ of the
-range. Neither is honest at the edge of the data. At $-15$ and $+40$~d a supernova is
-bright, so predicting no light there, or the light of a fraction of a day inside, is wrong,
-and the cost falls on $\tmax$ alone, which is then held to wherever the archive's $t_{0}$
-placed the data window. That is why the modelling window of Section~\ref{sec:traversal}
-exceeds the data window by five days at each end: the taper and the clamp then act only on
-draws that have carried $\tmax$ five days from where the data put it, which are already
-wrong, and never on an epoch the data window admits. Both then stand in for what they
-replace:
-$\hat\phase_{i}$ for $\phase_{i}$ in \eqref{eq:predflux}, so that the modeling functions are
-never evaluated outside the interval they are defined on, which is the point of clamping
-rather than dropping; and the tapered $\hat f_{i}$ for the untapered one in
-\eqref{eq:like}, in the variance as well as in the residual. An epoch carried out of
-range then contributes $f_{i}^{2}/\sigma_{f,i}^{2}$, its scatter term having gone with the
-flux: free if it was consistent with zero,
-expensive if it was a detection, which is the pushback wanted.
+$\epsilon_{t} = 0.02$, one fiftieth of the range. Both are $C^{\infty}$ in $\allpars$.
+$\mathcal{T}_{i}$ multiplies that epoch's term in \eqref{eq:like} and leaves
+$\hat f_{i}$ alone: outside the window an epoch is deweighted, never assigned a different
+expected value. The taper wants a turn-off scale distinct from its softplus width, which is
+why $\epsilon_{t}$ appears: the suppression at the edge is half a percent,
+indistinguishable from unity a day inside, and the weight is down by $e^{-1}$ at
+$\epsilon_{t}$ outside the window and gone at $2\epsilon_{t}$ --- a turn-off of $1.3$~d on
+the $65$~d window.
+
+Weighting and tapering the flux are not interchangeable, and the distinction is the reason
+for the form above. Driving $\hat f_{i}$ to zero does not reduce an epoch's influence; it
+makes the residual the whole measured flux, so the epoch contributes
+$f_{i}^{2}/\sigma_{f,i}^{2}$ --- a penalty, independent of every parameter and carrying no
+gradient --- and in the partial-taper zone it asks the model to predict a fraction of the
+true flux, which the placement parameters absorb. Deweighting lets the epoch stop
+contributing instead, and what it gives up, the pushback holding $\tmax$ near where the
+data lie, is supplied by $\Delta$'s own bound, which binds two days earlier.
+
+The clamp's job is different and is still needed: $\hat\phase_{i}$ stands in for
+$\phase_{i}$ in \eqref{eq:predflux} so that the modeling functions are never evaluated
+outside the interval they are defined on, which is the point of clamping rather than
+dropping. But a clamp moves the point the prediction is evaluated at, and
+$\mathrm{sp}(w) - \mathrm{sp}(w-1)$ is symmetric about the edge, so it is half engaged
+there. At the $\epsilon = 10^{-2}$ this section carried until now it still displaced an
+epoch two days inside the window by $0.028$~d, where $\mathcal{T}$ is exactly one --- and
+with $\mathrm{d}\arc/\mathrm{d}\phase$ near $1$ mag/d a fortnight before peak, that is up
+to $0.012$ mag on the epochs that constrain the rise, against a per-band residual scatter
+of $0.036$ to $0.059$. At $10^{-3}$ the displacement at the furthest phase any draw can
+reach is $3.6\times10^{-15}$~d, which is zero in double precision. The narrower $\epsilon$
+is affordable for the same reason $\epsilon_{\arc}$ is, below, and the modelling window of
+Section~\ref{sec:traversal} exceeds the data window by five days at each end, so the clamp
+acts only on draws that have carried $\tmax$ five days from where the data put it, which
+are already wrong, and never on an epoch the data window admits.
 
 The arclength interval needs its own bound, and clamping the phase does not supply one:
 $\arc(\phase)$ is finite for $\phase$ in the window but its size is set by $\xstretch$, and
@@ -590,13 +601,16 @@ interval, or $0.017$~mag,
     \bigl[\mathrm{sp}(v_{i}) - \mathrm{sp}(v_{i}-1)\bigr] ,
   \label{eq:softarc}
 \end{equation}
-and $\psi$ is evaluated at $\hat\arc_{i}$. There is no second taper. The phase taper is
-for epochs the model does not claim to describe, where predicting no light is honest; an
-epoch inside the phase window whose arclength has left the interval is one the model does
-describe, and it is the parameters that are out of range. Clamping alone leaves it the
-magnitude at the interval endpoint --- a finite prediction a real epoch will not match, so
-the residual pushes back with a gradient, where a taper to zero would discard the
-information that the epoch is bright. The narrower $\epsilon_{\arc}$ is affordable for the
+and $\psi$ is evaluated at $\hat\arc_{i}$. There is no second taper, and the asymmetry is
+deliberate. The phase weight is for epochs the model does not claim to describe, which have
+left the window the modeling functions are defined over; an epoch inside the phase window
+whose arclength has left the interval is one the model does describe, and it is the
+parameters that are out of range. Clamping alone leaves it the magnitude at the interval
+endpoint --- a finite prediction a real epoch will not match, so the residual is informative
+about the mismatch, where deweighting it would discard the information that the epoch is
+bright. That the residual carries a useful \emph{gradient} there is a separate claim and a
+weaker one: it holds in flux, and fails in parameter space once the clamp saturates, where
+$\partial\arc/\partial\xstretch$ and the coefficient derivatives vanish together. The narrower $\epsilon_{\arc}$ is affordable for the
 same reason the interval is padded: Section~\ref{sec:samples} finds the median span well
 inside $[\arc_{\min}, \arcmax]$, so the clamp bites only on draws that are already wrong,
 and its smoothing need not be gentle.

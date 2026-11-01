@@ -87,7 +87,10 @@ and algebraically identical to it. The taper is
 $\log\mathcal{T}_{i} = -[e_{i}/\epsilon_{t}]^{2}$ with
 $e_{i} = \mathrm{softplus}(-w_{i}, \epsilon_{t}/10) +
 \mathrm{softplus}(w_{i} - 1, \epsilon_{t}/10)$, so it is evaluated at the \emph{unclamped}
-$w$ and turns the flux off outside the window.
+$w$, which is what lets it measure how far outside the window the epoch is rather than
+where the clamp put it. It multiplies that epoch's term in Eq.~(18) and not the predicted
+flux: outside the window an epoch is deweighted, never assigned a different expected
+value.
 
 \paragraph{Arclength, clamped. [+] Eq.~(10) with Eq.~(12), Section~5.1's Jacobian, and
 Eq.~(20).} \code{arclength} integrates
@@ -218,18 +221,21 @@ depends on parameters.
 
 \section{The likelihood}
 
-Eq.~(18) of the note, with the tapered flux of Eq.~(17). \textbf{[=]}
+Eq.~(18) of the note, with Eq.~(17)'s flux and Eq.~(19)'s taper as a per-epoch weight on
+it. \textbf{[=]}
 
 \code{neg2\_loglike}, over all epochs, on the archive's errors alone:
 \begin{equation}
-  -2\ln\mathcal{L} = \sum_{i}
+  -2\ln\mathcal{L} = \sum_{i} \mathcal{T}_{i}\,
     \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2}} .
 \end{equation}
-$\hat f_{i}$ is the \emph{tapered} flux, so an epoch outside the window has its residual
-suppressed. In \file{hier.stan} the sum is a \code{reduce\_sum} over supernovae with the
+$\hat f_{i}$ is the predicted flux itself and $\mathcal{T}_{i}$ the taper, so an epoch
+outside the window has its \emph{contribution} suppressed rather than its expected value
+altered. In \file{hier.stan} the sum is a \code{reduce\_sum} over supernovae with the
 slice width passed as \code{grainsize}. The function takes
-$(\mathbf{f}, \boldsymbol{\sigma}_{f}, \hat{\mathbf{f}})$ and nothing else: the band index
-went with the per-band scatter it used to select.
+$(\mathbf{f}, \boldsymbol{\sigma}_{f}, \hat{\mathbf{f}}, \boldsymbol{\mathcal{T}})$: the
+band index went with the per-band scatter it used to select, and the weights arrived with
+the taper.
 
 \section{The hierarchy}
 
@@ -479,9 +485,33 @@ $\mathrm{clamp01}(w,\epsilon) = \mathrm{softplus}(w,\epsilon) - \mathrm{softplus
   w_{\arc} &= \frac{\arc - \arc_{\min}}{\arcmax - \arc_{\min}} , &
   \hat\arc &= \arc_{\min} + (\arcmax - \arc_{\min})\,\mathrm{clamp01}(w_{\arc},\epsilon_{s}) .
 \end{align}
-The taper is evaluated at the \emph{unclamped} $w$, so it switches the flux off outside the
-window rather than pinning it to the edge; the two clamps keep $\hat\phase$ and $\hat\arc$
-inside the intervals the bases are defined on.
+$\mathcal{T}$ is a weight on the epoch's term in the likelihood below, not a factor on the
+predicted flux. It is evaluated at the \emph{unclamped} $w$, so it measures how far outside
+the window the epoch lies rather than where the clamp put it, and it falls by $e^{-1}$ at
+$\epsilon_{t}$ outside and to nothing by $2\epsilon_{t}$ --- a turn-off scale of $1.3$~d on
+the $65$~d window.
+
+The distinction matters because the two are not interchangeable. Tapering $\hat f$ drives
+the prediction to zero, so an epoch leaving the window contributes its whole measured flux
+as a residual: a penalty, parameter-independent and without gradient, and in the
+partial-taper zone an instruction to predict a fraction of the true flux which the
+placement parameters then absorb. Tapering the weight lets the epoch stop contributing
+instead. The restoring force that the penalty used to supply now rests on
+$\mu_{\Delta} \in [-3, 3]$ and the wall on its deviations, which bind two days before the
+window does.
+
+The two clamps keep $\hat\phase$ and $\hat\arc$ inside the intervals the bases are defined
+on, which is a separate job and still necessary --- a Legendre series evaluated outside its
+interval diverges. But a clamp also moves the point the prediction is evaluated at, and
+$\mathrm{clamp01}$ is symmetric about the edge, so it is half engaged there and at
+$\epsilon = 10^{-2}$ still displaced an epoch two days inside by $0.028$~d, where the
+weight is exactly one. At $\epsilon = 10^{-3}$ that displacement is $3.6\times10^{-15}$~d
+at the furthest phase any draw can reach, which is zero in double precision: no epoch that
+exists has its prediction modified at all, and the weight is the only thing acting outside
+the window. The argument is the one Section~4 of the note already makes for
+$\epsilon_{\arc}$ --- the clamp bites only on draws that are already wrong, so its
+smoothing need not be gentle --- and the phase window is padded five days at each end,
+proportionally more than the arclength interval.
 
 \subsection{Quadrature}
 
@@ -516,14 +546,25 @@ occupies. Produced by \file{scripts/plot\_traversal.py}.}
 
 \subsection{The likelihood}
 
-In native flux, on the archive's errors alone:
+In native flux, on the archive's errors alone, with the taper of Section~\ref{sec:csoft} as
+a per-epoch weight:
 \begin{equation}
-  -2\ln\mathcal{L} = \sum_{i}
+  -2\ln\mathcal{L} = \sum_{i} \mathcal{T}_{i}\,
     \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2}} .
 \end{equation}
 Nothing is converted to magnitudes and negative fluxes are ordinary measurements. The sum
-is a \code{reduce\_sum} over supernovae, and $\hat f_{i}$ is the tapered flux, so an epoch
-outside the window has its residual suppressed.
+is a \code{reduce\_sum} over supernovae, and $\hat f_{i}$ is the predicted flux itself, so
+an epoch outside the window has its \emph{contribution} suppressed and its expected value
+left alone.
+
+On the selected epochs every $\mathcal{T}_{i}$ is one, and not merely close to it: the
+window exceeds the data window by five days at each end and $\mu_{\Delta}$ is boxed at
+three, so no draw can carry an epoch within two days of the edge, where the weight is $1$
+to twelve digits. The earliest epoch over the thirty is at $-14.98$~d and the latest at
+$39.99$~d, and \code{frac\_tapered} is zero in every chain of every run on record. The
+weight is therefore a statement about draws the posterior does not reach, and moving the
+taper here from the flux changed \code{lp\_\_} and all 162 gradient coordinates by
+$0.000\mathrm{e}{+}00$.
 
 \subsection{Everything the program samples}
 
@@ -715,7 +756,7 @@ $\delta_{p}$, Eq.~(12)    & $1.0$ d & $1.0$ d & \\
 $[\phase_{\min}, \phase_{\max}]$ & $[-20, +45]$ d & $[-20, +45]$ d & \\
 $[\arc_{\min}, \arcmax]$, Section~3 & $[-8, +8]$ mag & $[-12, +6]$ mag & \textcolor{red}{differs} \\
 gauge span, Eq.~(11)      & $[-6, +5]$ mag & $[-6, +5]$ mag & \\
-$\epsilon$                & $0.01$ & $0.01$ & \\
+$\epsilon$                & $10^{-3}$ & $10^{-3}$ & \\
 $\epsilon_{t}$            & $0.02$ & $0.02$ & \\
 $\epsilon_{s}$            & $10^{-3}$ & $10^{-3}$ & \\
 $\zp$                     & $30$ & $30$ & \\

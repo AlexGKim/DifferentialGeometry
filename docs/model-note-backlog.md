@@ -1374,3 +1374,57 @@ It would change no number, the per-object posterior sd of colour being 0.029
 mag against a prior width of 1, and the gain is the same as for `m_peak` and
 `c_bar` --- nothing asserted about a distribution. It does invalidate
 whatever fit is running.
+
+## The phase softening: a barrier that could never fire, and a clamp that could (2026-11-01)
+
+Eq. (soft) tapered the predicted flux. That is not a deweighting: with `f_hat`
+driven to zero an epoch leaving the phase window contributes its whole measured
+flux as a residual, parameter-independent and gradientless, and in the
+partial-taper zone the model is instructed to predict a fraction of the true
+flux while the placement parameters absorb the difference. Section 4 was candid
+that this was a barrier rather than a soft window --- "free if it was consistent
+with zero, expensive if it was a detection, which is the pushback wanted" --- so
+the construction matched its stated intent. The intent was the thing to change.
+The taper is now a weight on the epoch's term in Eq. (like), and the prediction
+is the model's own.
+
+**The barrier could never fire, so the pushback it was wanted for never
+existed.** The modelling window exceeds the data window by five days at each
+end and `mu_delta` is boxed at three, so phase stays inside [-17.98, +42.99]
+against a window of (-20, +45): the earliest epoch over the thirty is at
+-14.98 d and the latest at 39.99 d, and the weight two days inside the edge is
+1 to twelve digits. `frac_tapered` is 0.0000 in every chain of every run on
+disk. Section 4's claim that the cost of a tapered epoch "falls on `tmax`
+alone, which is then held to wherever the archive's `t0` placed the data
+window" therefore described a mechanism that cannot engage. Worth noting
+because that reading made the taper sound like a SALT2-derived prior on `tmax`,
+which it is not; the anchoring is entirely in `Delta`'s own +-3 box, which binds
+two days before the window does. Moving the taper to the weight changed `lp__`
+and all 162 gradient coordinates by `0.000e+00` against the Oct 26 binary.
+
+**The clamp, meanwhile, was biasing epochs that exist.** `clamp01` is symmetric
+about the edge, so it is half engaged there, and at the old `eps = 1e-2`
+--- 0.65 d of the 65 d window --- it still displaced the evaluation point of an
+epoch two days inside by 0.028 d. With `ds/dp` near 1 mag/d a fortnight before
+peak that is up to 0.012 mag on the epochs that constrain the rise, against a
+per-band residual scatter of 0.036 to 0.059. At `eps = 1e-3`, the value
+`eps_arc` already used, the displacement at the furthest reachable phase is
+3.6e-15 d, zero in double precision, so no epoch that exists has its prediction
+modified at all. Measured at the best draw of `runs/stage3-common-split`:
+`lp` rose by 5.09e-3 nats and the gradient moved by 0.086% of its norm,
+concentrated on `b_0` (4578.63 to 4562.42) and on the `m_peak` and `x_s` of a
+handful of objects --- which is the signature of the earliest epochs of a few
+supernovae, and is why the change is not cosmetic.
+
+The general shape, and the reason this sat unnoticed: **a softening that is
+provably never reached cannot be validated by running the fit**, and one that
+is reached can be validated only by looking at the quantity it displaces rather
+than at the fit's own diagnostics. `frac_tapered` and `frac_clamped` were both
+0.0000 throughout, and both remained 0.0000 while a 0.012 mag bias sat on the
+rise: the diagnostics answer "did the clamp saturate", not "did the clamp move
+the prediction".
+
+Not settled here: whether the 0.012 mag mattered. The arclength reach is where
+to look, since the earliest epochs are where `s` is most negative and the two
+`tau_psi` solutions differ in exactly that --- mode A carrying `s(-15 d)` to
+-8.5 to -9.7, outside the declared interval, where mode B stays inside at -7.9.
