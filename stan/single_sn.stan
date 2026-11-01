@@ -40,7 +40,7 @@ model {
                              Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
                              edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u,
                              xg, wg, P0, T);
-  target += -0.5 * neg2_loglike(f, sig_f, exp(lf[:, 1]));
+  target += -0.5 * neg2_loglike(f, sig_f, exp(lf[:, 1]), exp(lf[:, 2]));
   if (prior_on) {
     x_p ~ normal(mu_p, 1);
     x_psi ~ normal(mu_psi, 1);

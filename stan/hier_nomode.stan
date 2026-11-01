@@ -229,7 +229,7 @@ generated quantities {
         a, b, c_zero, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
         Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
         edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
-    lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]));
+    lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]), exp(lf[:, 2]));
     for (i in 1:(hi - lo + 1)) {
       frac_tapered += (lf[i, 2] < log(0.99));
       frac_clamped += (abs(lf[i, 4] - lf[i, 3]) > eps_s * (smax - smin));

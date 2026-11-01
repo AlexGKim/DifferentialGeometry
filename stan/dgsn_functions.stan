@@ -256,10 +256,21 @@ functions {
   }
 
   // ---- Observables, Section 4 ------------------------------------------
-  // log of the predicted, tapered flux of Eq. (predflux) for N epochs.
+  // log of the predicted flux of Eq. (predflux) for N epochs.
   // band: 1 = g, 2 = r.  Returns the clamped phase and arclength too, so
   // that the diagnostics of Section 5.2 can be read without recomputation:
-  // column 1 log flux, 2 log taper, 3 s before the arclength clamp, 4 after.
+  // column 1 log flux, 2 the log likelihood weight, 3 s before the
+  // arclength clamp, 4 after.
+  //
+  // Column 1 is the model's prediction and nothing else.  The taper used to
+  // multiply it, which is not a deweighting: with f_hat driven to zero an
+  // epoch leaving the window contributes its whole measured flux as a
+  // residual, parameter-independent and gradientless, so the construction
+  // was a barrier rather than the soft window it was wanted for, and in the
+  // partial-taper zone it instructed the model to predict a fraction of the
+  // true flux.  Column 2 is now a weight on that epoch's term in Eq. (like)
+  // and the prediction is left alone.  Only the weight changes outside the
+  // window, never the expected value.
   matrix log_flux(vector dt, array[] int band, real z,
                   real m_peak, real colr, real x_s, real x_p, real x_psi,
                   real delta_t,
@@ -295,7 +306,7 @@ functions {
                              edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
       for (i in 1:N) {
         real mag = (band[i] == 1) ? g[i, 1] + m_peak : g[i, 2] + m_peak - colr;
-        out[i, 1] = -0.4 * log(10) * (mag - zp) + out[i, 2];
+        out[i, 1] = -0.4 * log(10) * (mag - zp);
       }
     }
     return out;
@@ -317,8 +328,18 @@ functions {
   // an additive constant, and what this returns is -2 ln L up to that fixed
   // number.  Anything comparing an lp_sn here with one from a program that
   // kept the term has to restore it.
-  real neg2_loglike(vector f, vector sig_f, vector f_hat) {
-    return sum(square((f - f_hat) ./ sig_f));
+  //
+  // w is the per-epoch weight of Eq. (soft), column 2 of log_flux
+  // exponentiated: one inside the modelling window, falling smoothly to zero
+  // outside it, so that an epoch the model does not claim to describe stops
+  // contributing instead of being asked to predict no light.  The same
+  // caveat as above applies to it -- an lp_sn from a program that tapered the
+  // flux instead is not comparable with one from here.  On the selected
+  // epochs every weight is one: the window exceeds the data window by five
+  // days at each end and mu_delta is boxed at three, so no draw can carry a
+  // phase within two days of the edge.
+  real neg2_loglike(vector f, vector sig_f, vector f_hat, vector w) {
+    return sum(w .* square((f - f_hat) ./ sig_f));
   }
 
   // ---- The hierarchy, Section 5: a slice of supernovae for reduce_sum ---
@@ -345,7 +366,7 @@ functions {
           a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
           Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
           edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
-      total += neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]));
+      total += neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]), exp(lf[:, 2]));
     }
     return -0.5 * total;
   }
