@@ -1428,3 +1428,69 @@ Not settled here: whether the 0.012 mag mattered. The arclength reach is where
 to look, since the earliest epochs are where `s` is most negative and the two
 `tau_psi` solutions differ in exactly that --- mode A carrying `s(-15 d)` to
 -8.5 to -9.7, outside the declared interval, where mode B stays inside at -7.9.
+
+## Holding Eq. (ccoef)'s scales: a negative result, and why (2026-11-01)
+
+Three arms of `stan/hier_common_scale.stan` at (K_psi, K_q) = (24, 16) on the
+thirty, against `runs/stage3-common-split` as the shape-0 reference, which the
+program reproduces bit-identically (lp and all 162 gradient coordinates to
+`0.000e+00`). `prior_shape` 1 holds `sigma` and `alpha` and keeps the normal;
+2 holds them and takes a Student-t, `nu = 1` for Cauchy. The per-degree decay
+`(k/kbar)^-alpha` is kept under every shape, since the prior scale spans 230x
+across the turning block at K_psi = 24 and one constant cannot stand in for it.
+
+Leapfrogs per effective draw of `||d||`, which is machine-independent and so
+the figure of merit:
+
+| arm | `||d||` Rhat | ESS | lf/eff.draw |
+|---|---|---|---|
+| scales sampled (reference) | 1.301 | 10.3 | 357808 |
+| held, normal | 1.466 | 7.9 | 750679 |
+| held, Cauchy | 2.266 | 5.1 | 1200063 |
+
+2.1x and 3.4x worse, and worse on every other quantity too --- `lp__` Rhat
+1.068 against 1.735 and 1.761. The Cauchy arm spent all 1635 of its draws at
+the treedepth cap of 12, so even that cost is censored and the true figure is
+larger. Zero divergences anywhere, which is what a stepsize three to four
+times below the reference's buys.
+
+**What makes this more than slow mixing: the curvature at the anchor changes
+sign.** Eq. (peakcond) asks `kappa(0) > 0`, the condition that the anchor is
+peak brightness, and Section 2.3 declines to impose it and anticipates the fit
+will satisfy it. Measured per chain:
+
+| run | kappa0 by chain | draws with kappa0 < 0 |
+|---|---|---|
+| reference | 1435, 1715, 1700, 1570 | 0.0% in all four |
+| held, normal | -464, -341, -444, -344 | 99.0 to 100.0% |
+| held, Cauchy | +5930, +905, -323, -305 | 0.0, 1.1, 98.7, 97.6% |
+
+So holding the scales moved the fit into a region where the light-curve anchor
+is not a brightness maximum, in every chain of one arm and half of the other,
+and the Cauchy arm's four chains sit in three different places.
+
+**The cause, which was not visible when the ladder was designed.**
+`src/dgsn/stan/data.py` took `TAU_PSI = 2.237` and `ALPHA_PSI = 0.633` from the
+posterior of `runs/stage3-common-split`, and that run sees only one of two
+solutions. `runs/stage3-common-halfnorm`, the same program at the same orders
+on byte-identical data and differing only in `R`, straddles both: chains 2 and
+4 at `tau_psi` 2.5 with `kappa0` near 1600 and `lp` near -4070, chains 1 and 3
+at `tau_psi` 22 with `kappa0` near 9700 and `lp` -3997 and -4017. The upper
+solution is 63 nats higher in density and differs by a factor of six in the
+model's headline quantity. Holding scales measured in the lower one therefore
+pinned every arm into it by construction, which is why no prior shape moved
+anything, and the pinning is what broke the peak condition: the fit had been
+using the freedom in `tau_psi` to stay self-consistent.
+
+The general shape, worth keeping: **a constant lifted out of a posterior
+inherits that posterior's convergence, and a held constant cannot be corrected
+by the fit that uses it.** `TAU_Q`, `TAU_PSI`, `ALPHA_Q` and `ALPHA_PSI` are
+lower-mode values and are to be re-measured, or marked as such, before any arm
+holds them again.
+
+`lp__` is not strictly comparable between the arms and the reference: the
+held-scale program samples 158 coordinates rather than 162 and its target
+lacks the four `tau` and `alpha` prior terms. Those are worth under a nat at
+these values, so the 31 nats between the held-normal arm's -4041.3 and the
+reference's -4072.0 is not explained by them, but it is suggestive of a third
+region rather than established.
