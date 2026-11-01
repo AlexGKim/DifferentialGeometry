@@ -167,6 +167,7 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
                 iter_sampling: int | None = None, max_treedepth: int | None = None,
                 metric: str | None = None, metric_file: Path | None = None,
                 adapt_delta: float | None = None, refresh: int = 100,
+                save_warmup: bool = False,
                 detach: bool = False, **kw) -> CmdStanMCMC | list[int]:
     """Four chains as four separate jobs (Section 5), then combined.
 
@@ -179,7 +180,16 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
 
     ``detach`` puts each chain in its own session so that a run of days
     outlives the process that launched it, and returns the four pids rather
-    than a fit; read such a run with ``from_csv`` when it finishes."""
+    than a fit; read such a run with ``from_csv`` when it finishes.
+
+    ``save_warmup`` writes the warmup draws to the CSV ahead of the sampling
+    ones.  It changes no transition --- same seed, same stream, same
+    trajectory, only more rows --- so a run with it stays comparable with one
+    without, provided the reader skips the first ``iter_warmup`` rows.  It is
+    worth the rows whenever the question is where a chain went rather than
+    where it ended: a chain started in one posterior mode and found in
+    another at the end of warmup cannot otherwise be told from one the
+    adaptation drove out."""
     import subprocess
 
     from cmdstanpy import write_stan_json
@@ -197,6 +207,8 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
             cmd.append(f"num_warmup={iter_warmup}")
         if iter_sampling is not None:
             cmd.append(f"num_samples={iter_sampling}")
+        if save_warmup:
+            cmd.append("save_warmup=1")
         if adapt_delta is not None:
             cmd += ["adapt", f"delta={adapt_delta}"]
         if max_treedepth is not None or metric is not None:

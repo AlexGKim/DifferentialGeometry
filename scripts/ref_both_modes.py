@@ -106,10 +106,13 @@ def main():
         return
 
     out = Path(args.out)
+    # save_warmup because the question is whether the upper chains stay, and a
+    # chain that is in the lower mode by the end of warmup has to be told from
+    # one the adaptation drove there.  It changes no transition.
     pids = sample_four(PROG, data, [lower, lower, upper, upper], out, seed=1,
                        threads_per_chain=1, iter_warmup=args.iter,
                        iter_sampling=args.iter, max_treedepth=args.max_treedepth,
-                       refresh=10, detach=True)
+                       refresh=10, save_warmup=True, detach=True)
     print(f"launched {out}, chains 1-2 from the lower mode and 3-4 from the upper, "
           f"pids {pids}")
 
