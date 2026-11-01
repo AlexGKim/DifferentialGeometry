@@ -473,6 +473,26 @@ construction.
 \subsection{Softening}
 \label{sec:csoft}
 
+The fit slides each supernova's time axis: $\Delta_{n} = \mu_{\Delta} + \delta_{n}$ shifts
+every epoch of object $n$ in phase, and the box and wall of \S\ref{sec:csamples} let it
+reach $\pm6$~d. The modelling window is wider than the data window by only five days at
+each end, so a shift that large carries epochs past the edge of the window --- for twelve
+of the thirty objects early and eleven late, out to $-20.71$~d and $45.72$~d
+(\file{scripts/phase\_reach.py}). The sampler will try such shifts whether or not the fit
+settles near them, and it needs a finite, smooth answer from each one, so the model has to
+go on predicting a flux out there. Two devices arrange that, with separate jobs. The clamp
+keeps the argument of a basis inside the interval that basis is defined on, which is what
+makes a prediction exist at all: both expansions are Legendre series, which grow as a
+polynomial in their argument once it leaves the interval, and the traversal series is
+exponentiated and then integrated, so past the edge it overflows rather than merely
+degrading. The weight then lets the epoch fade out of the fit, so that an epoch the model
+can no longer represent stops pulling on the parameters, rather than being fitted against
+a prediction frozen at the edge. The fading follows phase and not arclength because phase
+is where the difficulty arises: the window says where the data are and $\Delta$ carries
+epochs across it, whereas $[\arc_{\min}, \arcmax]$ is a choice of parameterisation, and an
+epoch that lands outside it is a sign the interval is too narrow rather than a reason to
+discount a measurement.
+
 Three places, all $C^{\infty}$, with
 $\mathrm{softplus}(x,\epsilon) = \epsilon\log(1 + e^{x/\epsilon})$ and
 $\mathrm{clamp01}(w,\epsilon) = \mathrm{softplus}(w,\epsilon) - \mathrm{softplus}(w-1,\epsilon)$:
@@ -497,18 +517,22 @@ as a residual: a penalty, parameter-independent and without gradient, and in the
 partial-taper zone an instruction to predict a fraction of the true flux which the
 placement parameters then absorb. Tapering the weight lets the epoch stop contributing
 instead. The restoring force that the penalty used to supply now rests on
-$\mu_{\Delta} \in [-3, 3]$ and the wall on its deviations, which bind two days before the
-window does.
+$\mu_{\Delta} \in [-3, 3]$ and the wall on its deviations, which do not bind before the
+window for every object: for sixteen of the thirty the window is crossed first, by
+$0.75$~d at the earliest, so there the weight and not the bound is what meets a departing
+epoch, while for the other fourteen the bound is reached before the window is.
 
 The two clamps keep $\hat\phase$ and $\hat\arc$ inside the intervals the bases are defined
 on, which is a separate job and still necessary --- a Legendre series evaluated outside its
 interval diverges. But a clamp also moves the point the prediction is evaluated at, and
 $\mathrm{clamp01}$ is symmetric about the edge, so it is half engaged there and at
 $\epsilon = 10^{-2}$ still displaced an epoch two days inside by $0.028$~d, where the
-weight is exactly one. At $\epsilon = 10^{-3}$ that displacement is $3.6\times10^{-15}$~d
-at the furthest phase any draw can reach, which is zero in double precision: no epoch that
-exists has its prediction modified at all, and the weight is the only thing acting outside
-the window. The argument is the one Section~4 of the note already makes for
+weight is exactly one. At $\epsilon = 10^{-3}$ that displacement is $2.7\times10^{-15}$~d,
+which is zero in double precision, and $1.4\times10^{-8}$~d one day inside. Inside the
+window, then, the prediction is not modified at all; outside it the displacement is the
+excursion itself --- $1.000$~d at one day out, where the weight is $0.553$ --- so the two
+devices separate cleanly, the clamp supplying a finite prediction and the weight alone
+deciding how much that epoch counts. The argument is the one Section~4 of the note already makes for
 $\epsilon_{\arc}$ --- the clamp bites only on draws that are already wrong, so its
 smoothing need not be gentle --- and the phase window is padded five days at each end,
 proportionally more than the arclength interval.
@@ -557,16 +581,17 @@ is a \code{reduce\_sum} over supernovae, and $\hat f_{i}$ is the predicted flux 
 an epoch outside the window has its \emph{contribution} suppressed and its expected value
 left alone.
 
-On the selected epochs every $\mathcal{T}_{i}$ is one, and not merely close to it: the
-window exceeds the data window by five days at each end and $\mu_{\Delta}$ is boxed at
-three, so no draw can carry an epoch within two days of the edge, where the weight is $1$
-to twelve digits. The earliest epoch over the thirty is at $-14.98$~d and the latest at
-$39.99$~d, and \code{frac\_tapered} is zero in every chain of every run on record. The
-weight is therefore a statement about draws the posterior does not reach, and moving the
-taper here from the flux changed \code{lp\_\_} and all 162 gradient coordinates by
-$0.000\mathrm{e}{+}00$.
+On the draws the posterior actually visits every $\mathcal{T}_{i}$ is one:
+\code{frac\_tapered} is zero in every chain of every run on record, the earliest epoch
+over the thirty sitting at $-14.98$~d and the latest at $39.99$~d against a window of
+$(-20, 45)$, and the largest $\Delta$ ever drawn being $2.43$~d with a largest deviation of
+$1.085$~d. That is a statement about the posterior and not about the support, which reaches
+$0.71$~d past $\phase_{\min}$, where the weight is $0.742$; \S\ref{sec:csoft} is written for
+the latter. Moving the taper here from the flux changed \code{lp\_\_} and all 162 gradient
+coordinates by $0.000\mathrm{e}{+}00$.
 
 \subsection{Everything the program samples}
+\label{sec:csamples}
 
 Seven quantities enter the forward map of \eqref{eq:cphase}--\eqref{eq:cflux}: the shared
 $b_{0}, \mathbf{b}, \mathbf{d}$ and, per supernova,

@@ -41,13 +41,18 @@ ARC_RANGE = (-8.0, 8.0)      # [s_min, s_max], mag, Section 3: the 442-object fi
 # moves an epoch 2 d inside by 0.028 d, where the taper weight is exactly 1.
 # With ds/dp near 1 mag/d a fortnight before peak that is up to 0.012 mag
 # against a per-band residual scatter of 0.036 to 0.059, a systematic bias on
-# the epochs that constrain the rise.  At 1e-3 the displacement at the worst
-# phase any draw can reach -- the earliest epoch at -14.98 d carried by
-# mu_delta's +3 bound to -17.98 d -- is 3.6e-15 d, zero in double precision,
-# so the prediction is modified for no epoch at all and the weight is the only
-# thing that acts outside the window.  The note makes this argument for EPS_S
-# and never applied it here; the phase window is padded 5 d at each end,
-# proportionally more than the arclength interval, so the case is stronger.
+# the epochs that constrain the rise.  At 1e-3 the displacement is 2.7e-15 d
+# two days inside the edge and 1.4e-8 d one day inside, zero in double
+# precision, so no epoch inside the window has its prediction modified; past
+# the edge the displacement is the excursion itself and the taper weight is
+# what acts.  Draws do reach past the edge: delta_t = mu_delta + d_dev with
+# both bounded by 3, so |Delta| <= 6 while the window is padded only 5 d, and
+# scripts/phase_reach.py reports a reach of [-20.71, 45.72] with the window
+# crossed before the bound for 16 of the 30.  An earlier version of this
+# comment used mu_delta's box alone, concluded [-17.98, 42.99], and called the
+# clamp unreachable.  The note makes the same affordability argument for EPS_S
+# and never applied it here; the phase window is padded 5 d at each end, where
+# the arclength interval has no padding at all, so the case is stronger.
 EPS = 1e-3
 EPS_T = 0.02                 # taper turn-off, fraction of the window
 EPS_S = 1e-3                 # arclength clamp width, fraction of the interval

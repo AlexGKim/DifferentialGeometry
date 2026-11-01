@@ -570,7 +570,10 @@ $f_{i}^{2}/\sigma_{f,i}^{2}$ --- a penalty, independent of every parameter and c
 gradient --- and in the partial-taper zone it asks the model to predict a fraction of the
 true flux, which the placement parameters absorb. Deweighting lets the epoch stop
 contributing instead, and what it gives up, the pushback holding $\tmax$ near where the
-data lie, is supplied by $\Delta$'s own bound, which binds two days earlier.
+data lie, is supplied by $\Delta$'s own bound --- though not everywhere before the window:
+for sixteen of the thirty objects of Section~\ref{sec:samples} the window is crossed at a
+smaller $|\Delta|$ than the bound allows, by $0.75$~d at the earliest, so there the weight
+meets the departing epoch first.
 
 The clamp's job is different and is still needed: $\hat\phase_{i}$ stands in for
 $\phase_{i}$ in \eqref{eq:predflux} so that the modeling functions are never evaluated
@@ -581,12 +584,13 @@ there. At the $\epsilon = 10^{-2}$ this section carried until now it still displ
 epoch two days inside the window by $0.028$~d, where $\mathcal{T}$ is exactly one --- and
 with $\mathrm{d}\arc/\mathrm{d}\phase$ near $1$ mag/d a fortnight before peak, that is up
 to $0.012$ mag on the epochs that constrain the rise, against a per-band residual scatter
-of $0.036$ to $0.059$. At $10^{-3}$ the displacement at the furthest phase any draw can
-reach is $3.6\times10^{-15}$~d, which is zero in double precision. The narrower $\epsilon$
-is affordable for the same reason $\epsilon_{\arc}$ is, below, and the modelling window of
-Section~\ref{sec:traversal} exceeds the data window by five days at each end, so the clamp
-acts only on draws that have carried $\tmax$ five days from where the data put it, which
-are already wrong, and never on an epoch the data window admits.
+of $0.036$ to $0.059$. At $10^{-3}$ it is $2.7\times10^{-15}$~d two days inside and
+$1.4\times10^{-8}$~d one day inside, which is zero in double precision; outside the window
+the displacement is the excursion itself. So the clamp does not touch the prediction for
+any epoch the window admits, and beyond the edge the weight alone sets what that epoch
+counts for. The narrower $\epsilon$ is affordable for the same reason $\epsilon_{\arc}$ is,
+below, and more so: the modelling window of Section~\ref{sec:traversal} exceeds the data
+window by five days at each end, where the arclength interval has no such padding.
 
 The arclength interval needs its own bound, and clamping the phase does not supply one:
 $\arc(\phase)$ is finite for $\phase$ in the window but its size is set by $\xstretch$, and

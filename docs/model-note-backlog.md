@@ -1375,7 +1375,7 @@ mag against a prior width of 1, and the gain is the same as for `m_peak` and
 `c_bar` --- nothing asserted about a distribution. It does invalidate
 whatever fit is running.
 
-## The phase softening: a barrier that could never fire, and a clamp that could (2026-11-01)
+## The phase softening: what each half of it is for (2026-11-01)
 
 Eq. (soft) tapered the predicted flux. That is not a deweighting: with `f_hat`
 driven to zero an epoch leaving the phase window contributes its whole measured
@@ -1388,19 +1388,28 @@ the construction matched its stated intent. The intent was the thing to change.
 The taper is now a weight on the epoch's term in Eq. (like), and the prediction
 is the model's own.
 
-**The barrier could never fire, so the pushback it was wanted for never
-existed.** The modelling window exceeds the data window by five days at each
-end and `mu_delta` is boxed at three, so phase stays inside [-17.98, +42.99]
-against a window of (-20, +45): the earliest epoch over the thirty is at
--14.98 d and the latest at 39.99 d, and the weight two days inside the edge is
-1 to twelve digits. `frac_tapered` is 0.0000 in every chain of every run on
-disk. Section 4's claim that the cost of a tapered epoch "falls on `tmax`
-alone, which is then held to wherever the archive's `t0` placed the data
-window" therefore described a mechanism that cannot engage. Worth noting
-because that reading made the taper sound like a SALT2-derived prior on `tmax`,
-which it is not; the anchoring is entirely in `Delta`'s own +-3 box, which binds
-two days before the window does. Moving the taper to the weight changed `lp__`
-and all 162 gradient coordinates by `0.000e+00` against the Oct 26 binary.
+**The barrier never fires on the posterior, but it is reachable on the
+support, and an earlier version of this entry had that wrong.** `frac_tapered`
+is 0.0000 in every chain of every run on disk, and the largest `mu_delta` ever
+drawn is 2.43 d with a largest deviation of 1.085 d, so the realized draws stay
+well inside. The claim that the softening therefore "could never fire" used
+`mu_delta`'s box alone and concluded a reach of [-17.98, +42.99]. But
+`delta_t = mu_delta + d_dev` and the deviations are walled at +-3 as well
+(`hier_common.stan` says so in as many words: "Together they put Delta in
+[-6, 6]"), so the reach on the support is [-20.71, +45.72], and for sixteen of
+the thirty objects the window is crossed at a smaller `|Delta|` than the bound
+allows -- by 0.75 d at the object that binds first. `scripts/phase_reach.py`
+prints it. The same slip reached the comment at `src/dgsn/stan/data.py`,
+Section 4 of the note and Section 9.3 of the implementation document, all now
+corrected: the softening is what makes those draws representable, not a
+statement about draws that cannot occur.
+
+Section 4's claim that the cost of a tapered epoch "falls on `tmax` alone,
+which is then held to wherever the archive's `t0` placed the data window" is
+still wrong, for the unaffected reason: the mechanism is a weight on epochs the
+posterior does not visit, not a prior on `tmax`, and what anchoring there is
+sits in `Delta`'s box. Moving the taper to the weight changed `lp__` and all
+162 gradient coordinates by `0.000e+00` against the Oct 26 binary.
 
 **The clamp, meanwhile, was biasing epochs that exist.** `clamp01` is symmetric
 about the edge, so it is half engaged there, and at the old `eps = 1e-2`
@@ -1408,9 +1417,10 @@ about the edge, so it is half engaged there, and at the old `eps = 1e-2`
 epoch two days inside by 0.028 d. With `ds/dp` near 1 mag/d a fortnight before
 peak that is up to 0.012 mag on the epochs that constrain the rise, against a
 per-band residual scatter of 0.036 to 0.059. At `eps = 1e-3`, the value
-`eps_arc` already used, the displacement at the furthest reachable phase is
-3.6e-15 d, zero in double precision, so no epoch that exists has its prediction
-modified at all. Measured at the best draw of `runs/stage3-common-split`:
+`eps_arc` already used, the displacement is 2.7e-15 d two days inside the edge
+and 1.4e-8 d one day inside -- zero in double precision -- so inside the window
+no prediction is modified at all, while outside it the displacement is the
+excursion itself and the weight alone decides what the epoch counts for. Measured at the best draw of `runs/stage3-common-split`:
 `lp` rose by 5.09e-3 nats and the gradient moved by 0.086% of its norm,
 concentrated on `b_0` (4578.63 to 4562.42) and on the `m_peak` and `x_s` of a
 handful of objects --- which is the signature of the earliest epochs of a few
