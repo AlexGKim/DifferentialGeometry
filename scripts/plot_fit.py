@@ -38,7 +38,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from dgsn.data.epochs import likelihood_epochs  # noqa: E402
-from dgsn.data.sample import analysis_sample, training_split  # noqa: E402
+from dgsn.data.sample import (analysis_sample, stage3_sample,  # noqa: E402
+                              training_split)
 from dgsn.stan.run import chain_csvs, fixed_param  # noqa: E402
 
 GLOBALS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
@@ -165,7 +166,7 @@ def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
     rng = np.random.default_rng(0)
     pick = rng.choice(len(d), size=min(n_draws, len(d)), replace=False)
 
-    fig, ax = plt.subplots(len(names), 2, figsize=(13, 3.6 * len(names)))
+    fig, ax = plt.subplots(len(names), 3, figsize=(18.5, 3.6 * len(names)))
     ax = np.atleast_2d(ax)
     for row, name in enumerate(names):
         r = sample.loc[name]
@@ -174,7 +175,35 @@ def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
         curves = [evaluate(grid, d.iloc[i], idx, ep["z"], k_psi, k_q, p_eval, s_eval)
                   for i in pick]
 
-        at = ax[row, 0]
+        # Eq. (modelmag): m_g = gamma_0 + m_peak, m_r = gamma_1 + m_peak - colr,
+        # so the colour is gamma_0 - gamma_1 + colr and carries m_peak not at
+        # all -- the colour-magnitude track is the curve's own shape plus the
+        # two placement parameters, and nothing else.  The arclengths the
+        # object's epochs actually reach are s_pmin to s_pmax, reported per
+        # draw; outside them the track is extrapolation and is drawn faint.
+        ac = ax[row, 0]
+        s_lo = np.median(d[f"s_pmin.{idx}"])
+        s_hi = np.median(d[f"s_pmax.{idx}"])
+        reached = (s_eval >= s_lo) & (s_eval <= s_hi)
+        for cv in curves:
+            gr = cv["gamma"][:, 0] - cv["gamma"][:, 1] + cv["colr"]
+            mr = cv["gamma"][:, 1] + cv["m_peak"] - cv["colr"]
+            ac.plot(gr, mr, "-", lw=0.5, alpha=0.12, color="0.55")
+            ac.plot(gr[reached], mr[reached], "-", lw=0.7, alpha=0.3,
+                    color="#6a3d9a")
+        # the anchor, s = 0: gamma = (0,0), so the colour is colr exactly
+        ac.plot([cv["colr"] for cv in curves],
+                [cv["m_peak"] - cv["colr"] for cv in curves],
+                ".", ms=3, color="#e31a1c", zorder=4, label="anchor $s=0$")
+        ac.plot([], [], "-", color="#6a3d9a", lw=1.4,
+                label=f"$s\\in[{s_lo:.1f},{s_hi:.1f}]$, data reach")
+        ac.plot([], [], "-", color="0.55", lw=1.4, label="extrapolated")
+        ac.invert_yaxis()
+        ac.set_xlabel("$g-r$ (mag)"); ac.set_ylabel("$r$ (mag)")
+        ac.set_title(f"{name}: colour-magnitude track", fontsize=10)
+        ac.legend(fontsize=7, frameon=False)
+
+        at = ax[row, 1]
         for cv in curves:
             at.plot(cv["gamma"][:, 0] + cv["m_peak"],
                     cv["gamma"][:, 1] + cv["m_peak"] - cv["colr"],
@@ -185,7 +214,7 @@ def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
         at.set_title(f"{name}: the track through magnitude space", fontsize=10)
         at.legend(fontsize=8, frameon=False)
 
-        al = ax[row, 1]
+        al = ax[row, 2]
         for cv in curves:
             al.plot(p_eval, cv["f_g"], "-", lw=0.6, alpha=0.25, color="#1f77b4")
             al.plot(p_eval, cv["f_r"], "-", lw=0.6, alpha=0.25, color="#d62728")
@@ -201,11 +230,46 @@ def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
                      f"$-2\\,$lp/epoch {-2 * np.median(d[f'lp_sn.{idx}']) / len(ep['dt']):.1f}",
                      fontsize=10)
         al.legend(fontsize=8, frameon=False)
-    fig.suptitle("Posterior draws against the data, in the flux the likelihood sees", fontsize=12)
+    fig.suptitle("Posterior draws: the track in magnitude space, and the data in "
+                 "the flux the likelihood sees", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     fig.savefig(path, dpi=130)
     plt.close(fig)
     print(f"wrote {path}")
+
+
+def resolve_names(n_sn: int, n_ep_run: np.ndarray, train: list[str],
+                  sample) -> list[str]:
+    """The fit's object list, confirmed against ``data.json``'s epoch counts.
+
+    Several selections are the same length -- ``stage3_sample()`` and a
+    thirty-object ``stratified()`` share one object of thirty -- so the list
+    is chosen by reproducing ``stop - start + 1`` exactly, not by which
+    script is presumed to have made the run.  A run whose selection matches
+    nothing on offer raises instead of plotting the wrong photometry."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    from stage4_full import stratified
+
+    cands = [("training_split", train)]
+    if n_sn != len(train):
+        cands.append(("stage3_sample", list(stage3_sample())))
+        cands.append(("stratified", list(stratified(train, n_sn, sample))))
+    tried = []
+    for label, nm in cands:
+        if len(nm) != n_sn:
+            tried.append(f"{label} (length {len(nm)})")
+            continue
+        cnt = np.array([len(likelihood_epochs(x, sample.loc[x].t0,
+                                              sample.loc[x].redshift)["dt"])
+                        for x in nm])
+        if np.array_equal(cnt, n_ep_run):
+            print(f"object list: {label} ({n_sn} objects, "
+                  f"{int(n_ep_run.sum())} epochs, counts match data.json)")
+            return nm
+        tried.append(f"{label} (epochs {int(cnt.sum())} vs {int(n_ep_run.sum())})")
+    raise SystemExit("cannot identify the fit's object list from data.json; tried "
+                     + "; ".join(tried))
 
 
 def main():
@@ -226,17 +290,18 @@ def main():
 
     corner(d, out / "corner.png")
 
-    # the fit's object list, in the order the data were built
+    # the fit's object list, in the order the data were built, identified by
+    # the one thing data.json records about it: how many epochs each object
+    # contributed.  Guessing instead is how this went wrong -- a stage-3 run
+    # takes stage3_sample() and a stage-4 subsample takes stratified(), both
+    # are thirty objects long, and they overlap in one.  Every per-object
+    # panel was then the wrong supernova's photometry against the right
+    # index's parameters, and nothing in the figure said so.
     sample = analysis_sample()
     train, _ = training_split()
     n_sn = int(grid_all["N_sn"])
-    if n_sn == len(train):
-        names_fit = train
-    else:
-        import sys
-        sys.path.insert(0, str(Path(__file__).parent))
-        from stage4_full import stratified
-        names_fit = stratified(train, n_sn, sample)
+    n_ep_run = np.asarray(grid_all["stop"]) - np.asarray(grid_all["start"]) + 1
+    names_fit = resolve_names(n_sn, n_ep_run, train, sample)
     index = {nm: i + 1 for i, nm in enumerate(names_fit)}
 
     if args.names:
