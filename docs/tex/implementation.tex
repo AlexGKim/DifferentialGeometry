@@ -495,6 +495,106 @@ coordinate is worth its $31$ percent of conditioning. That figure replaces the $
 this tree quoted until 2026-11-02, which came from comparing two programs that by then
 both sampled a free mean.
 
+\subsection{What the orders resolve}
+\label{sec:run1res}
+
+Neither $K$ translates into a phase resolution directly. Both expansions are Legendre, but
+in the compressed coordinates of \eqref{eq:ccoords}: the traversal in
+$v = \asinh(\phase/\delta_{p})$ with $\delta_{p} = 1$~d, and the turning in
+$u = \asinh(\arc/\delta)$ with $\delta = 5\times10^{-3}$~mag, which is not a time at all.
+Below, the finest feature an order can carry is taken as the half wavelength of its
+highest retained mode --- the spacing between consecutive zeros, within which the mode
+completes half an oscillation. The bases are \file{forward.stan}'s own \code{Xv} and
+\code{Xu} at a grid of $4001$ points, and $\arc(\phase)$ likewise its \code{s\_of\_p}, so
+the turning's arclength scale is carried into phase by the traversal the fit actually has,
+at the object sitting at the sample-median $x_{s} + b_{0}P_{0} = -2.83$.
+
+\begin{tabular}{@{}r r r l@{}}
+\toprule
+$K_{q}$ & modes & at $\phase = 0$ & across the window \\
+\midrule
+ 8 &  7 & $2.031$~d & $2.031$ to $20.931$~d \\
+12 & 11 & $1.173$~d & $1.173$ to $13.443$~d \\
+16 & 15 & $0.847$~d & $0.847$ to $10.641$~d \\
+20 & 19 & $0.670$~d & $0.670$ to $ 8.499$~d \\
+24 & 23 & $0.557$~d & $0.557$ to $ 7.035$~d \\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}{@{}r r r r@{}}
+\toprule
+$K_{\psi}$ & modes & finest $\dd\arc$ & $\dd\phase$ at peak \\
+\midrule
+ 8 &  7 & $0.13215$~mag & $9.88$~d \\
+12 & 11 & $0.04362$~mag & $3.26$~d \\
+16 & 15 & $0.02444$~mag & $1.83$~d \\
+20 & 19 & $0.01709$~mag & $1.28$~d \\
+24 & 23 & $0.01306$~mag & $0.98$~d \\
+\bottomrule
+\end{tabular}
+
+\medskip\noindent
+The traversal is ten times finer at the anchor than in the wings, which is what
+\eqref{eq:ccoords} is for. The turning column converts at this object's own
+$\dd\arc/\dd\phase = 0.0134$~mag\,d$^{-1}$ at the anchor.
+
+\paragraph{Why $K_{\psi}$ is the lever.} At $(8,8)$ the traversal already resolves $2.0$~d
+while the turning resolves $9.9$~d, five times coarser: the binding constraint is the
+turning, and traversal modes refine something that was never the bottleneck. Optimising
+from this run's own best draw --- padding the new modes with zeros, which
+\S\ref{sec:run1} notes is exact to $5\times10^{-12}$ --- prices that directly in
+$\sum_{n}\ln\mathcal{L}_{n}$ over the thirty:
+\[
+\begin{array}{llr}
+\text{at } K_{q} = 8, & K_{\psi}: 8 \to 12 \ (4 \text{ modes}) & +758.4 \text{ nats} \\
+                      & K_{\psi}: 8 \to 16 \ (8 \text{ modes}) & +1272.9 \\
+\text{at } K_{\psi} = 8, & K_{q}: 8 \to 12 \ (4 \text{ modes}) & +170.8 \\
+                      & K_{q}: 8 \to 16 \ (8 \text{ modes}) & +247.3
+\end{array}
+\]
+$189.6$ nats a mode against $42.7$, a factor of $4.4$, and at a fixed budget of
+coefficients the split follows: at $22$, $(K_{q},K_{\psi}) = (8,16)$ reaches $-4429.4$
+against $(16,8)$'s $-5455.0$ and $(12,12)$'s $-4797.8$. Spending the budget on the
+turning wins by a thousand nats over spending it on the traversal.
+
+\paragraph{Where it stops paying, and why that number.} Raising $K_{\psi}$ at
+$K_{q} = 16$ gains $+1156.6$ nats from $8$ to $16$, then $+197.3$ to $20$ and $+52.0$ to
+$24$. Over that range the resolution goes $9.9 \to 1.8 \to 1.3 \to 1.0$~d, so the gains
+collapse as it approaches \emph{one day} --- which is the separation between the $g$ and
+$r$ maxima, the feature the turn at the anchor exists to resolve, and about the cadence
+besides. The expansion stops earning once it can resolve the sharpest thing in the data.
+This also recovers the $1680$ nats by which \S\ref{sec:run1gaps} has this fit behind
+$(24,16)$: $(8,8) \to (16,24)$ is $+1653.3$, the residual being that the reference is an
+unconverged draw rather than an optimum.
+
+\paragraph{The resolution is not uniform in phase, and the misfit is where it is worst.}
+$\dd\arc/\dd\phase$ is smallest at the anchor and some eight times larger by $+10$~d,
+while the $\dd\arc$ the basis resolves grows away from $\arc = 0$; carried through, the
+two give
+
+\medskip
+\begin{tabular}{@{}r r r r r r@{}}
+\toprule
+$K_{\psi}$ & $\phase \approx 0$ & $+5$~d & $+10$~d & $+20$~d & $+30$~d \\
+\midrule
+16 & $1.83$~d & $2.94$~d & $5.58$~d & $15.50$~d & --- \\
+24 & $0.98$~d & $1.84$~d & $4.08$~d & $ 7.78$~d & $15.50$~d \\
+\bottomrule
+\end{tabular}
+
+\medskip\noindent
+So even at $K_{\psi} = 24$ the model resolves about a day at peak and only some eight days
+by $+20$. The $r$-band secondary shoulder sits at phase $18$ to $27$, exactly where the
+resolution is worst, which is where \S\ref{sec:run1gaps} finds ZTF18abkhcwl's misfit.
+Raising the order attacks that slowly: what governs the wings is $\delta$ and the
+coordinate of \eqref{eq:ccoords}, not $K_{\psi}$.
+
+\paragraph{What these numbers are not.} A half wavelength is a convention: a feature at
+exactly that scale is representable, not well determined. The phase figures are one
+object's, at the median $x_{s}$, and $\dd\arc/\dd\phase$ varies across the sample with
+$x_{s}$, so they move object to object. And the gains above are penalized modes reached
+from a single start, so each is a lower bound on its order's maximum.
+
 \subsection{What it does not establish}
 \label{sec:run1gaps}
 
@@ -509,9 +609,13 @@ starts checks it; that check has not been run here. It is the gap that matters m
 because at $(24,16)$ this same program was bimodal and agreement there proved to be
 within-mode.
 
-\paragraph{One resolution.} $K_{\psi}$ was not varied. The rungs at $12$ and $16$ are
-unmeasured, so nothing says $8$ is where the turning expansion should stop, and the
-standing requirement of two resolutions is unmet on the order that governs the fit.
+\paragraph{One resolution was \emph{fitted}.} \S\ref{sec:run1res} maps the likelihood
+across nine orders, so what the data support is no longer unmeasured, and it says plainly
+that $8$ is not where the turning expansion should stop. But every one of those is an
+optimum from a single start, not a fit: no sampler has been run at any order but this one,
+so nothing is known about whether a higher $K_{\psi}$ converges, keeps $\tau_{\psi}$
+unimodal, or reintroduces the two regions of \S\ref{sec:run1conv}. The standing
+requirement of two resolutions is a requirement on fits and remains unmet.
 
 \paragraph{The fit is poor in absolute terms.} $\chi^{2}$ per epoch of $7.359$, and
 $1680$ nats behind the $(24,16)$ reference, \file{runs/ref-k2416-eps3}, on the same
