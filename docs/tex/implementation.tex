@@ -475,8 +475,9 @@ construction.
 
 The fit slides each supernova's time axis: $\Delta_{n} = \mu_{\Delta} + \delta_{n}$ shifts
 every epoch of object $n$ in phase, and the box and wall of \S\ref{sec:csamples} let it
-reach $\pm6$~d. The modelling window is wider than the data window by only five days at
-each end, so a shift that large carries epochs past the edge of the window --- for twelve
+reach $\pm6$~d. The modelling window is $[\phase_{\min}, \phase_{\max}] = [-20, +45]$~d and
+exceeds the selection window of Section~3, $[-15, +40]$~d, by only five days at each end,
+so a shift that large carries epochs past the edge of the window --- for twelve
 of the thirty objects early and eleven late, out to $-20.71$~d and $45.72$~d
 (\file{scripts/phase\_reach.py}). The sampler will try such shifts whether or not the fit
 settles near them, and it needs a finite, smooth answer from each one, so the model has to
@@ -583,9 +584,9 @@ left alone.
 
 On the draws the posterior actually visits every $\mathcal{T}_{i}$ is one:
 \code{frac\_tapered} is zero in every chain of every run on record, the earliest epoch
-over the thirty sitting at $-14.98$~d and the latest at $39.99$~d against a window of
-$(-20, 45)$, and the largest $\Delta$ ever drawn being $2.43$~d with a largest deviation of
-$1.085$~d. That is a statement about the posterior and not about the support, which reaches
+over the thirty sitting at $-14.98$~d and the latest at $39.99$~d against the modelling
+window of \S\ref{sec:csoft}, and the largest $\Delta$ ever drawn being $2.43$~d with a
+largest deviation of $1.085$~d. That is a statement about the posterior and not about the support, which reaches
 $0.71$~d past $\phase_{\min}$, where the weight is $0.742$; \S\ref{sec:csoft} is written for
 the latter. Moving the taper here from the flux changed \code{lp\_\_} and all 162 gradient
 coordinates by $0.000\mathrm{e}{+}00$.

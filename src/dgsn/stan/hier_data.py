@@ -34,7 +34,7 @@ def _v_span() -> float:
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
           sample=None, R=None, mode: bool = True, trav: bool = True,
           prior_shape: int = 0, sigma_q=None, sigma_psi=None, alpha_q=None,
-          alpha_psi=None, nu_coef: float = 1.0) -> dict:
+          alpha_psi=None, nu_coef: float = 1.0, free_mean: bool = True) -> dict:
     """The data block of ``hier.stan`` for the objects ``names``.
 
     ``mode=False`` is for ``hier_nomode.stan``, where Eq. (curvlin) carries no
@@ -71,7 +71,29 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         alpha_psi_fix=float(D.ALPHA_PSI if alpha_psi is None else alpha_psi),
         nu_coef=float(nu_coef),
     )
+    # <Delta>, read only by stan/hier_common.stan, which declares a coordinate
+    # for it when this is 1 and none when it is 0.  Default True is the
+    # program as every run on record was sampled, so a data dict built without
+    # naming it reproduces those runs.
+    data.update(free_mean=int(bool(free_mean)))
     return data
+
+
+def for_free_mean(ini: dict, data: dict) -> dict:
+    """Shape a start's ``mu_delta`` for ``hier_common``'s ``free_mean``.
+
+    The sampled mean is declared as a length-``free_mean`` vector, so a start
+    that carries only the scalar ``mu_delta`` --- which every start here does,
+    the scalar being what the CSVs report and what the other programs sample
+    --- leaves ``mu_delta_raw`` uninitialised, and CmdStan then draws it
+    uniformly on the unconstrained scale.  Silently: a start that has lost its
+    phase origin still runs, and the only check that catches it is the ``lp``
+    at the transferred point, which is why one is printed.  Applied to a start
+    for any other program this is inert, the extra name being ignored."""
+    out = dict(ini)
+    fm = int(data.get("free_mean", 1))
+    out["mu_delta_raw"] = ([float(out.get("mu_delta", 0.0))] if fm else [])
+    return out
 
 
 def n_coef(k_psi: int, k_q: int, mode: bool = True, trav: bool = True) -> int:
@@ -312,6 +334,10 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
     for k in zeroed:
         out[k] = 0.0
         out["u" + ("_p" if k == "mu_p" else "_psi")] = np.zeros(len(names))
+    # Before the lp check below, not after: the check is the only thing that
+    # catches a start whose phase origin was left to CmdStan's random draw.
+    if data is not None:
+        out = for_free_mean(out, data)
     if verbose:
         msg = (f"started from {out_dir}: carried {len(set(carried))} blocks"
                + (f", new modes zeroed: {', '.join(zeroed)}" if zeroed else ""))

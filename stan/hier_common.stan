@@ -36,6 +36,34 @@ data {
   int<lower=1> grainsize;
   // Over the shorter block: b_til and d_til alone, no z_a and no z_c.
   matrix[(Kq - 1) + (Kpsi - 1), (Kq - 1) + (Kpsi - 1)] R;
+  // 1 samples <Delta>, which is this program as it has always been; 0 holds
+  // <Delta> = 0, declaring no coordinate for it.  Set it to 0 to price that
+  // constraint, never to fit under it.
+  //
+  // <Delta> = 0 is not a gauge choice, and an earlier comment here said it
+  // relocates the phase offset into q_0's shape, which it cannot.  Eq.
+  // (travlog) integrates the rate from zero so s(0) = 0 for every q_0, Eq.
+  // (quadrature) integrates the tangent from zero so gamma(0) = (0,0), and
+  // Eq. (curvlin) pins Psi_0(0) = Psi_1(0) = 0 so psi(0) = -pi/2 exactly --
+  // the statement that p = 0 is the critical point of M_g.  A common shift
+  // would need s(0) = s(a); the magnitude translation it drags along is
+  // absorbable, (1,1) and (0,-1) spanning the plane, but psi(0) = -pi/2 is
+  // not, the turning admitting no additive constant.  So p = 0 is pinned to
+  // the model's own g-band extremum and <Delta> is the physical offset from
+  // t_0 there: model-definition.tex, "t_0 is B maximum and tmax is g
+  // maximum, and the offset between them is measured by the fit, centre and
+  // sign included, rather than assumed."  Nor is there a fallback: d_dev is
+  // a sum_to_zero_vector, so with free_mean = 0 the sum of delta_t is
+  // exactly zero and no coordinate carries a common offset -- b_0 enters
+  // x_s_tot, a log rate, and a rate shift dilates the phase axis instead of
+  // translating it.
+  //
+  // Measured at (K_psi, K_q) = (8, 8) over thirty objects, the two arms
+  // differing only in this flag: the constraint costs 8.9 nats of sum lp_sn
+  // at the best draw and 6.6 at the posterior mean, and <Delta> sampled
+  // freely lands at -0.395 +- 0.096, 4.1 sd from zero.  Both arms converged
+  // (diagnose() clean, nothing at the cap), so it buys no mixing either.
+  int<lower=0, upper=1> free_mean;
 }
 transformed data {
 #include dgsn_grid_tdata.stan
@@ -200,10 +228,16 @@ parameters {
   // goes flat -- -156709.38 at t = 300 and at t = 1000.  Together they put
   // Delta in [-6, 6], against a largest draw ever seen of 2.43 d and a
   // largest deviation of 1.085 d, so neither is ever met.
-  real<lower=-3, upper=3> mu_delta;
+  //
+  // One copy when free_mean is 1, none when it is 0: a zero-length vector
+  // declares no coordinate, so <Delta> = 0 carries one fewer rather than one
+  // inert.  The reported mu_delta below stays a scalar either way, so every
+  // reader of the CSV keeps working and reads 0 when the mean is held.
+  vector<lower=-3, upper=3>[free_mean] mu_delta_raw;
   sum_to_zero_vector[N_sn] d_dev;
 }
 transformed parameters {
+  real mu_delta = free_mean ? mu_delta_raw[1] : 0;
   vector[N_sn] delta_t = mu_delta + d_dev;
   // what reaches the exponent: the per-supernova deviation plus q_0's own
   // degree-zero term, P_0 = 1/sqrt(vhi - vlo)

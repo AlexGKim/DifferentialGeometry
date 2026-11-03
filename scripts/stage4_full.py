@@ -32,7 +32,7 @@ from cmdstanpy import from_csv
 
 from dgsn.data.sample import analysis_sample, median_x1, training_split, x1_fifth
 from dgsn.salt.globals import fit_globals
-from dgsn.stan.hier_data import build, inits
+from dgsn.stan.hier_data import build, for_free_mean, inits
 from dgsn.stan.run import chain_csvs, sample_four
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -75,6 +75,10 @@ def main():
     ap.add_argument("--max-treedepth", type=int, default=8)
     ap.add_argument("--adapt-delta", type=float, default=None)
     ap.add_argument("--dense", action="store_true", help="dense_e; see the note at the top of this file")
+    ap.add_argument("--delta-mean-zero", action="store_true",
+                    help="hold <Delta> = 0, declaring no coordinate for it; see "
+                         "hier_common.stan's free_mean, and note it was the worst of "
+                         "three treatments at (24, 16)")
     ap.add_argument("--wait", action="store_true", help="block until the chains finish, then report")
     ap.add_argument("--precondition-from", default=None, metavar="DIR",
                     help="rotate the coefficients by the Fisher information at the posterior "
@@ -96,6 +100,14 @@ def main():
     prog = ("hier_common" if args.no_trav_mode
             else "hier_nomode" if args.no_mode else "hier")
     mode, trav = not args.no_mode, not args.no_trav_mode
+    # free_mean is declared by hier_common alone, and CmdStan leaves data a
+    # program does not declare, so asking any other program to hold <Delta> = 0
+    # samples it anyway and prints that it did not.  Refuse instead: this is
+    # the shape of failure the note records three times over, a flag that
+    # reaches no code and a run that looks like the arm it is not.
+    if args.delta_mean_zero and prog != "hier_common":
+        raise SystemExit(f"--delta-mean-zero needs hier_common, which declares free_mean; "
+                         f"{prog} would ignore it.  Add --no-trav-mode.")
 
     sample = analysis_sample()
     train, _ = training_split()
@@ -106,9 +118,10 @@ def main():
     # sample rather than handing one worker everything
     grain = max(1, len(names) // max(1, args.threads))
     data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample,
-                 mode=mode, trav=trav)
+                 mode=mode, trav=trav, free_mean=not args.delta_mean_zero)
     print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({args.k_psi}, {args.k_q}), "
           f"grainsize {grain}, x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
+    print(f"<Delta> {'held at 0' if args.delta_mean_zero else 'sampled'}")
 
     if args.report:
         csvs = chain_csvs(out)
@@ -133,12 +146,16 @@ def main():
         per = pieces(ini, args.k_psi, args.k_q)[2]
         R = from_run(args.precondition_from, data, args.k_psi, args.k_q, per_sn=per)
         data = build(names, args.k_psi, args.k_q, grainsize=grain, sample=sample, R=R,
-                     mode=mode, trav=trav)
+                     mode=mode, trav=trav, free_mean=not args.delta_mean_zero)
         ini = inits(names, args.k_psi, args.k_q, x1_ref, sample=sample, globals_=G, R=R,
                     mode=mode, trav=trav)
         print(f"preconditioned from {args.precondition_from} "
               f"({source_size(args.precondition_from)} objects -> {len(names)}), "
               f"rotation condition {np.linalg.cond(R):.1e}")
+
+    # After pieces() above, which reads the scalar mu_delta, and before the
+    # gradient check, which is the first thing to evaluate the program.
+    ini = for_free_mean(ini, data)
 
     lp0, worst = gradient_check(data, ini, name=prog)
     print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")

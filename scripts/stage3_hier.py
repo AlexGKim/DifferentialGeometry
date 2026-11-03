@@ -20,7 +20,8 @@ from cmdstanpy import from_csv, write_stan_json
 from dgsn.data.sample import analysis_sample, median_x1, stage3_sample, x1_fifth
 from dgsn.salt.globals import fit_globals
 from dgsn.stan import data as D
-from dgsn.stan.hier_data import _v_span, build, inits, inits_from_optimize, inits_from_run
+from dgsn.stan.hier_data import (_v_span, build, for_free_mean, inits,
+                                 inits_from_optimize, inits_from_run)
 from dgsn.stan.run import (chain_csvs, log_prob, model, sample_four,
                            seconds_per_gradient)
 
@@ -284,6 +285,9 @@ def main():
     ap.add_argument("--k-psi", type=int, default=K_PSI)
     ap.add_argument("--k-q", type=int, default=K_Q)
     ap.add_argument("--dense", action="store_true", help="dense_e metric, adapted by Stan")
+    ap.add_argument("--delta-mean-zero", action="store_true",
+                    help="hold <Delta> = 0, declaring no coordinate for it "
+                         "(hier_common's free_mean); needs --no-trav-mode")
     ap.add_argument("--adapt-delta", type=float, default=None)
     ap.add_argument("--warm-from", default=None,
                     help="probe: start each chain at the last draw of a previous run's chain, with that "
@@ -317,12 +321,19 @@ def main():
     prog = ("hier_common" if args.no_trav_mode
             else "hier_nomode" if args.no_mode else "hier")
     mode, trav = not args.no_mode, not args.no_trav_mode
+    # free_mean is hier_common's alone; CmdStan leaves data a program does not
+    # declare, so any other program would sample <Delta> and report otherwise.
+    if args.delta_mean_zero and prog != "hier_common":
+        raise SystemExit(f"--delta-mean-zero needs hier_common, which declares free_mean; "
+                         f"{prog} would ignore it.  Add --no-trav-mode.")
+    free_mean = not args.delta_mean_zero
     sample = analysis_sample()
     names = stage3_sample()
     x1_ref = median_x1()
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
-    data = build(names, k_psi, k_q, sample=sample, mode=mode, trav=trav)
+    data = build(names, k_psi, k_q, sample=sample, mode=mode, trav=trav,
+                 free_mean=free_mean)
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode, trav=trav)
     R = None
     if args.precondition_optimize:
@@ -330,13 +341,13 @@ def main():
         import time as _t
         t0 = _t.time()
         R = from_optimize(data, ini, k_psi, k_q)
-        data = build(names, k_psi, k_q, sample=sample, R=R)
+        data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean)
         print(f"preconditioned at the optimize mode in {_t.time()-t0:.0f} s, "
               f"rotation condition {np.linalg.cond(R):.1e}")
     elif args.precondition_from:
         from dgsn.stan.precondition import from_run
         R = from_run(args.precondition_from, data, k_psi, k_q)
-        data = build(names, k_psi, k_q, sample=sample, R=R)
+        data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean)
         print(f"preconditioned from {args.precondition_from}: "
               f"rotation condition {np.linalg.cond(R):.1e}")
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode,
@@ -363,6 +374,11 @@ def main():
         report(fit, names, sample, data)
         return
 
+    # Before the gradient check, the first thing to evaluate the program: a
+    # start carrying only the scalar mu_delta leaves hier_common's length-
+    # free_mean vector to CmdStan's random draw, silently.
+    ini = for_free_mean(ini, data)
+
     lp0, worst = gradient_check(data, ini, name=prog)
     print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")
     full, nodes = cost(data, ini, name=prog)
@@ -375,7 +391,8 @@ def main():
 
     starts = ini
     if args.dispersed:
-        starts = dispersed_starts(ini, R, K_PSI, K_Q, mode, trav)
+        starts = [for_free_mean(s, data)
+                  for s in dispersed_starts(ini, R, K_PSI, K_Q, mode, trav)]
     out = Path(args.out + ("-dispersed" if args.dispersed else ""))
     metric, metric_file, warmup, refresh = ("dense_e" if args.dense else None), None, args.iter, 100
     if args.warm_from:
