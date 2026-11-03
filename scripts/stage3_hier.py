@@ -272,6 +272,38 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
     return starts
 
 
+def _source_names(out_dir, sample) -> list[str] | None:
+    """The object list of the run in ``out_dir``, confirmed against its own
+    ``data.json``.  ``stage3_sample(k)`` is tried for every ``k`` consistent
+    with ``N_sn``, then the training split; the one whose per-object epoch
+    counts reproduce ``stop - start + 1`` is the answer, and None if none does,
+    which leaves ``inits_from_run`` to fall back on matching by shape."""
+    import json
+    from dgsn.data.epochs import likelihood_epochs
+    from dgsn.data.sample import training_split
+
+    g = json.load(open(Path(out_dir) / "data.json"))
+    n_sn = int(g["N_sn"])
+    want = np.asarray(g["stop"]) - np.asarray(g["start"]) + 1
+    cands = []
+    if n_sn % 5 == 0:
+        cands.append(stage3_sample(n_per_fifth=n_sn // 5))
+    cands.append(training_split()[0])
+    for nm in cands:
+        if len(nm) != n_sn:
+            continue
+        cnt = np.array([len(likelihood_epochs(x, sample.loc[x].t0,
+                                              sample.loc[x].redshift)["dt"])
+                        for x in nm])
+        if np.array_equal(cnt, want):
+            print(f"  source {out_dir}: {n_sn} objects, {int(want.sum())} epochs, "
+                  f"counts match")
+            return list(nm)
+    print(f"  source {out_dir}: object list not identified; "
+          f"per-supernova values will be carried only if the shapes match")
+    return None
+
+
 def main():
     global K_PSI, K_Q
     ap = argparse.ArgumentParser()
@@ -282,6 +314,10 @@ def main():
     ap.add_argument("--out", default="runs/stage3")
     ap.add_argument("--iter", type=int, default=None, help="warmup and sampling iterations each (default Stan's)")
     ap.add_argument("--max-treedepth", type=int, default=12)
+    ap.add_argument("--n-per-fifth", type=int, default=6,
+                    help="objects per fifth of x1, so 5x this many in all "
+                         "(default 6, the thirty of every stage-3 run on record); "
+                         "the selections nest, 12 giving a superset of 6")
     ap.add_argument("--k-psi", type=int, default=K_PSI)
     ap.add_argument("--k-q", type=int, default=K_Q)
     ap.add_argument("--dense", action="store_true", help="dense_e metric, adapted by Stan")
@@ -328,7 +364,7 @@ def main():
                          f"{prog} would ignore it.  Add --no-trav-mode.")
     free_mean = not args.delta_mean_zero
     sample = analysis_sample()
-    names = stage3_sample()
+    names = stage3_sample(n_per_fifth=args.n_per_fifth)
     x1_ref = median_x1()
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
@@ -353,8 +389,16 @@ def main():
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode,
                 trav=trav)
     if args.init_from:
+        # The source's own object list, so the per-supernova blocks can be
+        # carried by name when this fit's sample is wider.  Identified by
+        # reproducing its data.json epoch counts, never by assuming which
+        # n_per_fifth made it -- the selections nest but their order does not,
+        # so position-matching a 60 against a 30 would silently misplace
+        # twenty-nine of thirty.
+        src_names = _source_names(args.init_from, sample)
         ini = inits_from_run(args.init_from, names, k_psi, k_q, x1_ref, mode=mode,
-                             trav=trav, sample=sample, globals_=G, R=R)
+                             trav=trav, sample=sample, globals_=G, R=R,
+                             src_names=src_names)
     if args.init_optimize:
         # the SALT2 fit starts the optimizer; the optimum starts the chains.
         # polish=False was forced by the s_delta ridge, which the constrained

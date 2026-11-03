@@ -249,7 +249,8 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
 def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
                    mode: bool = True, trav: bool = True, sample=None, globals_=None,
                    R=None, program: str | None = None, data: dict | None = None,
-                   use_mean: bool = False, verbose: bool = True) -> dict:
+                   use_mean: bool = False, verbose: bool = True,
+                   src_names=None) -> dict:
     """Start a richer model at a simpler one's posterior mean.
 
     The three hierarchy programs are nested, and the embedding is exact: a
@@ -266,6 +267,23 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
     actually occupied, so the scatters, the coefficient scales and every
     per-supernova placement are where the data put them rather than where a
     template or a maximum put them.
+
+    Raising K is the same argument again, and the embedding is again exact.
+    The bases nest: ``traversal_row`` truncates the Legendre row and nothing
+    more, and ``turning_transform`` returns the inverse Cholesky factor of
+    ``I + (uhi - ulo) P0' P0``, whose leading block is the lower order's own
+    factor because Cholesky nests, so basis function j depends only on
+    P_2..P_{j+1}.  Padding the centred blocks with zeros therefore reproduces
+    the source's curve exactly -- measured at 5e-12 over eight orders from
+    (8, 8) to (24, 16).  The non-centred ``z_a`` and ``z_c`` keep their own
+    \\salt\\ values past the source's length, zero being forbidden there by
+    the gauge.
+
+    ``src_names`` is the source run's object list, needed when this fit's
+    differs.  The per-supernova blocks are then carried by name: an object the
+    source saw keeps its placement and one it did not keeps its \\salt\\ start.
+    Without it a wider sample silently keeps \\salt\\ values for every object,
+    the shape test below failing on all of them at once.
     """
     from dgsn.stan.precondition import best_draw, posterior_mean
 
@@ -274,12 +292,30 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
                 mode=mode, trav=trav)
     # carried across: everything the simpler model also had
     carried = []
+    # Where the two samples differ, the per-supernova blocks are matched on
+    # name.  take[i] is the source row for destination object i, or -1 when
+    # the source never saw it and the SALT2 start stands.
+    take = None
+    if src_names is not None and list(src_names) != list(names):
+        pos = {nm: i for i, nm in enumerate(src_names)}
+        take = np.array([pos.get(nm, -1) for nm in names])
+        if verbose:
+            print(f"  objects: {int((take >= 0).sum())} carried by name from "
+                  f"{len(src_names)}, {int((take < 0).sum())} started from SALT2")
     for k in list(out):
         if k in src and k != "w_coef":
             v = np.asarray(src[k], dtype=float)
-            if np.shape(v) == np.shape(np.asarray(out[k], dtype=float)):
+            d = np.asarray(out[k], dtype=float)
+            if np.shape(v) == np.shape(d):
                 out[k] = v if np.ndim(out[k]) else float(v)
                 carried.append(k)
+            elif (take is not None and v.ndim == 1 and d.ndim == 1
+                  and v.size == len(src_names) and d.size == len(names)):
+                merged = d.copy()
+                hit = take >= 0
+                merged[hit] = v[take[hit]]
+                out[k] = merged
+                carried.append(f"{k} (by name)")
     # A source that predates the constrained placements carries colr whole.
     # Split it, or c_bar and c_dev keep their \salt\ values while everything
     # around them comes from the posterior.
@@ -317,9 +353,26 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
                       mode="z_c" in _slots(out_dir), trav="z_a" in _slots(out_dir))
     d_un = unpack(np.asarray(out["w_coef"], dtype=float), k_psi, k_q, mode, trav)
     for key in d_un:
-        if key in s_un:
-            d_un[key] = s_un[key]
+        if key not in s_un:
+            continue
+        v = np.asarray(s_un[key], dtype=float)
+        if v.size == d_un[key].size:
+            d_un[key] = v
             carried.append(key)
+        elif v.size < d_un[key].size:
+            # Raising K.  The leading coefficients are the source's; the rest
+            # start at zero for the centred blocks, which reproduces the
+            # source's curve exactly, and at their SALT2 values for z_a and
+            # z_c, where the gauge forbids zero.
+            full = d_un[key].size
+            tail = (np.zeros(full - v.size) if key in ("b_til", "d_til")
+                    else d_un[key][v.size:])
+            d_un[key] = np.concatenate([v, tail])
+            carried.append(f"{key} (leading {v.size} of {full})")
+        else:
+            raise ValueError(
+                f"{key}: the source carries {v.size} coefficients and this fit "
+                f"declares {d_un[key].size}; lowering K is not an embedding")
     raw = pack(*[d_un[k] for k in ("z_a", "b_til", "z_c", "d_til") if k in d_un])
     out["w_coef"] = raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw)
     # A source from before Eq. (xsmean) carries x_s itself; split it the way
