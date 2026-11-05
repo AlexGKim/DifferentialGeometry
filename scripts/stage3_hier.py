@@ -314,6 +314,10 @@ def main():
     ap.add_argument("--out", default="runs/stage3")
     ap.add_argument("--iter", type=int, default=None, help="warmup and sampling iterations each (default Stan's)")
     ap.add_argument("--max-treedepth", type=int, default=12)
+    ap.add_argument("--save-warmup", action="store_true",
+                    help="write the warmup draws to the CSV, so the realised treedepth is "
+                         "readable from the first iteration rather than inferred from "
+                         "wall-clock; changes no transition")
     ap.add_argument("--n-per-fifth", type=int, default=6,
                     help="objects per fifth of x1, so 5x this many in all "
                          "(default 6, the thirty of every stage-3 run on record); "
@@ -450,7 +454,7 @@ def main():
     fit = sample_four(prog, data, starts, out, seed=1, threads_per_chain=args.threads,
                       iter_warmup=warmup, iter_sampling=args.iter, max_treedepth=args.max_treedepth,
                       metric=metric, metric_file=metric_file, adapt_delta=args.adapt_delta,
-                      refresh=refresh)
+                      refresh=refresh, save_warmup=args.save_warmup)
     print(f"\nfour chains in {time.time() - t:.0f} s wall")
     report(fit, names, sample, data)
 
