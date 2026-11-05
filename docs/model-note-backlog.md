@@ -1504,3 +1504,134 @@ lacks the four `tau` and `alpha` prior terms. Those are worth under a nat at
 these values, so the 31 nats between the held-normal arm's -4041.3 and the
 reference's -4072.0 is not explained by them, but it is suggestive of a third
 region rather than established.
+
+## (12, 16) at sixty objects: stopped at the depth cap, and a second bimodality (2026-11-04)
+
+`runs/stage3-k1216-n60` --- `hier_common` at `Kq = 12`, `Kpsi = 16`, 60
+objects and 3682 epochs, `max_treedepth 11`, 500 warmup and 500 sampling,
+started from `runs/stage3-k88-free`'s best draw with the 30 shared objects
+carried by name and the 30 new ones placed from \salt. Stopped by hand at
+iteration ~750 of 1000 after 22 h per chain. It is a negative result twice
+over.
+
+**Every trajectory ran to the cap.** Mean `n_leapfrog` is 2047 on all four
+chains, which is $2^{11}-1$ exactly; treedepth mean 11.00, 99.6% of
+transitions at 11, and zero divergences --- a figure that means nothing when
+no trajectory ended on its own U-turn. The K ladder's estimate for (12, 16)
+was $\sqrt{\mathrm{cond}} \approx 761$, i.e. about $2^{9.6}$, and that
+estimate came from 30 objects; at 60 the requirement is past $2^{11}$ and the
+ladder under-predicted it.
+
+**Treedepth cannot be inferred from wall-clock, and the attempt here was
+circular.** With `save_warmup` off, nothing reaches the CSV until iteration
+501, so for the first 18 h the only evidence was the draw rate. Three
+brackets were produced from it (depth 9.8 to 10.8, then "about 9.8 to 10.0")
+and all three were wrong, because the inference assumes the trajectory length
+is set by the U-turn: once the sampler is capped, the rate reports the cap and
+not the need, and no arithmetic on it can recover the depth. The run's one
+transferable lesson is procedural --- `scripts/stage3_hier.py` gained
+`--save-warmup` the same day, and an order not previously run gets it, so the
+stop-or-continue decision is an observation from the first iteration.
+
+**A 2--2 split from byte-identical starting points.** All four
+`inits-*.json` hash to `b96ff030e24efe6b`\dots, so the split is produced by
+momentum seeds alone:
+
+| | chain 1 | chain 2 | chain 3 | chain 4 |
+|---|---|---|---|---|
+| `mu_delta` | $-1.2944$ | $-1.2929$ | $-1.0684$ | $-1.0550$ |
+| `c_bar` | $+0.0200$ | $+0.0197$ | $+0.0543$ | $+0.0554$ |
+| `lp__` | $-24592.4$ | $-24591.4$ | $-24651.0$ | $-24648.5$ |
+| step size | 0.00227 | 0.00254 | 0.00023 | 0.00019 |
+
+The two pairs sample the identical program on identical data, so the 58 nats
+between them are comparable, and the step size differing by a factor of 10 to
+13 is a difference in local curvature rather than in luck. Rank-normalised
+split R-hat over the partial sampling draws --- hand-rolled, because
+`from_csv` wants complete files --- puts 679 of 689 coordinates above 1.01,
+worst 2.03 at `colr[2]`, minimum ESS_bulk 55.
+
+**This is not the `tau_psi` ray.** `tau_psi` agrees across all four chains
+(7.59 to 8.07), where the split recorded at (24, 16) was in `tau_psi` itself
+and lay along $\|d\| \propto \tau_\psi$. What separates the pairs here is
+$\langle\Delta\rangle$ against `c_bar`: the common phase offset traded against
+the mean colour, which is the degeneracy a two-band model with no SED is most
+exposed to. Worth characterising, but only at an order that mixes.
+
+**Unexplained, and flagged rather than claimed.** $\langle\Delta\rangle$ is
+$-1.06$ to $-1.29$ d in both modes, against $-0.395 \pm 0.096$ in
+`runs/stage3-k88-free` and $-0.52$ to $-0.63$ across the six earlier
+30-object runs. Both modes agree on sign and rough size, so it is not a mode
+artifact; but this run changed the sample size and both orders at once, so
+nothing here says whether 60 objects or $Kpsi = 16$ moved it. `(12, 12)` at
+the same 60 objects is the arm that separates them, and it is running.
+
+## Warmup depth before the first metric update says nothing (2026-11-04)
+
+`runs/stage3-k1212-n60` --- the same 60 objects and 3682 epochs as
+`runs/stage3-k1216-n60`, `Kq = Kpsi = 12`, 22 coefficients, `max_treedepth`
+raised to 12 and `--save-warmup` on. **Stopped by hand at 70 to 90 warmup
+draws of 500, which was too early to measure anything, and the stop was a
+mistake.** The entry is kept for the mistake, which is cheap to repeat.
+
+**What was read, and why it was misread.** Two readings were taken:
+
+| reading | elapsed | last-25 depth | fraction at cap 12 | leapfrogs |
+|---|---|---|---|---|
+| ~50 draws | 13 min | 6.0 to 6.7 | 0.000 to 0.024 | 84 to 230 |
+| ~80 draws | 2 h 07 m | 10.4 to 10.8 | 0.244 to 0.329 | 1191 to 1480 |
+
+The rise was read as the sampler climbing to the cap, and the draw rate
+between the two readings was extrapolated to 26 h of remaining warmup, or 78
+to 90 h if it saturated. Both numbers are void. CmdStan's default warmup for
+`num_warmup = 500` is `init_buffer 75 | windows 25, 50, 100, 200 |
+term_buffer 50`, so the inverse metric is first estimated at **iteration
+100** and re-estimated at 150, 250 and 450. Every draw in both readings came
+from the init buffer and the first window --- before any metric existed. Tree
+depth there is a property of the unit metric and the initial step size, not of
+the posterior, and a rate measured there cannot be extrapolated across a
+window boundary.
+
+**What the boundary does, measured on the companion run.**
+`runs/stage3-k88-n60` is (8, 8) on the identical 60 objects, and it shows the
+same rise followed by the regime change the (12, 12) stop pre-empted. Per
+chain, in blocks of 25 draws:
+
+| draws | depth mean | fraction at cap 12 | step size at block end |
+|---|---|---|---|
+| 0--25 | 2.0 to 2.8 | 0.00 | $\sim 3\times10^{-5}$ |
+| 25--50 | 5.0 to 7.6 | 0.00 to 0.16 | $\sim 6\times10^{-5}$ |
+| 50--75 | 8.2 to 10.8 | 0.32 to 0.80 | $\sim 3\times10^{-5}$ |
+| 75--100 | 10.0 to 11.3 | 0.80 to 0.92 | $\sim 4\times10^{-5}$ |
+| 100--125 | 9.2 to 9.8 | 0.20 to 0.28 | $\sim 4\times10^{-3}$ |
+
+The step size jumps by two orders of magnitude at draws 101--104 and again at
+151--153 --- the ends of the first two windows --- and the depth falls from
+11.2 to 9.4 with it. A run stopped at draw 85 looks like a run heading for the
+cap and is in fact a run that has not started.
+
+**The rule.** Do not read tree depth, step size or draw rate from warmup
+before the second metric update, i.e. before iteration 150 at
+`num_warmup = 500`; prefer iteration 250, after the third. `--save-warmup`
+makes these readable within minutes, which is its value, but early
+readability is not early meaning. `runs/stage3-k1216-n60` is a genuine
+saturation --- 99.6% at the cap over 250 *post*-warmup draws with the metric
+fully adapted --- and remains a real negative result; (12, 12) is not, and is
+unresolved rather than refuted.
+
+**Still true of the ladder, on the evidence that does bear on it.** The
+planning note's table was computed by Cauchy interlacing on
+`runs/ref-k2416-eps3`'s **30**-object posterior. Interlacing bounds what
+truncating K does to the conditioning and models no other change, so the
+table is a statement about order at fixed sample size. The sample-size cost
+has now been measured once at fixed order: (8, 8) realised depth 8.02 with
+max 9 and nothing at the cap at 30 objects in `runs/stage3-k88-free`, against
+depth 9.2 to 9.8 with 20 to 28% at cap 12 at 60 objects and warmup not yet
+finished. Doubling the objects costs roughly 1.5 doublings of trajectory at
+fixed order, which the ladder does not predict and was never built to.
+
+**Also learned about the cap.** Raising `max_treedepth` from 11 to 12 was
+argued as costless on the grounds that NUTS stops at the U-turn when it can.
+That is true and incomplete: the cap also sets the worst case when the
+sampler cannot, so a cap of 12 doubles the wall-clock of a run that
+saturates. Both halves belong in the decision.
