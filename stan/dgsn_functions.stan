@@ -342,6 +342,44 @@ functions {
     return sum(w .* square((f - f_hat) ./ sig_f));
   }
 
+  // Eq. (like) again, with Eq. (modelerr)'s fractional model error folded in.
+  //
+  //   V = sig_f^2 + (0.4 ln10 * sigma_b * f)^2
+  //
+  // sig_f already carries the sky and the source noise, so this second term
+  // is not measurement error and would double-count it if it were.  It is
+  // *model* error: the gap between the model curve and this supernova's own
+  // curve, whose natural size is fractional because a curve good to a few
+  // percent is good to a few percent bright or faint.  Without it the fit is
+  // driven by whichever objects happen to be best observed -- over the sixty
+  // of runs/stage3-k88-n60, Spearman corr(chi2 per epoch, peak S/N) is
+  // +0.862 and corr with median sig_f/f is -0.797.
+  //
+  // The floor rides on the OBSERVED f, not on f_hat.  Where it dominates,
+  // the flux is known to one or two percent, so (a f)^2 and (a f_hat)^2
+  // agree to a few percent -- negligible in a term whose own size is being
+  // estimated.  And at every epoch where the two could differ materially,
+  // sig_f/f > 0.1, 426 of 3681, the floor does not dominate at all.  What
+  // this buys is that V is data but for one scalar per band, so log V
+  // couples to no geometric coordinate and the conditioning of the
+  // coefficient block is untouched.
+  //
+  // log V is NOT optional once sigma_b is fitted.  Without it the density
+  // rises monotonically in V and the fit drives sigma_b to infinity.  This
+  // is required whichever flux the floor rides on, because sigma_b is a
+  // parameter either way; riding on f only makes the term cheap, not
+  // unnecessary.
+  //
+  // sfrac is per-epoch 0.4 ln10 sigma_b[band], so that one call covers both
+  // bands.  What this returns is -2 ln L with no constant dropped: unlike
+  // neg2_loglike above it is NOT comparable with an lp_sn from a program
+  // that omits the log-determinant.
+  real neg2_loglike_floor(vector f, vector sig_f, vector f_hat, vector w,
+                          vector sfrac) {
+    vector[num_elements(f)] V = square(sig_f) + square(sfrac .* f);
+    return sum(w .* (square(f - f_hat) ./ V + log(V)));
+  }
+
   // ---- The hierarchy, Section 5: a slice of supernovae for reduce_sum ---
   // -1/2 of Eq. (like) summed over a slice of supernovae.
   real partial_sum(array[] int sn, int first, int last,
@@ -367,6 +405,41 @@ functions {
           Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
           edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
       total += neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]), exp(lf[:, 2]));
+    }
+    return -0.5 * total;
+  }
+
+  // The same slice with Eq. (modelerr)'s floor, for the programs that fit
+  // sigma_b.  It is a second function rather than an argument to the first
+  // because reduce_sum pins the signature, and because passing sfrac = 0
+  // here would not reproduce partial_sum: the log-determinant would survive
+  // as sum log sig_f^2, shifting lp__ by a constant and breaking every
+  // comparison with a run made before this existed.
+  real partial_sum_floor(array[] int sn, int first, int last,
+                   vector dt, vector f, vector sig_f, vector sfrac,
+                   array[] int band,
+                   array[] int start, array[] int stop, vector z,
+                   vector m_peak, vector colr, vector x_s, vector x_p, vector x_psi,
+                   vector delta_t,
+                   vector a, vector b, vector c, vector d,
+                   real pmin, real pmax, real smin, real smax,
+                   real eps, real eps_t, real eps_s, real zp,
+                   int Kq, real vlo, real vhi, real delta_p,
+                   int Kpsi, real ulo, real uhi, real delta,
+                   int m, int J, vector edges_v, matrix Xv_nodes, vector jacw_v,
+                   vector edges_u, matrix Xu_nodes, vector jacw_u,
+                   vector xg, vector wg, row_vector P0, matrix T) {
+    real total = 0;
+    for (n in sn) {
+      int lo = start[n];
+      int hi = stop[n];
+      matrix[hi - lo + 1, 4] lf = log_flux(dt[lo:hi], band[lo:hi], z[n],
+          m_peak[n], colr[n], x_s[n], x_p[n], x_psi[n], delta_t[n],
+          a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
+          Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
+          edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
+      total += neg2_loglike_floor(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]),
+                                  exp(lf[:, 2]), sfrac[lo:hi]);
     }
     return -0.5 * total;
   }

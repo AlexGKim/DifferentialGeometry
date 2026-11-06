@@ -508,11 +508,14 @@ the baseline was estimated from (\texttt{in\_baseline}). Every epoch contributes
 non-detections and negative fluxes included,
 \begin{equation}
   -2\ln\mathcal{L}
-    = \sum_{i}\frac{\bigl(f_{i} - \hat f_{i}\bigr)^{2}}{\sigma_{f,i}^{2}} ,
+    = \sum_{i}\left[\frac{\bigl(f_{i} - \hat f_{i}\bigr)^{2}}{V_{i}} + \ln V_{i}\right] ,
+  \qquad
+  V_{i} = \sigma_{f,i}^{2} + \bigl(0.4\ln 10\;\sigma_{b(i)}\,f_{i}\bigr)^{2} ,
   \label{eq:like}
 \end{equation}
-with $f_{i}$ the archive's baseline-subtracted flux and $\sigma_{f,i}$ its error, taken as
-published.
+with $f_{i}$ the archive's baseline-subtracted flux, $\sigma_{f,i}$ its error taken as
+published, and $\sigma_{b(i)}$ one fitted scalar per band, in magnitudes, for the band of
+epoch $i$.
 
 The variance is the archive's and nothing else. \texttt{flux\_err} already carries both the
 sky and the source contribution: regressed against flux over the epochs of
@@ -524,15 +527,40 @@ also calibrated as published: over the baseline epochs the flux scatters at $0.9
 $\sigma_{f}$, so DR2's own \texttt{err\_scale} is already folded in and is not to be
 applied again.
 
-An earlier version of \eqref{eq:like} added a second variance term,
-$(0.4\ln 10\ \sigma_{b_{i}}\hat f_{i})^{2}$, a fractional scatter carried by one fitted
-scalar per band. It is removed. With the variance no longer depending on the parameters the
-log-determinant goes with it: it was not optional while the variance did depend on them,
-since $\sum (f-\hat f)^{2}/\sigma^{2}$ alone falls monotonically in $\sigma$ and the fit
-would drive $\sigma_{b}$ to infinity, but $\sum\ln\sigma_{f,i}^{2}$ is an additive constant
-and contributes nothing. What \eqref{eq:like} returns is therefore $-2\ln\mathcal{L}$ up to
-that fixed number, and a log-likelihood from this model is not comparable with one from a
-program that kept the term until it is restored.
+\eqref{eq:like}'s second variance term is therefore \emph{not} measurement error, and
+adding it as such would double-count the source contribution the regression above
+displays. It is model error: the gap between the model curve and this supernova's own
+curve, whose natural size is fractional because a curve good to a few percent is good to a
+few percent bright or faint. $\sigma_{b}$ is fitted rather than declared, which makes its
+value a measurement of how far the chosen orders fall short --- the quantity worth
+minimising when $K_{q}$ and $K_{\psi}$ are selected, and one in magnitudes rather than in nats.
+Its prior is half-normal with scale $0.1$~mag.
+
+Without it the fit is driven by whichever supernovae happen to be best observed. Over the
+sixty of \texttt{runs/stage3-k88-n60}, Spearman's correlation between $\chi^{2}$ per epoch
+and peak signal-to-noise is $+0.862$, and with the median $\sigma_{f}/f$ it is $-0.797$:
+the best-measured objects were the worst fit, which is the signature of model error and not
+of noise. One object at $z = 0.0181$ with $222$ epochs carried $29\%$ of the total
+$\chi^{2}$.
+
+The term rides on the observed $f_{i}$ and not on $\hat f_{i}$. Where it dominates, the
+flux is known to one or two percent, so $(a f)^{2}$ and $(a\hat f)^{2}$ agree to a few
+percent --- negligible in a term whose own magnitude is what is being estimated --- and at
+every epoch where the two could differ materially, $\sigma_{f}/f > 0.1$, $426$ of $3681$,
+the term does not dominate at all. What this buys is that $V_{i}$ is data but for one
+scalar per band, so $\ln V_{i}$ couples to no coordinate of the geometry and the
+conditioning of the coefficient block of Section~\ref{sec:inference} is untouched.
+
+The log-determinant is not optional. $\sum (f-\hat f)^{2}/V$ alone rises monotonically in
+$V$, so a fitted $\sigma_{b}$ would run to infinity without $\sum\ln V_{i}$; this holds
+whichever flux the term rides on, since $\sigma_{b}$ is a parameter either way, and riding
+on $f$ makes $\ln V$ cheap rather than unnecessary. Walked up at the \salt-placed start
+with everything else held, the density rises to a maximum near $\sigma_{b} = 0.16$~mag and
+falls monotonically beyond it. One consequence is that \eqref{eq:like} now carries no
+dropped constant and a log-likelihood from it is \emph{not} comparable with one from a
+program that omits the term; the implementation therefore reports $-\chi^{2}/2$ on the
+archive's errors alone alongside it, unchanged in meaning, so that figures quoted for
+earlier runs remain usable.
 
 Two intervals bound where the modeling functions of Section~\ref{sec:traversal} are
 defined, and the posterior respects neither: $\tmax$ can carry an epoch's phase outside
@@ -631,10 +659,11 @@ density. Global coefficients, per-supernova parameters and the hyperparameters b
 are sampled jointly: $2K_{\psi} + 2K_{q} - 4$ coefficients, six parameters for each
 training supernova, and the scalars. Nothing is profiled or held at a point estimate. The
 per-supernova parameters are incidental in the sense of \citet{Neyman1948}, and maximizing
-over them biases the global quantities that share the same epochs; the earlier version of
-this section named the fitted scatters as what would be biased low, and they are gone with
-\eqref{eq:like}'s second variance term, but the reason for sampling rather than profiling
-is unchanged.
+over them biases the global quantities that share the same epochs; with
+\eqref{eq:like}'s second variance term restored, $\sigma_{g}$ and $\sigma_{r}$ are again
+the clearest instance --- profiling the per-supernova parameters would push the residuals
+down and the fitted scatters with them --- and the reason for sampling rather than
+profiling is unchanged.
 
 The gauge is imposed by construction rather than sampled. The sampler moves on the
 unconstrained raw coefficients $(\tilde{\mathbf{a}}, \tilde{\mathbf{b}}, \tilde{\mathbf{c}}, \tilde{\mathbf{d}})$ of
@@ -865,21 +894,27 @@ are fit on the same epochs whose residuals are then
 scored, which makes the exercise mildly optimistic.
 
 The truncation orders are set by running the fit over
-$K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing
-$\sum_{i}(f_{i} - \hat f_{i})^{2}/\sigma_{f,i}^{2}$ over validation epochs, which by
-\eqref{eq:like} is the held-out $-2\ln\mathcal{L}$ up to the additive constant the orders
-share.
+$K_{\psi} \in \{12, 24, 48\}$ and $K_{q} \in \{8, 16, 32\}$ and comparing the held-out
+$-2\ln\mathcal{L}$ of \eqref{eq:like} over validation epochs, $\sigma_{b}$ held at its
+training value, with $\sigma_{g}(K), \sigma_{r}(K)$ tabulated in magnitudes beside it.
 
-An earlier version of this section could not use that statistic. The variance then carried
-a fitted scatter per band, which absorbed in training whatever the truncation could not fit;
-validation held those scatters and met the same truncation, so the normalized residual had
-unit spread at every order and truncation error was reported as intrinsic scatter. The
-ranking had to be done on the log score, with $\sigma_{g}(K), \sigma_{r}(K)$ tabulated
-beside it. With the variance now the archive's alone there is nothing to absorb anything:
-$\sigma_{f,i}$ is data, identical across orders, and the spread of
-$(f_{i} - \hat f_{i})/\sigma_{f,i}$ is free to exceed unity and does so by exactly the
-amount the truncation misses. The statistic and the diagnostic have become the same number.
-Residual within the training
+The plain $\sum_{i}(f_{i} - \hat f_{i})^{2}/\sigma_{f,i}^{2}$ will not serve, and the
+reason is a cost of restoring the second variance term rather than an oversight. A fitted
+scatter absorbs in training whatever the truncation cannot fit; validation holds that
+scatter and meets the same truncation, so the residual normalized by $\sqrt{V_{i}}$ has
+unit spread at every order and truncation error is reported as model error instead of as
+misfit. What makes the comparison proper again is the $\sum\ln V_{i}$ of
+\eqref{eq:like}: an order that needs a larger $\sigma_{b}$ is charged for it there, so the
+log score ranks orders where the normalized residual alone cannot. This is the arrangement
+an earlier version of this section used, and it is the arrangement \eqref{eq:like} returns
+to; the interval in which the plain statistic served was the interval in which the variance
+was the archive's alone.
+
+The diagnostic and the statistic are therefore two numbers again rather than one. The
+diagnostic keeps $\sigma_{f,i}$ alone in the denominator, which is data and identical
+across orders, so the spread of $(f_{i} - \hat f_{i})/\sigma_{f,i}$ stays free to exceed
+unity by exactly the amount the truncation misses; $\sigma_{b}(K)$ is the same information
+compressed to one number per band, and in magnitudes rather than in nats. Residual within the training
 sample falls with either order by construction and so ranks nothing. \eqref{eq:coefprior}
 is what keeps the comparison about truncation rather than prior: a larger basis is free to
 leave its high modes near zero instead of obliged to fill them, and with $\alpha$ inferred

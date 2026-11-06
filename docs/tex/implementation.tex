@@ -224,18 +224,36 @@ depends on parameters.
 Eq.~(18) of the note, with Eq.~(17)'s flux and Eq.~(19)'s taper as a per-epoch weight on
 it. \textbf{[=]}
 
-\code{neg2\_loglike}, over all epochs, on the archive's errors alone:
+Two functions, because two quantities are wanted.
+\code{neg2\_loglike} is the archive's errors alone and nothing else:
 \begin{equation}
-  -2\ln\mathcal{L} = \sum_{i} \mathcal{T}_{i}\,
-    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2}} .
+  \chi^{2} = \sum_{i} \mathcal{T}_{i}\,
+    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2}} ,
 \end{equation}
+which is no longer the objective but is kept because it is the one fit-quality number
+comparable across every run on record, and is reported as \code{lp\_sn} $= -\chi^{2}/2$
+with that meaning unchanged. \code{neg2\_loglike\_floor} is the objective, Eq.~(18) of the
+note with the fitted model error of its second variance term:
+\begin{equation}
+  -2\ln\mathcal{L} = \sum_{i} \mathcal{T}_{i}
+    \left[\frac{(f_{i} - \hat f_{i})^{2}}{V_{i}} + \ln V_{i}\right] ,
+  \qquad
+  V_{i} = \sigma_{f,i}^{2} + \bigl(0.4\ln 10\;\sigma_{b(i)} f_{i}\bigr)^{2} ,
+\end{equation}
+reported per supernova as \code{ll\_sn}, with \code{chi2\_sn} the same residuals over
+$V_{i}$ rather than $\sigma_{f,i}^{2}$. The $\ln V_{i}$ term is what bounds $\sigma_{b}$;
+dropping it sends the fit to infinite model error, and it is needed whichever flux
+$V_{i}$ is built on, since $\sigma_{b}$ is sampled either way.
+
 $\hat f_{i}$ is the predicted flux itself and $\mathcal{T}_{i}$ the taper, so an epoch
 outside the window has its \emph{contribution} suppressed rather than its expected value
-altered. In \file{hier.stan} the sum is a \code{reduce\_sum} over supernovae with the
-slice width passed as \code{grainsize}. The function takes
-$(\mathbf{f}, \boldsymbol{\sigma}_{f}, \hat{\mathbf{f}}, \boldsymbol{\mathcal{T}})$: the
-band index went with the per-band scatter it used to select, and the weights arrived with
-the taper.
+altered. In \file{hier\_common.stan} the sum is a \code{reduce\_sum} over supernovae with
+the slice width passed as \code{grainsize}; \code{partial\_sum\_floor} is a second slice
+function rather than an argument to the first, because \code{reduce\_sum} pins the
+signature and because passing a zero floor would not reproduce \code{partial\_sum} --- the
+log-determinant would survive as $\sum\ln\sigma_{f,i}^{2}$ and shift \code{lp\_\_} by a
+constant. The per-epoch fractional error reaches the function as a vector,
+$0.4\ln 10\,\sigma_{b}[\text{band}]$, so one call covers both bands.
 
 \section{The hierarchy}
 
@@ -377,15 +395,16 @@ times $\turnone$, which inverts what the sampling diagnostics suggest and agrees
 $\turnone$ is the badly determined mode, four informed directions of $23$ falling as
 $k^{-2.79}$, and being well determined is what makes a mode expensive to remove.
 
-\section{\file{runs/stage3-k88-free}: the program at a converged point}
+\section{\file{runs/stage3-k88-n60-floor}: the program at a converged point}
 \label{sec:run1}
 
 \textbf{[0]} --- not in the note, and not a result. The note says what to fit; this says
 what one fit \emph{was}, closely enough that a later run can be checked against it instead
-of compared from memory. It is the first fit here that CmdStan's \code{diagnose()} clears
-without a complaint, and later work starts from it. Everything below comes from the run's
-own \code{data.json}, CSV headers and draws; \file{docs/runs-ledger.md} carries the input
-hashes and \S\ref{sec:run1gaps} what the run does not establish.
+of compared from memory. It is the current reference here, and it is the first fit carrying
+the model error of Eq.~(18). Everything below comes from the run's own
+\code{data.json}, CSV headers and draws; \file{docs/runs-ledger.md} carries the input
+hashes and \S\ref{sec:run1gaps} what the run does not establish --- including, this time,
+that it does not meet the $\hat R \le 1.01$ bar its predecessor met.
 
 \subsection{What was run}
 
@@ -393,110 +412,183 @@ hashes and \S\ref{sec:run1gaps} what the run does not establish.
 \toprule
 program & \file{hier\_common.stan}, \S\ref{sec:common}, with \code{free\_mean} $= 1$ \\
 orders & $K_{q} = K_{\psi} = 8$, so $\mathbf{b}$ and $\mathbf{d}$ carry seven each \\
-objects & \code{dgsn.data.sample.stage3\_sample()}: $30$ supernovae, $1568$ epochs \\
+objects & \code{stage3\_sample(n\_per\_fifth=12)}: $60$ supernovae, $3682$ epochs \\
+likelihood & Eq.~(18) with $\sigma_{g}, \sigma_{r}$ sampled \\
 rotation & $R = I$; no preconditioner \\
 sampler & four chains, seed $1$, $500$ warmup $+\ 500$ sampling, \code{diag\_e} \\
-treedepth & \code{max\_treedepth} $= 11$, so $2047$ leapfrogs available \\
-start & one \salt-placed point, Section~5 of the note \\
+treedepth & \code{max\_treedepth} $= 12$, so $4095$ leapfrogs available \\
+start & \file{runs/stage3-k88-n60}, with $\sigma_{g} = \sigma_{r} = 0.05$~mag \\
 CmdStan & $2.39.0$ \\
 \bottomrule
 \end{tabular}
 
 \medskip\noindent
-The sampled coordinates number $138$: the $14$ of \code{w\_coef}, four hyperparameters,
-\code{b\_0} and \code{c\_bar}, $30$ of \code{m\_peak}, \code{mu\_delta}, and $29$ free
-components in each of the three \code{sum\_to\_zero\_vector} blocks \code{x\_s},
-\code{c\_dev} and \code{d\_dev}. The CSV reports $356$ quantities, the rest being
-transformed parameters and generated quantities.
+The sampled coordinates number $260$: the $14$ of \code{w\_coef}, four hyperparameters,
+\code{b\_0} and \code{c\_bar}, $60$ of \code{m\_peak}, \code{mu\_delta}, the two of
+\code{sigma\_b}, and $59$ free components in each of the three
+\code{sum\_to\_zero\_vector} blocks \code{x\_s}, \code{c\_dev} and \code{d\_dev}. The CSV
+reports $778$ quantities, the rest being transformed parameters and generated quantities.
+The data are byte-identical to \file{runs/stage3-k88-n60}'s --- \code{data.json} at sha256
+\code{00e0cd556ecfd05f}\ldots\ in both --- so the comparison that runs through this section
+isolates the one term.
 
 \subsection{What converged}
 \label{sec:run1conv}
 
 \begin{tabular}{@{}l l@{}}
 \toprule
-\code{diagnose()} & no problems detected \\
-$\hat R$, largest & $1.01425$, at \code{lp\_sn[18]} --- a generated quantity \\
-$\hat R$, largest on a sampled parameter & $1.00991$, at \code{x\_s[5]} \\
-$\hat R$, median over all $356$ & $1.00144$ \\
-treedepth & mean $8.02$, largest $9$; none at the cap \\
-leapfrogs per draw & $273.2$ \\
+\code{diagnose()} & no problems detected --- at its own threshold of $1.05$ \\
+$\hat R$, largest & $1.01409$, at \code{w\_coef[6]} --- a \emph{sampled} parameter \\
+$\hat R$, above $1.01$ & $62$ of $778$ quantities \\
+$\hat R$, median over all $778$ & $1.00237$ \\
+treedepth & $8$ in every one of $2000$ draws; cap $12$ \\
+leapfrogs per draw & $255.1$ \\
 divergences & $0$ of $2000$ \\
-adapted stepsize & $0.0128$ to $0.0164$ across the four chains \\
-warmup & $6615$ to $7293$ s per chain \\
+ESS, smallest & $364$ at \code{b\_0}; median $1422$ \\
+adapted stepsize & $0.01414$ to $0.01598$ across the four chains \\
+warmup & $16967$ to $17635$ s per chain; sampling $6771$ to $6945$ s \\
 \bottomrule
 \end{tabular}
 
-\paragraph{The conditioning, and how not to measure it.} Over the $138$ sampled
-coordinates the posterior correlation matrix has condition number $1.43\times10^{4}$, so
-$\sqrt{\kappa} = 119$ --- the leapfrog count a diagonal metric needs for one independent
-draw, comfortably inside the $2047$ available and consistent with the realized depth of
-$8.02$. Two things must be excluded or the number is meaningless. Each
-\code{sum\_to\_zero\_vector} reports $N$ components under one linear constraint, so one
-slot of each of \code{x\_s}, \code{c\_dev} and \code{d\_dev} is redundant; and the
-transformed parameters and generated quantities are functions of the sampled ones. Either
-inclusion leaves exact zero eigenvalues, and with all of them the reported condition number
-is $1.2\times10^{17}$.
+\medskip\noindent
+\textbf{This does not clear the bar \file{stage3-k88-free} and \file{stage3-k88-n60}
+cleared.} Both had no quantity above $\hat R = 1.01$; this has sixty-two, and the largest
+is on a sampled parameter rather than a generated quantity. \code{diagnose()} passing means
+only that nothing exceeds $1.05$. The misses are not scattered: thirty are \code{s\_pmin}
+and nineteen \code{delta\_t}, the per-object phase quantities, with \code{mu\_delta} itself
+at $1.0113$ and ESS $535$. \S\ref{sec:run1gaps} takes this up.
 
-\paragraph{Where the stiffness went.} The three stiffest directions carry squared loading
-$0.53$ on \code{w\_coef} with $0.27$ on \code{m\_peak}; then $0.43$ on \code{x\_s} with
-$0.21$ on \code{d\_dev}; then $0.46$ on \code{c\_dev}. At $(K_{\psi}, K_{q}) = (24, 16)$
-the coefficient block held $4.99$ of the first five directions' $5.00$, and
-$\sqrt{\kappa}$ was $4022$ in the better-conditioned of two posterior modes. Truncation is
-what moved it: the retained block's precision is a principal submatrix of the full one, so
-by Cauchy interlacing its condition number cannot be larger. Stiffness here is spread
-across blocks rather than concentrated in one, which is the state a diagonal metric can
-handle.
+\paragraph{The conditioning, and how not to measure it.} Over the $260$ sampled
+coordinates the posterior correlation matrix has condition number $6.13\times10^{4}$, so
+$\sqrt{\kappa} = 248$ --- the leapfrog count a diagonal metric needs for one independent
+draw, against the $255.1$ realized. The agreement to $3$ percent is new: at
+\file{stage3-k88-n60}, $\sqrt{\kappa}$ was $1396$ against $767$ realized, over-predicting
+by $1.8\times$, and the figure was recorded there as a loose upper guide. That looseness
+was a property of a posterior whose stiffness came from a handful of over-precise objects;
+with Eq.~(18) capping how tightly any epoch can pin anything, the diagonal-metric
+argument applies and the estimate tightens. Read at three draw counts it is still falling
+--- $310$ at $596$, $301$ at $646$, $248$ at $2000$ --- so $248$ is an upper bound, as
+$1396$ is for the unfloored run.
+
+Two things must be excluded or the number is meaningless. Each \code{sum\_to\_zero\_vector}
+reports $N$ components under one linear constraint, so one slot of each of \code{x\_s},
+\code{c\_dev} and \code{d\_dev} is redundant; and the transformed parameters and generated
+quantities are functions of the sampled ones. Either inclusion leaves exact zero
+eigenvalues and the computation returns a NaN rather than a large number.
+
+\paragraph{Where the stiffness went.} Squared loading over the five stiffest directions,
+out of $5.00$: \code{w\_coef} $1.33$, \code{x\_s} $0.99$, \code{c\_dev} $0.98$,
+\code{d\_dev} $0.89$, $b_{0}$ with $\bar c$ $0.54$, \code{mu\_delta} $0.26$. At
+$(K_{\psi}, K_{q}) = (24, 16)$ the coefficient block alone held $4.99$ of $5.00$ and
+$\sqrt{\kappa}$ was $4022$ in the better-conditioned of two posterior modes. Truncation
+moved most of that --- the retained block's precision is a principal submatrix of the full
+one, so by Cauchy interlacing its condition number cannot be larger --- and
+Eq.~(18) moved the rest. Stiffness spread across blocks rather than concentrated in
+one is the state a diagonal metric can handle.
+
+\code{sigma\_b} carries $0.00$ of those five directions, and \code{m\_peak} likewise. That
+\code{sigma\_b} adds no stiffness is the design claim of Eq.~(18) measured rather
+than asserted: because $V$ rides on the observed $f$ and not on $\hat f$, $\sum \ln V$
+depends on $\sigma_{g}, \sigma_{r}$ alone and couples to no geometric coordinate.
+
+\paragraph{A treedepth of exactly $8$ in every draw is not a cap.} Every draw also spends
+exactly $2^{8} - 1 = 255$ leapfrogs, which is the signature of a depth cap and was read as
+one here before \file{runs/stage3-k88-n60} settled it: that run occupied depths $9$ and
+$10$ and \emph{nothing else} across $2000$ draws. Once the stepsize is frozen after warmup
+this model's depth concentrates in one or two bins, and \code{n\_leapfrog\_\_} is exactly
+$2^{d} - 1$ in $100$ percent of this run's draws and $82$ to $84$ percent of the unfloored
+run's, so it carries nothing beyond the depth. The cap is $12$ and the largest depth drawn
+is $8$: four doublings of headroom.
 
 \subsection{What it measured}
 
 \begin{tabular}{@{}l l@{}}
 \toprule
-$\sum_{n}\ln\mathcal{L}_{n}$ & $-5769.297$ at the mean, $-5745.255$ at the best draw \\
-$\chi^{2}$ per epoch & $7.359$ \\
-$\langle\Delta\rangle$ & $-0.3951 \pm 0.0959$ d \\
-spread of $\Delta$ over the thirty & $0.3029$ d \\
-$\bar c$ & $+0.0728 \pm 0.0024$ mag \\
-$b_{0}$ & $-7.99 \pm 0.05$ \\
-$\tau_{q}$, $\tau_{\psi}$ & $1.138 \pm 0.462$, $2.046 \pm 0.712$ \\
-$\alpha_{q}$, $\alpha_{\psi}$ & $1.219$, $0.923$ at the mean; neither against its $\tfrac12$ floor \\
-$\curv(0)$ & $+53.8 \pm 2.2$, so Eq.~(8) holds in every draw \\
+$\sigma_{g}$ & $0.0469 \pm 0.0014$~mag \\
+$\sigma_{r}$ & $0.0679 \pm 0.0014$~mag --- $45$ percent larger than $g$ \\
+$\sum_{n}\ln\mathcal{L}_{n}$ under Eq.~(18) & $-32464.285$ at the mean, $-32429.159$ at the best draw \\
+$\chi^{2}$ per epoch on $V$ & $1.1089$ over $3682$ epochs; median object $1.035$, largest $2.733$ \\
+$\chi^{2}$ per epoch on archive errors alone & $40.538$, against $17.716$ unfloored \\
+$\langle\Delta\rangle$ & $+0.4345 \pm 0.1979$ d \\
+spread of $\Delta$ over the sixty & $0.3460$ d, per-object means in $[-0.551, +0.947]$ \\
+$\bar c$ & $+0.0922 \pm 0.0065$ mag \\
+$b_{0}$ & $-7.768 \pm 0.142$ \\
+$\tau_{q}$, $\tau_{\psi}$ & $0.904 \pm 0.343$, $2.203 \pm 0.785$ \\
+$\alpha_{q}$, $\alpha_{\psi}$ & $1.665 \pm 0.668$, $0.910 \pm 0.306$; neither against its $\tfrac12$ floor \\
+$\curv(0)$ & $+52.71 \pm 5.39$, so Eq.~(6) holds in every draw \\
 tapered, clamped & $0$ and $0$ in every draw \\
 \bottomrule
 \end{tabular}
 
-\paragraph{$\tau_{\psi}$ is unimodal here.} At $(24, 16)$ the posterior held two regions
-$76$ nats apart whose $\curv(0)$ differed by $4.3\times$, lying along the ray
-$\lVert\mathbf{d}\rVert \propto \tau_{\psi}$ at pooled correlation $+0.9892$, and the
-quantity distinguishing them had an effective sample size of $9$. At $(8,8)$ all four
-chains agree on $\tau_{\psi}$ at $\hat R = 1.00292$ and the split leaves no trace.
+\paragraph{What the two scalars fixed.} Eq.~(18) was added because the misfit in
+\file{runs/stage3-k88-n60} tracked how well each supernova was \emph{observed} rather than
+anything about the supernova --- model error being absorbed by whichever objects carried
+the smallest error bars, which is the one thing a $\chi^{2}$ in native flux cannot report
+as a problem. Spearman's correlation of $\chi^{2}$ per epoch, over all $2000$ draws:
 
-\paragraph{$\langle\Delta\rangle$ against the archive's own timing error.} $\Delta$ and
-$t_{0}$ are both observer-frame days, \eqref{eq:cphase} subtracting one from the other
-before the redshift divides, so they compare directly. The fit locates each supernova's
-phase origin to a posterior $\sigma$ of $0.108$ d at the median, against a \salt\
-$t_{0}$ error of $0.147$ d over the same thirty --- a ratio of $0.80$, smaller for $23$ of
-the $30$. But \eqref{eq:cphase} takes $t_{0}$ as exact, so that $0.147$ d is neglected
-entirely: added in quadrature the honest figure is $0.182$ d, and the archive's timing
-contributes more variance to the phase origin than the light-curve fit does. The spread of
-$\Delta$ across objects decomposes as $0.242$ d of scatter in $g$ maximum against $B$
-maximum, $0.147$ d of $t_{0}$ error --- which enters $\Delta$ one for one --- and $0.108$ d
-of fit noise, so most of it is physical. The direct test agrees: $\lvert\Delta$
-deviation$\rvert$ against $t_{0}$ error correlates at $+0.25$ with $p = 0.18$, so $\Delta$
-is not absorbing the archive's noise. What does correlate, at $+0.727$ with $p < 10^{-3}$,
-is the posterior $\sigma$ of $\Delta$ against the $t_{0}$ error: neither enters the other's
-calculation, and both are set by how densely the object is sampled near maximum.
+\medskip
+\begin{tabular}{@{}l r r@{}}
+\toprule
+against & \file{k88-n60} & this run \\
+\midrule
+peak signal-to-noise & $+0.862$ & $-0.086$ \\
+median $\sigma_{f}/f$ & $-0.797$ & $+0.134$ \\
+number of epochs & $+0.316$ & $+0.004$ \\
+\bottomrule
+\end{tabular}
 
-\paragraph{The companion arm, and the price of $\langle\Delta\rangle = 0$.}
-\file{runs/stage3-k88-dzero} is this configuration with \code{free\_mean} $= 0$ and
-nothing else changed. It also converges. The constraint costs $8.9$ nats of
-$\sum_{n}\ln\mathcal{L}_{n}$ at the best draw and $6.6$ at the mean, and buys no mixing:
-both arms realize a treedepth of $8$, with $\sqrt{\kappa}$ of $91$ against $119$, so the
-coordinate is worth its $31$ percent of conditioning. That figure replaces the $1.96$ nats
-this tree quoted until 2026-11-02, which came from comparing two programs that by then
-both sampled a free mean.
+\medskip\noindent
+The dependence is not reduced, it is absent. The single clearest case is ZTF18aasdted:
+$222$ epochs, peak signal-to-noise $1549$, and $29$ percent of the unfloored run's entire
+$\chi^{2}$ on its own. Here it sits at $1.396$ per epoch on $V$ --- an ordinary object ---
+while still reading $420.7$ on its archive errors, which is the model error made visible
+instead of made load-bearing. The five worst objects on $V$ now carry $10$ to $33$ epochs
+each, so what remains is sparsely observed rather than precisely observed, and only five of
+sixty exceed $2.0$.
+
+\paragraph{The archive $\chi^{2}$ rose, and that was predicted wrongly here once.} Walking
+a \emph{fixed} floor through the unfloored posterior gave $9.87$ per epoch at $0.01$~mag
+and $6.36$ at $0.02$, from which the archive figure was expected to fall. It rose to
+$40.538$. That scan held the geometry fixed and only reweighted existing residuals; once
+the geometry is free it moves away from the objects that had been over-weighted, and their
+archive residuals grow. The scan priced the reweighting, not the refit.
+
+\paragraph{$\langle\Delta\rangle$ against the archive's own timing, now the other way
+round.} $\Delta$ and $t_{0}$ are both observer-frame days, \eqref{eq:cphase} subtracting
+one from the other before the redshift divides, so they compare directly. At thirty objects
+without the floor the fit located each phase origin to a posterior $\sigma$ of $0.108$~d
+against a \salt\ $t_{0}$ error of $0.147$~d --- a ratio of $0.80$, the fit the better of
+the two for $23$ of the $30$. Here the posterior $\sigma$ is $0.2251$~d at the median
+against $t_{0}$ errors of $0.1428$~d over the sixty: a ratio of $1.68$, and the fit is the
+better of the two for \emph{three} of sixty. The honest figure in quadrature is $0.2666$~d.
+So Eq.~(18) costs enough phase precision to reverse that comparison, and the
+light-curve fit now contributes more variance to the phase origin than the archive's
+timing does. What survives unchanged is that $\Delta$ is not absorbing the archive's noise
+--- $\lvert\Delta$ deviation$\rvert$ against $t_{0}$ error correlates at $-0.088$ with
+$p = 0.51$ --- and that the posterior $\sigma$ of $\Delta$ tracks the $t_{0}$ error
+strongly, here $+0.917$ with $p < 10^{-24}$, neither entering the other's calculation and
+both being set by how densely the object is sampled near maximum.
+
+\paragraph{The thirty-object companion, and the price of $\langle\Delta\rangle = 0$.}
+\file{runs/stage3-k88-dzero} is \file{runs/stage3-k88-free}'s configuration --- thirty
+objects, no model error --- with \code{free\_mean} $= 0$ and nothing else changed. It
+converges. The constraint costs $8.9$ nats of $\sum_{n}\ln\mathcal{L}_{n}$ at the best draw
+and $6.6$ at the mean, and buys no mixing: both arms realize a treedepth of $8$, with
+$\sqrt{\kappa}$ of $91$ against $119$, so the coordinate is worth its $31$ percent of
+conditioning. That figure replaces the $1.96$ nats this tree quoted until 2026-11-02, which
+came from comparing two programs that both sampled a free mean. It has not been remeasured
+under Eq.~(18), and the $4.6\times$ widening of $\langle\Delta\rangle$'s posterior
+here is reason to expect it to change.
 
 \subsection{What the orders resolve}
 \label{sec:run1res}
+
+\textbf{These figures are \file{runs/stage3-k88-free}'s}, measured over thirty objects
+under the likelihood before Eq.~(18) added the model error. They are kept here because they
+are a statement about the bases rather than about a run: the resolution tables are
+properties of $K_{q}$ and $K_{\psi}$ alone, and the likelihood gains rank optima of a
+target that the orders, not the error model, control. Nothing in them has been remeasured
+at sixty objects or with $\sigma_{g}, \sigma_{r}$ sampled.
 
 Neither $K$ translates into a phase resolution directly. Both expansions are Legendre, but
 in the compressed coordinates of \eqref{eq:ccoords}: the traversal in
@@ -541,8 +633,8 @@ $\dd\arc/\dd\phase = 0.0134$~mag\,d$^{-1}$ at the anchor.
 \paragraph{Why $K_{\psi}$ is the lever.} At $(8,8)$ the traversal already resolves $2.0$~d
 while the turning resolves $9.9$~d, five times coarser: the binding constraint is the
 turning, and traversal modes refine something that was never the bottleneck. Optimising
-from this run's own best draw --- padding the new modes with zeros, which
-\S\ref{sec:run1} notes is exact to $5\times10^{-12}$ --- prices that directly in
+from \file{runs/stage3-k88-free}'s own best draw --- padding the new modes with zeros,
+which is exact to $5\times10^{-12}$ --- prices that directly in
 $\sum_{n}\ln\mathcal{L}_{n}$ over the thirty:
 \[
 \begin{array}{llr}
@@ -563,8 +655,9 @@ $24$. Over that range the resolution goes $9.9 \to 1.8 \to 1.3 \to 1.0$~d, so th
 collapse as it approaches \emph{one day} --- which is the separation between the $g$ and
 $r$ maxima, the feature the turn at the anchor exists to resolve, and about the cadence
 besides. The expansion stops earning once it can resolve the sharpest thing in the data.
-This also recovers the $1680$ nats by which \S\ref{sec:run1gaps} has this fit behind
-$(24,16)$: $(8,8) \to (16,24)$ is $+1653.3$, the residual being that the reference is an
+This also recovers the $1680$ nats by which \file{runs/stage3-k88-free} sat behind the
+$(24,16)$ reference \file{runs/ref-k2416-eps3} on the same thirty objects and $1568$
+epochs: $(8,8) \to (16,24)$ is $+1653.3$, the residual being that the reference is an
 unconverged draw rather than an optimum.
 
 \paragraph{The resolution is not uniform in phase, and the misfit is where it is worst.}
@@ -598,41 +691,55 @@ from a single start, so each is a lower bound on its order's maximum.
 \subsection{What it does not establish}
 \label{sec:run1gaps}
 
-Four things, recorded because a reference point read as a result is how a wrong truncation
+Five things, recorded because a reference point read as a result is how a wrong truncation
 order gets inherited.
 
-\paragraph{The starts were not dispersed.} All four \code{inits} files are byte-identical,
-so the $\hat R$ of \S\ref{sec:run1conv} measures dispersion of CmdStan's momentum seed and
-not of the starting point. The note's Section~5 exempts a \salt-placed start from
-``templates quantify systematics only'' on the ground that agreement between dispersed
-starts checks it; that check has not been run here. It is the gap that matters most,
-because at $(24,16)$ this same program was bimodal and agreement there proved to be
-within-mode.
+\paragraph{It is not converged to this project's own bar.} \code{diagnose()} complains at
+$\hat R = 1.05$; sixty-two of $778$ quantities exceed $1.01$ and the smallest ESS is $364$.
+The misses concentrate in the per-object phase block --- thirty \code{s\_pmin}, nineteen
+\code{delta\_t} --- which is coherent with the mechanism rather than mysterious:
+Eq.~(18) caps how tightly any single epoch can pin a phase, and that cap is
+\emph{how} it flattens the stiff directions, so the same term that bought
+$5.6\times$ in $\sqrt{\kappa}$ leaves the per-object phases less determined. A longer run,
+or a reparameterisation of that block, is wanted before anything is claimed from this fit.
 
-\paragraph{One resolution was \emph{fitted}.} \S\ref{sec:run1res} maps the likelihood
-across nine orders, so what the data support is no longer unmeasured, and it says plainly
-that $8$ is not where the turning expansion should stop. But every one of those is an
-optimum from a single start, not a fit: no sampler has been run at any order but this one,
-so nothing is known about whether a higher $K_{\psi}$ converges, keeps $\tau_{\psi}$
-unimodal, or reintroduces the two regions of \S\ref{sec:run1conv}. The standing
-requirement of two resolutions is a requirement on fits and remains unmet.
+\paragraph{The geometry moved, and nothing here says which location is right.} Against
+\file{runs/stage3-k88-n60} on identical data, $\curv(0)$ went from $+6.44 \pm 1.01$ to
+$+52.71 \pm 5.39$ --- a factor of eight --- while $b_{0}$ and $\bar c$ moved $17$ and $11$
+of the unfloored run's standard deviations. Eq.~(18) is not a cosmetic reweighting;
+it relocates the fit. $\sum_{n}\ln\mathcal{L}_{n}$ cannot adjudicate, because the two runs
+have different likelihoods, and $\sigma_{g}, \sigma_{r}$ near $0.05$ to $0.07$~mag may be
+absorbing real signal as readily as model error.
 
-\paragraph{The fit is poor in absolute terms.} $\chi^{2}$ per epoch of $7.359$, and
-$1680$ nats behind the $(24,16)$ reference, \file{runs/ref-k2416-eps3}, on the same
-thirty objects and $1568$ epochs, which reaches $-4064.7$ at its best draw against $-5745.3$ here. The misfit
-is legible rather than statistical: for ZTF18abkhcwl, the worst of the thirty at $20.3$ per
-epoch, the $r$ data sit above the model through phase $18$ to $27$ where the secondary
-shoulder is, and the $g$ data above it through $0$ to $5$. A turning basis of seven modes
-is not resolving that feature, and $\alpha_{\psi} < \alpha_{q}$ says the posterior responds
-by flattening the decay to keep high-order coefficients alive. The reference is itself
-unconverged --- $66$ to $72$ percent of its transitions at the cap, and two of its four
-chains unreadable --- so its likelihood is a truncated sampler's, but the gap is far too
-large to be an artifact of that.
+\paragraph{A per-band constant absorbs phase-structured error uniformly.} A
+$\chi^{2}$ per epoch of $1.1089$ on $V$ says the error budget is now honest, not that the
+curve is right. The misfit that Eq.~(18) was built for was legible in phase --- for
+ZTF18abkhcwl the $r$ data sat above the model through phase $18$ to $27$ where the
+secondary shoulder is --- and a constant cannot distinguish that from noise. Per-epoch
+residuals as a generated quantity are what would show \emph{where} the model fails; they
+are not implemented, so the strongest statement available is that the fit is no longer
+driven by whichever supernovae happen to be best observed.
 
-\paragraph{Nothing here is out of sample.} \file{src/dgsn/eval/} is empty. Every number
-above is in-sample, so none of them says this predicts better than anything else, and the
-note's requirements that \salt\ be strictly downstream and that evaluation be out of sample
-both remain to be re-established.
+\paragraph{The starts were not dispersed.} All four \code{inits} files are byte-identical
+at sha256 \code{54f24c7744d6c0a8}\ldots, so the $\hat R$ of \S\ref{sec:run1conv} measures
+dispersion of CmdStan's momentum seed and not of the starting point. The note's Section~5
+exempts a \salt-placed start from ``templates quantify systematics only'' on the ground
+that agreement between dispersed starts checks it; that check has not been run here. It
+matters because at $(24,16)$ this same program was bimodal and agreement there proved to be
+within-mode, and because at $(12,16)$ on these sixty objects four byte-identical starts
+split $58$ nats apart. This run shows no such split --- \code{lp\_\_} agrees across the four chains
+within four nats --- but that is evidence against a split, not a dispersed-start check.
+
+\paragraph{Nothing here is out of sample, and a fitted scatter makes that worse.}
+\file{src/dgsn/eval/} is empty. Every number above is in-sample, so none of them says this
+predicts better than anything else, and the note's requirements that \salt\ be strictly
+downstream and that evaluation be out of sample both remain to be re-established. Under
+Eq.~(18) this is no longer merely a gap: a fitted scatter gives the normalized
+residual unit spread at every order, so held-out $\sum (f - \hat f)^{2}/\sigma_{f}^{2}$
+stops ranking orders at all, and selection must use the held-out log score with its
+$\sum \ln V$ term, tabulating $\sigma_{g}(K), \sigma_{r}(K)$ alongside. The order study of
+\S\ref{sec:run1res} predates the term and is unaffected only because it ranks optima of a
+likelihood without it.
 
 \section{\file{hier\_common.stan} in full}
 \label{sec:common}

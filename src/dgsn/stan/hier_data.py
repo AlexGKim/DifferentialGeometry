@@ -18,6 +18,10 @@ from dgsn.salt.tracks import per_sn_start
 from dgsn.stan import data as D
 
 INIT_ALPHA = 2.0        # alpha at the start; the ridge of the SALT2 fits uses the same
+INIT_SIGMA_B = 0.05     # mag; Eq. (modelerr)'s fractional model error at the
+                        # start, between the 0.039 the old fitted scatter
+                        # reached at (24, 16) and the 0.06 to 0.09 that
+                        # runs/stage3-k88-n60's chi2 implies at (8, 8)
 DELTA_BOUND = 3.0       # d; must match <lower=-3, upper=3> on mu_delta and the
                         # uniform wall on d_dev in the hierarchies
 
@@ -162,8 +166,13 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         # enters as b_0 = sqrt(vhi - vlo) * x_s rather than as a named mean
         b_0=float(G["x_s"]) * np.sqrt(_v_span()),
         x_s=np.zeros(len(names)),      # sums to zero, as sum_to_zero_vector requires
-        mu_delta=0.0,                  # the near gauge, named so the metric can
-        d_dev=np.zeros(len(names)),    # scale it; deviations sum to zero
+        # <Delta> is not a gauge: s(0) = 0, gamma(0) = (0,0) and psi(0) = -pi/2
+        # hold for every coefficient vector, so the phase origin is pinned and
+        # the mean offset is measured.  It is named so the metric can scale the
+        # common mode apart from the deviations.
+        mu_delta=0.0,
+        d_dev=np.zeros(len(names)),    # deviations sum to zero
+        sigma_b=np.full(2, INIT_SIGMA_B),
     )
     if mode:
         out.update(mu_psi=G["x_psi"], u_psi=np.zeros(len(names)))
@@ -227,7 +236,8 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     # s_bar and x_s_dev, not x_s: the optimizer reports x_s too, as a
     # transformed parameter, but an inits dict has to name what is sampled.
     keys = ["w_coef", "tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
-            "b_0", "x_s", "c_bar", "c_dev", "mu_delta", "d_dev", "m_peak"]
+            "b_0", "x_s", "c_bar", "c_dev", "mu_delta", "d_dev", "m_peak",
+            "sigma_b"]
     if mode:
         keys += ["mu_psi", "u_psi"]
     if trav:

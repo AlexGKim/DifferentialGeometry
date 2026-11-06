@@ -251,3 +251,158 @@ $\sqrt{\mathrm{cond}}$ estimate is used as a wall-clock budget.
 5. **No out-of-sample score.** `src/dgsn/eval/` is still empty. "SALT2
    strictly downstream" and "evaluation is out-of-sample" both remain to be
    re-established.
+
+---
+
+## stage3-k88-n60-floor — a fitted per-band model error, and what it bought
+
+`runs/stage3-k88-n60-floor`, finished 2026-11-05.
+
+The same orders, the same sixty objects and the same `data.json` as
+`stage3-k88-n60` — sha256 `00e0cd556ecfd05f…` in both — with one change to the
+likelihood: a fitted per-band Gaussian model error added in quadrature,
+Eq. (like). It is a controlled comparison of that one term.
+
+It fixes what it was built to fix and it is substantially cheaper to sample.
+It is **not** converged to the bar `stage3-k88-n60` met, and the geometry it
+finds is a long way from that run's — see Known gaps.
+
+### Inputs
+
+| | |
+|---|---|
+| commit | the floor added to `stan/dgsn_functions.stan`, `stan/hier_common.stan`, `src/dgsn/stan/hier_data.py` on top of `bb2bc93` |
+| program | `stan/hier_common.stan` with `sigma_b` sampled and `partial_sum_floor` in `reduce_sum` |
+| `free_mean` | 1, so ⟨Δ⟩ is sampled |
+| orders | `Kq = 8`, `Kpsi = 8` |
+| selection | `stage3_sample(n_per_fifth=12)` — 60 objects, 3682 epochs |
+| `data.json` | sha256 `00e0cd556ecfd05f…` — **identical to `stage3-k88-n60`** |
+| `inits-1..4.json` | sha256 `54f24c7744d6c0a8…` — all four identical, `sigma_b` entering at 0.05 mag in each |
+| initialised from | `runs/stage3-k88-n60` |
+| CmdStan | 2.39.0 |
+
+### Sampler
+
+```
+seed 1, 4 chains, 500 warmup + 500 sampling, max_treedepth 12,
+save_warmup on, diag_e, adapt_delta at CmdStan's default
+```
+
+```bash
+python scripts/stage3_hier.py --no-trav-mode --k-psi 8 --k-q 8 \
+  --n-per-fifth 12 --init-from runs/stage3-k88-n60 \
+  --iter 500 --max-treedepth 12 --save-warmup --out runs/stage3-k88-n60-floor
+```
+
+### Diagnostics
+
+| | |
+|---|---|
+| `diagnose()` | no problems detected — **but see the R-hat row; `diagnose()` complains at 1.05, not at this project's 1.01** |
+| R-hat | **62 of 778 coordinates above 1.01**; median 1.0024, worst 1.0141 at `w_coef[6]` |
+| treedepth | 8.00 in every one of 2000 draws, max 8, cap 12 |
+| divergences | 0 of 2000 |
+| ESS | minimum 364 at `b_0`, median 1422 |
+| realised `sqrt(cond)` | 248 over 260 sampled coordinates |
+| wall time | 17635 s warmup, 6936 s sampling, 23739–24571 s total |
+
+The 260 coordinates are the 258 of `stage3-k88-n60` plus `sigma_b[1..2]`, taken
+from the `parameters` block with one slot dropped from each
+`sum_to_zero_vector`. `sqrt(cond)` was read at three draw counts — 310 at 596,
+301 at 646, 248 at 2000 — so it is still falling with draws and 248 is an upper
+bound, as 1396 is for the unfloored run.
+
+**Tree depth of exactly 8 in every draw is not a cap.** Every draw also spends
+exactly $2^8-1 = 255$ leapfrogs, which is the signature of a depth cap, and was
+read as one here before `stage3-k88-n60` settled it: that run occupied depths 9
+and 10 and *nothing else* in 2000 draws. Once the step size is frozen after
+warmup this model's depth is concentrated in one or two bins, and
+`n_leapfrog__` is exactly $2^d - 1$ in 100% of this run's draws and 82–84% of
+the unfloored run's, so it carries nothing beyond the depth.
+
+### Values
+
+| | |
+|---|---|
+| `sigma_b` (g) | **0.0469 ± 0.0014 mag** |
+| `sigma_b` (r) | **0.0679 ± 0.0014 mag** — 45% larger than g, so the per-band form earns its place |
+| chi²/epoch on $V$ | 1.1089 over 3682 epochs; per object, median 1.035, max 2.733 |
+| chi²/epoch on archive errors | 40.538, against 17.716 unfloored |
+| `sum lp_sn` | −74630.811 mean, −63616.994 best draw (archive errors, no floor, so comparable with the unfloored −32615.589) |
+| ⟨Δ⟩ | +0.4345 ± 0.1979 d — the mean agrees with the unfloored +0.4118, the error bar is 4.6× wider |
+| population spread of Δ | 0.3460 d, per-object means in $[-0.551, +0.947]$ |
+| posterior sd of Δ | 0.2251 d median over objects, against 0.0560 unfloored |
+| `c_bar` | +0.0922 ± 0.0065, against +0.1106 ± 0.0017 |
+| `b_0` | −7.7681 ± 0.1416, against −8.1440 ± 0.0222 |
+| `tau_psi` | 2.2028 ± 0.7846 — single mode, all four chains |
+| `tau_q` | 0.9036 ± 0.3429 |
+| `alpha_q` | 1.6645 ± 0.6675; `alpha_psi` 0.9099 ± 0.3058 |
+| `kappa0` | **+52.7097 ± 5.3852**, positive in 100% of draws, against +6.4374 ± 1.0133 unfloored |
+
+### What the floor fixed
+
+The term was added because the misfit in `stage3-k88-n60` tracked how well each
+supernova was *observed* rather than anything about the supernova — the
+signature of model error being absorbed by whichever objects had the smallest
+error bars. Measured on all 2000 draws:
+
+| Spearman correlation of chi²/epoch with | unfloored | floored |
+|---|---|---|
+| peak S/N | **+0.862** | **−0.086** |
+| median `sig_f`/`f` | −0.797 | +0.134 |
+| number of epochs | +0.316 | +0.004 |
+
+The dependence is not reduced, it is gone. One object held 29% of the total
+chi² before; it now takes five to hold 33.1%.
+
+### What the floor cost, and what it bought
+
+| | `stage3-k88-n60` | this run | factor |
+|---|---|---|---|
+| `sqrt(cond)` at 2000 draws | 1396 | 248 | 5.6× easier |
+| leapfrogs per draw | ~767 | 255 | 3.0× fewer |
+| step size | 5.5e−3 | 1.41–1.60e−2 | 2.7× larger |
+| treedepth | 9.50, bins 9–10 | 8.00, bin 8 only | |
+| wall time | 37783–42553 s | 23739–24571 s | 1.6–1.8× faster |
+| divergences | 0 of 2000 | 0 of 2000 | |
+| coordinates above R-hat 1.01 | 0 of 653 | 62 of 778 | **worse** |
+| minimum ESS | 787 | 364 | **worse** |
+
+Better conditioning and worse mixing at once. The misses concentrate in the
+per-object phase quantities — 30 of the 62 are `s_pmin`, 19 are `delta_t` — and
+`mu_delta` itself sits at R-hat 1.0113 with ESS 535. That is coherent with the
+mechanism: the floor caps how tightly any single epoch can pin a phase, which
+is exactly how it flattens the stiff directions, and the same cap leaves the
+per-object phases less determined. The 4.6× inflation of ⟨Δ⟩'s error bar and
+the 4× inflation of Δ's per-object posterior sd are the same effect priced in
+the parameter it matters for.
+
+Also note that `sqrt(cond)` now predicts the leapfrog count to 18% (248 against
+255) where it over-predicted by 1.8× unfloored. The earlier warning that
+`sqrt(cond)` is a loose guide was measured on a posterior whose stiffness came
+from a handful of over-precise objects; with those capped, the diagonal-metric
+argument applies.
+
+### Known gaps
+
+1. **Not converged by this project's bar.** `diagnose()` passing means only
+   that nothing exceeds 1.05. Sixty-two coordinates exceed 1.01 and the
+   minimum ESS is 364. This is a reference point, not a result, and a longer
+   run or a reparameterisation of the per-object phase block is wanted before
+   anything is claimed from it.
+
+2. **`kappa0` moved by a factor of eight**, from +6.44 ± 1.01 to +52.71 ± 5.38,
+   and `b_0` and `c_bar` moved by 17 and 11 of the unfloored run's standard
+   deviations. The floor is not a cosmetic reweighting; it relocates the
+   geometry. Which location is right is not settled here, and `lp__` cannot
+   settle it because the two runs have different likelihoods.
+
+3. **A per-band constant absorbs phase-structured error uniformly.** A
+   well-fitted `sigma_b` says the error budget is honest, not that the curve is
+   right. Per-epoch residuals as a generated quantity are what would show
+   *where* the model fails; they are not implemented.
+
+4. **No out-of-sample score**, so nothing here says the floored model predicts
+   better. With a fitted scatter this matters more than before: held-out
+   chi²/σ_f² no longer ranks orders, and selection must use the held-out log
+   score with its $\sum \ln V$ term. `src/dgsn/eval/` is still empty.

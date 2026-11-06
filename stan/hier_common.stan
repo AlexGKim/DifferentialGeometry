@@ -78,6 +78,9 @@ transformed data {
   vector[Kpsi - 1] c_zero = rep_vector(0, Kpsi - 1);
   vector[N_sn] x_p_zero = rep_vector(0, N_sn);
   vector[N_sn] x_psi_zero = rep_vector(0, N_sn);
+  // d(f)/f = (ln10 / 2.5) dm, so a model error of sigma_b magnitudes is a
+  // fractional flux error of 0.4 ln10 sigma_b.  Eq. (modelerr).
+  real MAG2FRAC = 0.4 * log(10);
   for (k in 1:(Kq - 1)) kq[k] = k;
   for (k in 1:(Kpsi - 1)) kpsi[k] = k;
   kbar_q = exp(mean(log(kq)));
@@ -235,6 +238,14 @@ parameters {
   // reader of the CSV keeps working and reads 0 when the mean is held.
   vector<lower=-3, upper=3>[free_mean] mu_delta_raw;
   sum_to_zero_vector[N_sn] d_dev;
+  // Eq. (modelerr): the fractional model error, in magnitudes, one per band
+  // with g = 1 and r = 2 as `band` indexes them.  It is not measurement
+  // error -- sig_f already carries the sky and the source -- but the gap
+  // between the model curve and the supernova's own, and it is fitted
+  // because its size is not known: the value is the measurement of how far
+  // the declared orders fall short, and the objective worth minimising when
+  // Kq and Kpsi are chosen.
+  vector<lower=0>[2] sigma_b;
 }
 transformed parameters {
   real mu_delta = free_mean ? mu_delta_raw[1] : 0;
@@ -292,8 +303,14 @@ model {
   // The N(0,1) this replaces was shrinking by 8.3e-4, so no number moves.
   //
   // m_peak, c_bar and delta_t are flat on their boxes.
-  target += reduce_sum(partial_sum, sn_index, grainsize,
-                       dt, f, sig_f, band, start, stop, z,
+  // Half-normal, since sigma_b is <lower=0>.  0.1 mag puts 95% of the mass
+  // below 0.196 and leaves 0.15 at 1.5 sigma, so it covers the range the
+  // sixty-object fit implies (0.06 to 0.09 mag, read off chi2 per epoch of
+  // 17.72 against a median sig_f/f of 0.021) without asserting it.
+  sigma_b ~ normal(0, 0.1);
+  target += reduce_sum(partial_sum_floor, sn_index, grainsize,
+                       dt, f, sig_f, MAG2FRAC * sigma_b[band], band,
+                       start, stop, z,
                        m_peak, colr, x_s_tot, x_p_zero, x_psi_zero, delta_t,
                        a_zero, b, c_zero, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
                        Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
@@ -305,7 +322,15 @@ generated quantities {
   // No flip_q, no flip_psi: both sign freedoms went with their modes, so
   // every quantity below is already in one branch and needs no relabeling.
   real kappa0 = turning_deriv_row(0, Kpsi, ulo, uhi, T) * d / delta;
+  // lp_sn keeps its historical meaning exactly -- -chi2/2 on the archive
+  // errors alone, no floor and no log-determinant -- so that every figure
+  // quoted for a run made before Eq. (modelerr) existed stays comparable.
+  // ll_sn is what the target actually receives, and chi2_sn is the
+  // goodness-of-fit on the floored variance, which is about n_obs per
+  // object when the floor is adequate.
   vector[N_sn] lp_sn;
+  vector[N_sn] ll_sn;
+  vector[N_sn] chi2_sn;
   vector[N_sn] s_pmin;
   vector[N_sn] s_pmax;
   real frac_tapered = 0;
@@ -319,6 +344,13 @@ generated quantities {
         Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
         edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
     lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]), exp(lf[:, 2]));
+    {
+      vector[hi - lo + 1] sfr = MAG2FRAC * sigma_b[band[lo:hi]];
+      vector[hi - lo + 1] V = square(sig_f[lo:hi]) + square(sfr .* f[lo:hi]);
+      ll_sn[n] = -0.5 * neg2_loglike_floor(f[lo:hi], sig_f[lo:hi],
+                           exp(lf[:, 1]), exp(lf[:, 2]), sfr);
+      chi2_sn[n] = sum(exp(lf[:, 2]) .* square(f[lo:hi] - exp(lf[:, 1])) ./ V);
+    }
     for (i in 1:(hi - lo + 1)) {
       frac_tapered += (lf[i, 2] < log(0.99));
       frac_clamped += (abs(lf[i, 4] - lf[i, 3]) > eps_s * (smax - smin));
