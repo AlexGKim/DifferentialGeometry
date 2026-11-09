@@ -981,6 +981,205 @@ the same way: without it, a disagreement between prediction and data has two can
 sources rather than one.
 
 
+\section{Standardization without a reference color}
+\label{sec:cmagic}
+
+\citet{Wang2003} report that \sneia\ read at a fixed value of a color index have a small
+magnitude dispersion, and that over much of the first month past maximum the relation
+between magnitude and color is linear. Both statements are about the track of
+\eqref{eq:curvedef}, not about either light curve, so the model carries them with no new
+parameter. What follows writes that correspondence and then removes the reference color
+from it, there being nothing in the geometry that chooses one.
+
+The construction is \eqref{eq:stdmag}. Take $\arc^{\star}$, the first zero of $\curv$ at
+positive arclength; read the slope \eqref{eq:cmslope} there,
+$\lambda^{\star} = \cmslope(\arc^{\star})$; and standardize by
+$\stdmag = \peakmag - \lambda^{\star}\colr$. The evaluation point is a feature of each
+track rather than a color held fixed across tracks, and it is the point at which the
+reference color of \citet{Wang2003} stops mattering and the relation stops being linear
+only by truncation. Nothing is fit to residuals: $\lambda^{\star}$ is a functional of the
+turning already in the posterior, so the correction carries no parameter of its own, and
+with $\shapeturn \equiv 0$ it is one number for the sample. Neither $\xstretch$ nor
+$\Delta$ enters, both reparameterizing \eqref{eq:curvedef} and so leaving $\curv(\arc)$
+and $\cmslope(\arc)$ alone; the whole per-supernova correction is the color term, and the
+classical shape correction becomes a prediction instead, \S\ref{sec:shapescalars}.
+\eqref{eq:stdmag} is an apparent magnitude, and the rest of what it is not is
+\S\ref{sec:cmagicgaps}.
+
+\subsection{The slope is the tangent direction}
+\label{sec:cmslope}
+
+The empirical slope is a ratio of rates, which by \eqref{eq:tangangle} is the direction of
+the tangent:
+\begin{equation}
+  \cmslope(\arc) \equiv \deriv{\magg}{(\magg - \magr)}
+    = \frac{\cos\psi(\arc)}{\cos\psi(\arc) - \sin\psi(\arc)} ,
+  \qquad
+  \psi = \arctan\!\Bigl(1 - \frac{1}{\cmslope}\Bigr) \;\;(\mathrm{mod}\ \pi) .
+  \label{eq:cmslope}
+\end{equation}
+The convention $\psi(0) = -\pi/2$ reads $\cmslope = 0$ at the anchor, $\psi = 0$ reads
+$\cmslope = 1$ at the $r$ maximum, and $\psi = \pi/4$ sends $\cmslope$ to infinity:
+$\cmslope$ is a chart on the tangent direction rather than a function of it, singular where
+the color is stationary. In that chart the slope is not a parameter of the model but
+$\psi$ itself, and it inherits what $\psi$ has --- the translations
+$\peakmag\mathbf{1} + \colr\dustunit$ of \eqref{eq:modelmag} and any reparameterization
+$\arc(\phase)$ leave it alone.
+
+Linearity is $\curv = 0$, and since $\curv = \psi'$,
+\begin{equation}
+  \deriv{\cmslope}{\arc} = \frac{\curv}{(\cos\psi - \sin\psi)^{2}} ,
+  \label{eq:dslope}
+\end{equation}
+so $\cmslope$ is stationary exactly where the curvature vanishes. The linear interval
+\citet{Wang2003} identify and the slope they fit on it are therefore one statement about
+$\curv$: an interval over which it is small, and the stationary value of $\cmslope$ there.
+Several zeros of $\curv$ give several such intervals, each with its own stationary slope,
+so the zeros of $\curv$ enumerate the straight segments and \eqref{eq:cmslope} predicts
+each one's slope.
+
+\subsection{The reference color enters as a zero point}
+\label{sec:refcol}
+
+Write $\colfn$ for the color accumulated along the template,
+\begin{equation}
+  \colfn(\arc) = \Magg(\arc) - \Magr(\arc)
+    = \int_{0}^{\arc}\bigl[\cos\psi(\zeta) - \sin\psi(\zeta)\bigr]\,\dd\zeta ,
+  \label{eq:colfn}
+\end{equation}
+so that by \eqref{eq:modelmag} the observed color at arclength $\arc$ is
+$\colfn(\arc) + \colr$ and the observed $g$ magnitude is $\Magg(\arc) + \peakmag$. Reading
+the magnitude at a reference color $\refcol$ means solving $\colfn(\arc) + \colr = \refcol$
+and evaluating there. With
+\begin{equation}
+  F(x) \equiv \Magg\bigl(\colfn^{-1}(x)\bigr) , \qquad
+  F' = \cmslope , \qquad
+  F'' = \frac{\curv}{(\cos\psi - \sin\psi)^{3}} ,
+  \label{eq:Fdef}
+\end{equation}
+that magnitude is exactly
+\begin{equation}
+  M_{\refcol} = \peakmag + F(\refcol - \colr) .
+  \label{eq:mxi}
+\end{equation}
+The same denominator that makes $\cmslope$ singular makes $\colfn$ non-invertible, both
+vanishing at $\psi = \pi/4$, so \eqref{eq:mxi} is defined only on the branch before the
+color turns around --- the branch \citet{Wang2003} restrict to, and not the whole window
+the data reach.
+
+Expanding about a fiducial color $\bar\colr$,
+\begin{equation}
+  M_{\refcol}
+    = \underbrace{\bigl[\peakmag - \cmslope\,\colr\bigr]}_{\text{per supernova}}
+    + \underbrace{\bigl[F(\refcol - \bar\colr) + \cmslope\,\bar\colr\bigr]}_{\text{set by }\refcol}
+    + \tfrac{1}{2}F''\,(\colr - \bar\colr)^{2} + \dots ,
+  \label{eq:mxiexp}
+\end{equation}
+with $\cmslope$ and $F''$ evaluated at $\colfn^{-1}(\refcol - \bar\colr)$. Where the curve
+is shared --- $\shapeturn$ common, so $F$ is one function for the sample --- the second
+bracket is a constant: the reference color shifts $M_{\refcol}$ bodily and contributes
+nothing to its dispersion. What survives is the combination $\peakmag - \cmslope\,\colr$,
+and the only trace left of $\refcol$ is which value of $\cmslope$ it selects, through the
+arclength at which \eqref{eq:Fdef} is read.
+
+Where the curve is not shared it does not cancel. By \eqref{eq:Fdef}
+$\partial M_{\refcol}/\partial\refcol = \cmslope$, so moving the reference color by
+$\delta\refcol$ injects a dispersion $\delta\refcol$ times the spread of $\cmslope$ over
+the sample. \citet{Wang2003} fit a slope per supernova and so must place $\refcol$ near the
+sample mean color to hold that term down; the slope dispersion they report in excess of
+observational error is the same quantity. In this model that spread is carried by
+$\shapeturn$ alone, \eqref{eq:curvlin}.
+
+\subsection{The curvature supplies the evaluation point}
+\label{sec:stdmag}
+
+Both defects of \eqref{eq:mxiexp} are the one quantity. The nonlinearity in color is
+$F''$, and so is the sensitivity of the surviving coefficient to the reference color,
+\begin{equation}
+  \pderiv{}{\refcol}\,\cmslope\bigl(\colfn^{-1}(\refcol - \bar\colr)\bigr)
+    = \frac{\curv}{(\cos\psi - \sin\psi)^{3}} = F'' ,
+  \label{eq:dlam}
+\end{equation}
+both proportional to $\curv$. Evaluating where the curvature vanishes removes both at
+once. Let $\arc^{\star}$ be the first zero of $\curv$ at positive arclength, per
+supernova, and define
+\begin{equation}
+  \lambda^{\star} = \cmslope(\arc^{\star}) , \qquad
+  \stdmag = \peakmag - \lambda^{\star}\,\colr .
+  \label{eq:stdmag}
+\end{equation}
+No color is chosen. Supernovae are compared at a common \emph{geometric} feature, the
+vanishing of their own curvature, which sits at a different color and a different
+arclength for each; a common color is what \eqref{eq:mxi} imposes and what
+\eqref{eq:stdmag} does without. At $\arc^{\star}$ the coefficient is stationary against
+$\refcol$ by \eqref{eq:dlam} and the quadratic term of \eqref{eq:mxiexp} vanishes, so
+\eqref{eq:stdmag} is linear in the color through second order rather than by truncation.
+
+$\lambda^{\star}$ is a color coefficient of the kind \citet{Tripp1998} fits to residuals,
+here read off the fitted turning instead. Its per-supernova variation is $\shapeturn$'s, so
+a Tripp fit returning one coefficient while \eqref{eq:stdmag} returns a spread is a
+disagreement that can be measured.
+
+Dust acts on \eqref{eq:stdmag} through \eqref{eq:mwext}: a constant $A_{\lambda}$
+translates, $\peakmag \mapsto \peakmag + A_{g}$ and
+$\colr \mapsto \colr + (A_{g} - A_{r})$, so
+\begin{equation}
+  \stdmag \mapsto \stdmag
+    + \bigl[\,1 - \lambda^{\star}/\cmslope_{\mathrm{dust}}\,\bigr]\,A_{g} ,
+  \qquad
+  \cmslope_{\mathrm{dust}} = \frac{A_{g}}{A_{g} - A_{r}} ,
+  \label{eq:dustresp}
+\end{equation}
+where $\cmslope_{\mathrm{dust}}$ is \eqref{eq:cmslope}'s chart applied to the reddening
+direction rather than to the tangent. So \eqref{eq:stdmag} annihilates exactly the
+translations whose direction has slope $\lambda^{\star}$, and it is dust-free to first
+order if and only if the straight segment of the track is parallel to the reddening
+direction: its dust response measures the failure of that parallelism and nothing else.
+This is the geometric content of the reduction \citet{Wang2003} report, their $B,V$ slope
+near $2$ against a reddening direction near $4$ leaving about half.
+
+\subsection{Statistics with no color in them}
+\label{sec:shapescalars}
+
+Arclength is a length in magnitude space and is invariant under the translations of
+\eqref{eq:modelmag}, so landmarks of the curve give magnitude-valued statistics that
+involve no color, no distance, no time origin and no traversal: the arclength from the
+anchor to the $r$ maximum, $\psi = 0$; the arclength between consecutive zeros of $\curv$,
+the length of a straight segment; the total turning $\int|\curv|\,\dd\arc$ over the gauge
+span, dimensionless. Each is a functional of $\psi(\cdot\,;\shapeturn)$ and therefore a
+function of $\shapeturn$ alone, so with $\shapeturn \equiv 0$ each is one number shared by
+the sample --- a prediction rather than a measurement. They are the geometric replacements
+for $\Delta m_{15}$: shape scalars needing no clock, no reference color and no zero point.
+
+They buy nothing against dust. By \eqref{eq:dustresp} a magnitude functional annihilates
+only translations of its own slope, and a functional with no color in it has
+$\lambda^{\star} = 0$, which annihilates the direction along which $\magg$ is constant.
+Reddening is not that direction, so $\peakmag$ and every color-free statistic built on it
+carry the full $A_{g}$. The leverage against dust is the color mixing, and dropping the
+reference color is free where dropping the color is not.
+
+\subsection{What this does not establish}
+\label{sec:cmagicgaps}
+
+\eqref{eq:stdmag} is an apparent magnitude. The dispersion claim of \citet{Wang2003} is
+about absolute magnitudes and needs a distance modulus, which this model does not carry:
+$\peakmag$ absorbs $\dm$ by construction, and a standardization is downstream of the fit
+and out of sample.
+
+$\lambda^{\star}$ and the zeros of $\curv$ are read off a fitted $\psi$, so whether
+$K_{\psi}$ resolves a zero of $\curv$ at all, and whether its location and the slope there
+agree across two resolutions, is a measurement and not a property of the model. The
+turning basis is expanded in the coordinate $u$ of \eqref{eq:umap}, which concentrates
+resolution at the anchor, and $\arc^{\star}$ is not at the anchor.
+
+The dust statement holds for constant $A_{\lambda}$. By \eqref{eq:mwext} the band-averaged
+coefficients drift as the source spectrum evolves, and that residual reaches $\curv$,
+hence $\lambda^{\star}$.
+
+Nothing above carries a value from $B,V$ to $g,r$. The slope, the arclength of the straight
+segment and the colors at its ends are all to be computed in \ztf's own bands.
+
+
 \appendix
 
 \section{The scale of the time offset}
