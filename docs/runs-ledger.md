@@ -1201,7 +1201,8 @@ treedepth cap, and at matched iteration 11 the warm start ran at a step size
 
 `runs/stage3-flat-k88-n60`, finished 2026-11-12. **Does not clear the bar.**
 
-`stan/hier_flat.stan`: τ and α dropped entirely, `at = z_a` and `ct = z_c` with
+`stan/hier_flat.stan`, renamed `stan/hier_full.stan` after this run (the run's CSVs
+keep the old basename): τ and α dropped entirely, `at = z_a` and `ct = z_c` with
 only the gauge-fixing normals left on b and d, *and* `x_p`, `x_psi` moved from
 `mu + u` to flat boxed ±20. 390 sampled dimensions.
 

@@ -39,7 +39,7 @@ BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_b"}
 _B0 = np.sqrt(_v_span())
 BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "mu_delta": (-3.0, 3.0),
             "b_0": (-20.0 * _B0, 10.0 * _B0),
-            # hier_flat declares the departure amplitudes on a box instead of
+            # hier_full declares the departure amplitudes on a box instead of
             # assembling them from mu + u, so they reach the gradient check as
             # ordinary two-sided parameters and need the same logit factor.
             # Left out, the check read 8.9 against the 2.0e-07 hier_modes gives
@@ -382,8 +382,27 @@ def metric_from_run(run_dir, data, program):
     return v
 
 
-def for_flat(ini: dict, k_psi: int, k_q: int, k_a=None, k_c=None, R=None) -> dict:
-    """hier_flat's parameter set from the standard start.
+def for_base(ini: dict) -> dict:
+    """hier_base's parameter set from the standard start.
+
+    hier_base is hier_full without the modes, so relative to hier_common it
+    drops the two scales and two decay exponents and names the sampled mean
+    offset ``mu_delta`` rather than ``mu_delta_raw``.  CmdStan ignores entries
+    a program does not declare but DRAWS the ones it declares and the start
+    omits, so the rename has to happen here or delta_t starts at a random
+    offset.
+    """
+    out = {k: v for k, v in ini.items()
+           if k not in ("tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
+                        "mu_p", "mu_psi", "u_p", "u_psi", "s_delta",
+                        "mu_delta_raw")}
+    raw = ini.get("mu_delta_raw", ini.get("mu_delta", 0.0))
+    out["mu_delta"] = float(np.ravel(np.asarray(raw, dtype=float))[0]) if np.size(raw) else 0.0
+    return out
+
+
+def for_full(ini: dict, k_psi: int, k_q: int, k_a=None, k_c=None, R=None) -> dict:
+    """hier_full's parameter set from the standard start.
 
     Three differences from hier_modes, each of which would start the chain
     somewhere else if it were skipped:
@@ -544,13 +563,21 @@ def main():
                          "the selections nest, 12 giving a superset of 6")
     ap.add_argument("--k-psi", type=int, default=K_PSI)
     ap.add_argument("--k-q", type=int, default=K_Q)
-    ap.add_argument("--flat", action="store_true",
-                    help="stan/hier_flat.stan: hier_modes with Eq. (coefprior)'s tau/alpha "
+    ap.add_argument("--full", "--flat", dest="full", action="store_true",
+                    help="stan/hier_full.stan: two functions each, traversal q_0 + x_p q_1 "
+                         "and turning Psi_0 + x_psi Psi_1.  Eq. (coefprior)'s tau/alpha "
                          "hierarchy removed (the likelihood exceeds its precision by 4600x "
                          "to 284000x on every observable direction) and the departure "
                          "amplitudes flat on a box instead of N(mu, 1).  Keeps the gauge "
                          "priors: unit width on the discarded components and the oblique "
-                         "turning Jacobian")
+                         "turning Jacobian.  --flat is the old name and still works")
+    ap.add_argument("--base", action="store_true",
+                    help="stan/hier_base.stan: hier_full with both departure modes removed "
+                         "and nothing else changed, so one function describes the traversal "
+                         "and one the turning.  The forward maps are nested exactly, which "
+                         "makes --base against --full a test of the modes alone.  Carries no "
+                         "prior on b or d at all; --no-trav-mode is the program that keeps "
+                         "Eq. (coefprior), and is the model-v1.2 reference")
     ap.add_argument("--modes", action="store_true",
                     help="stan/hier_modes.stan: the full six-parameter model of Section 2.2 "
                          "with Eq. (18)'s model error.  hier.stan, which has the modes but "
@@ -606,24 +633,33 @@ def main():
     K_PSI, K_Q = args.k_psi, args.k_q
     if args.no_trav_mode:
         args.no_mode = True           # hier_common drops both departure modes
-    prog = ("hier_common" if args.no_trav_mode
+    prog = ("hier_base" if args.base
+            else "hier_common" if args.no_trav_mode
             else "hier_nomode" if args.no_mode
-            else "hier_flat" if args.flat
+            else "hier_full" if args.full
             else "hier_modes" if args.modes else "hier")
     # Ka and Kc are hier_modes.stan's alone: no other program declares them,
     # and CmdStan leaves data a program does not declare, so a run that asked
     # for a truncated mode without --modes would silently get a full one.
-    if (args.k_a is not None or args.k_c is not None) and prog not in ("hier_modes", "hier_flat"):
-        raise SystemExit(f"--k-a/--k-c need --modes or --flat; "
+    if (args.k_a is not None or args.k_c is not None) and prog not in ("hier_modes", "hier_full"):
+        raise SystemExit(f"--k-a/--k-c need --modes or --full; "
                          f"{prog} declares neither and would ignore them.")
-    if args.flat and (args.no_mode or args.no_trav_mode):
-        raise SystemExit("--flat is a mode-bearing program; it cannot be combined "
+    if args.base and (args.full or args.modes or args.no_mode or args.no_trav_mode):
+        raise SystemExit("--base is its own program and takes no other structure flag.")
+    if args.full and (args.no_mode or args.no_trav_mode):
+        raise SystemExit("--full is a mode-bearing program; it cannot be combined "
                          "with --no-mode or --no-trav-mode.")
     if args.modes and args.no_mode:
         raise SystemExit("--modes is the full model; it cannot be combined with "
                          "--no-mode or --no-trav-mode, which remove the departure modes.")
     ka, kc = args.k_a, args.k_c
-    mode, trav = not args.no_mode, not args.no_trav_mode
+    # hier_base has neither departure mode, so its rotated coefficient block
+    # is b_til and d_til alone and R is (Kq-1)+(Kpsi-1) square.  Left at the
+    # mode-bearing size, R is 28x28 against a program declaring 14x14 and
+    # log_prob fails before the gradient check can say anything useful.
+    mode = trav = False if args.base else None
+    if not args.base:
+        mode, trav = not args.no_mode, not args.no_trav_mode
     # free_mean is hier_common's alone; CmdStan leaves data a program does not
     # declare, so any other program would sample <Delta> and report otherwise.
     if args.delta_mean_zero and prog != "hier_common":
@@ -699,13 +735,15 @@ def main():
     # start carrying only the scalar mu_delta leaves hier_common's length-
     # free_mean vector to CmdStan's random draw, silently.
     ini = for_free_mean(ini, data)
-    # hier_flat has no tau, alpha or mu, its amplitudes are parameters, and its
+    # hier_full has no tau, alpha or mu, its amplitudes are parameters, and its
     # at = z_a carries no power-law weight.  CmdStan ignores init entries a
     # program does not declare but DRAWS the ones it declares and the start
     # omits, so x_p and x_psi have to be assembled here or the chain starts at
     # a random amplitude.
-    if prog == "hier_flat":
-        ini = for_flat(ini, k_psi, k_q, ka, kc, R)
+    if prog == "hier_full":
+        ini = for_full(ini, k_psi, k_q, ka, kc, R)
+    elif prog == "hier_base":
+        ini = for_base(ini)
 
     lp0, worst = gradient_check(data, ini, name=prog)
     print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")
