@@ -39,6 +39,13 @@ from dgsn.stan.run import chain_csvs, fixed_param, log_prob
 
 HYPER = ("alpha_q_m", "alpha_psi_m", "tau_q", "tau_psi")
 
+# The four per-supernova quantities that reach the forward map.  Together they
+# span exactly 4 N_sn free dimensions and no more: colr is c_bar + c_dev, one
+# global mean and N_sn - 1 deviations summing to zero, so N_sn in all, and
+# likewise x_s with b_0 and delta_t with mu_delta.  Profiling over them as
+# unconstrained is therefore exact rather than an over-count.
+PER_SN = ("m_peak", "colr", "x_s", "delta_t")
+
 
 def _flux(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int,
           mode: bool = True, trav: bool = True) -> np.ndarray:
@@ -73,31 +80,120 @@ def jacobian(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int,
     return J, np.exp(base)
 
 
+def prior_sd(data: dict, hyper: dict, k_psi: int, k_q: int) -> tuple[np.ndarray, np.ndarray]:
+    """Eq. (coefprior)'s prior standard deviations on ``b_til`` and ``d_til``.
+
+    Sampled in the hierarchies; a program that holds ``tau`` as data puts it in
+    the data dict instead, so take whichever is there."""
+    kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
+    tq = float(hyper["tau_q"]) if "tau_q" in hyper else float(data["tau_q"])
+    tp = float(hyper["tau_psi"]) if "tau_psi" in hyper else float(data["tau_psi"])
+    wq = tq * (kq / np.exp(np.log(kq).mean())) ** -(float(hyper["alpha_q_m"]) + 0.5)
+    wp = tp * (kp / np.exp(np.log(kp).mean())) ** -(float(hyper["alpha_psi_m"]) + 0.5)
+    return wq, wp
+
+
+def prior_precision(data: dict, hyper: dict, k_psi: int, k_q: int,
+                    mode: bool = True, trav: bool = True) -> np.ndarray:
+    """The diagonal prior precision over the coefficients, packed as ``raw``.
+
+    ``std_normal`` on ``z_a`` and ``z_c``, whose scale the gauge removes;
+    Eq. (coefprior) on ``b_til`` and ``d_til``, the only part that is not unit."""
+    wq, wp = prior_sd(data, hyper, k_psi, k_q)
+    return (pack(np.ones(k_q - 1), wq ** -2, np.ones(k_psi - 1), wp ** -2)
+            if mode and trav else pack(wq ** -2, wp ** -2))
+
+
 def fisher(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int,
            h: float = 1e-3, mode: bool = True, trav: bool = True) -> np.ndarray:
     """``J' Sigma^-1 J`` plus the prior precision, over the coefficients.
 
     The likelihood is Gaussian in flux, so with ``J`` the derivative of the
     *log* flux the weight of epoch ``i`` is ``(f_i / sigma_{f,i})^2``.  The
-    variance is the archive's error alone, as the fit's now is: Eq. (like)
-    carried a second, fitted term and no longer does."""
+    variance used here is the archive's error **alone**: Eq. (18)'s fitted
+    per-band term is deliberately omitted, so that a rotation built from this
+    is the same object as every rotation on record and runs stay comparable.
+    It is not the variance the fit's likelihood uses, and the difference is not
+    small --- the same point reads sqrt(cond) 1227.1 with Eq. (18)'s V against
+    966.3 with this weight.  ``sigma_b`` is absent from ``HYPER`` for the same
+    reason, so ``pieces`` never returns it and this function cannot see it.
+
+    This Fisher also *conditions* on the per-object block: ``jacobian``
+    differentiates with respect to the coefficients only.  Use ``profiled``
+    where the question is how much of a coefficient's width the per-object
+    parameters can absorb."""
     J, f = jacobian(data, raw, hyper, per_sn, k_psi, k_q, h, mode, trav)
     sig_f = np.asarray(data["sig_f"], dtype=float)
     W = (f / sig_f) ** 2
     F = J.T @ (W[:, None] * J)
+    return F + np.diag(prior_precision(data, hyper, k_psi, k_q, mode, trav))
 
-    # prior precision: std_normal on z_a, z_c; Eq. (coefprior) at the pivot on
-    # b_til, d_til, which is the only part of the prior that is not unit
-    kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
-    # sampled in the hierarchies, but a program that holds them as data puts
-    # them in the data dict instead; take whichever is there
-    tq = float(hyper["tau_q"]) if "tau_q" in hyper else float(data["tau_q"])
-    tp = float(hyper["tau_psi"]) if "tau_psi" in hyper else float(data["tau_psi"])
-    wq = tq * (kq / np.exp(np.log(kq).mean())) ** -(float(hyper["alpha_q_m"]) + 0.5)
-    wp = tp * (kp / np.exp(np.log(kp).mean())) ** -(float(hyper["alpha_psi_m"]) + 0.5)
-    prior = (pack(np.ones(k_q - 1), wq ** -2, np.ones(k_psi - 1), wp ** -2)
-             if mode and trav else pack(wq ** -2, wp ** -2))
-    return F + np.diag(prior)
+
+def jacobian_per_sn(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict,
+                    k_psi: int, k_q: int, h: float = 1e-3,
+                    mode: bool = True, trav: bool = True) -> np.ndarray:
+    """``d log f_i / d p`` for ``p`` each of ``PER_SN``, of the epoch's own object.
+
+    Shape ``(N, 4)``: column ``k`` is the derivative with respect to
+    ``PER_SN[k]`` of whichever object epoch ``i`` belongs to.  An epoch's flux
+    depends on its own object's parameters and on no other's, so perturbing
+    *every* object's ``m_peak`` together and differencing recovers all
+    ``N_sn`` columns at once --- four parameters, eight forward maps, where a
+    column-at-a-time loop would need ``8 N_sn``."""
+    out = np.empty((int(data["N"]), len(PER_SN)))
+    for k, name in enumerate(PER_SN):
+        up = {kk: np.array(vv, dtype=float) for kk, vv in per_sn.items()}
+        dn = {kk: np.array(vv, dtype=float) for kk, vv in per_sn.items()}
+        up[name] = up[name] + h
+        dn[name] = dn[name] - h
+        out[:, k] = (_flux(data, raw, hyper, up, k_psi, k_q, mode, trav)
+                     - _flux(data, raw, hyper, dn, k_psi, k_q, mode, trav)) / (2 * h)
+    return out
+
+
+def profiled(data: dict, raw: np.ndarray, hyper: dict, per_sn: dict, k_psi: int, k_q: int,
+             h: float = 1e-3, mode: bool = True, trav: bool = True,
+             with_prior: bool = True) -> tuple[np.ndarray, list[int]]:
+    """The coefficient Fisher with the per-object block profiled out.
+
+    ``fisher`` holds the per-object parameters fixed, so it answers how well
+    the epochs pin a coefficient *given* every object's brightness, colour,
+    rate and timing.  What a funnel cares about is the width left once those
+    are free to move with it, which is the Schur complement
+
+        F_prof = F_dd - F_dn F_nn^-1 F_nd.
+
+    ``F_nn`` is block diagonal in 4x4 blocks, one per object, because an
+    epoch's flux depends only on its own object's parameters --- so this costs
+    a 4x4 solve an object and nothing more.  The four quantities span exactly
+    ``4 N_sn`` free dimensions (see ``PER_SN``), and their priors are flat
+    inside their boxes, so no prior precision enters ``F_nn``.
+
+    Returns the matrix and the indices of any objects whose ``F_nn`` was
+    singular, meaning that object's own parameters are unidentified by its own
+    epochs; those are solved by least squares instead and are worth reporting
+    rather than hiding."""
+    J, f = jacobian(data, raw, hyper, per_sn, k_psi, k_q, h, mode, trav)
+    Jn = jacobian_per_sn(data, raw, hyper, per_sn, k_psi, k_q, h, mode, trav)
+    W = (f / np.asarray(data["sig_f"], dtype=float)) ** 2
+    F = J.T @ (W[:, None] * J)
+    start = np.asarray(data["start"], dtype=int) - 1      # Stan is 1-based
+    stop = np.asarray(data["stop"], dtype=int)            # inclusive -> exclusive
+    bad: list[int] = []
+    for j in range(int(data["N_sn"])):
+        e = slice(int(start[j]), int(stop[j]))
+        A, B, w = J[e], Jn[e], W[e]
+        F_dn = A.T @ (w[:, None] * B)
+        F_nn = B.T @ (w[:, None] * B)
+        try:
+            X = np.linalg.solve(F_nn, F_dn.T)
+        except np.linalg.LinAlgError:
+            bad.append(j)
+            X = np.linalg.lstsq(F_nn, F_dn.T, rcond=None)[0]
+        F -= F_dn @ X
+    if with_prior:
+        F = F + np.diag(prior_precision(data, hyper, k_psi, k_q, mode, trav))
+    return F, bad
 
 
 def rotation(F: np.ndarray) -> np.ndarray:
@@ -159,12 +255,24 @@ def _draws(out_dir) -> tuple[np.ndarray, list]:
     able to pool: without it a run with two chains in each branch cancels its
     signed blocks, ``||mean(a)||`` falling to 0.071 where every draw has
     ``||a|| = 1``, and a rotation or a transfer built on that mean lands
-    fifteen thousand nats below where the run itself sat."""
+    fifteen thousand nats below where the run itself sat.
+
+    Post-warmup is enforced rather than assumed.  ``--save-warmup`` writes the
+    adaptation draws into the same file, and this function used to return them:
+    on an interrupted run it handed back 2558 of 2566 rows, warmup included, so
+    every ``best_draw`` and ``posterior_mean`` downstream averaged over the
+    adaptation.  ``num_warmup`` and ``save_warmup`` are in the CSV's own
+    comment header, so the count is read from the file rather than passed in."""
     rows, hdr = [], None
     for csv in chain_csvs(out_dir):
-        h, r = None, []
+        h, r, n_warm, saved = None, [], 0, False
         for line in open(csv):
             if line.startswith("#"):
+                txt = line.lstrip("#").strip().replace(" ", "")
+                if txt.startswith("num_warmup="):
+                    n_warm = int(txt.split("=")[1])
+                elif txt.startswith("save_warmup="):
+                    saved = txt.split("=")[1] not in ("0", "false")
                 continue
             if h is None:
                 h = line.strip().split(",")
@@ -173,7 +281,14 @@ def _draws(out_dir) -> tuple[np.ndarray, list]:
             if len(p) == len(h):
                 r.append(p)
         hdr = h
-        rows.append(np.asarray(r[:-1], dtype=float))     # the last line may be partial
+        keep = r[:-1]                                    # the last line may be partial
+        if saved and n_warm:
+            keep = keep[n_warm:]
+        if not keep:
+            raise ValueError(
+                f"{csv}: no post-warmup draws ({len(r)} rows, {n_warm} of them "
+                f"warmup); the run has not left adaptation")
+        rows.append(np.asarray(keep, dtype=float))
     if not rows:
         raise ValueError(f"no chain CSVs in {out_dir}")
     X = np.vstack(rows)
@@ -200,8 +315,22 @@ def _named(row, col) -> dict:
     # relabeling acts on *them*: negating a slot of w_coef would be wrong
     # whenever R is not the identity, since the rotation mixes the slots.
     # Reading the relabeled blocks and re-packing is correct either way.
+    # sigma_b is named explicitly because the list above comes from hier.stan,
+    # which predates Eq. (18) and declares no model error.  Without it a start
+    # transferred out of a floored run silently reverted sigma_b to the 0.05 mag
+    # of hier_data.INIT_SIGMA_B, discarding the 0.0469 and 0.0679 the source had
+    # measured.  pieces() selects its keys by name, so the extra one is inert
+    # there; a run without the column simply does not produce it.
+    # colr, x_s_tot and b_0 are transformed parameters, so they are absent from
+    # hier.stan's `parameters` list and were absent here, which made
+    # ``pieces`` raise KeyError on a point built from a finished run rather
+    # than from an inits dict -- the safer failure of the two, but it has cost
+    # time twice.  pieces() selects its keys by name, so naming a block a
+    # given program does not emit is inert.
     for name in list(model("hier").src_info()["parameters"]) + \
-            ["x_s", "x_p", "x_psi", "delta_t", "z_a", "b_til", "z_c", "d_til"]:
+            ["x_s", "x_p", "x_psi", "delta_t", "z_a", "b_til", "z_c", "d_til",
+             "sigma_b", "colr", "x_s_tot", "b_0", "c_bar", "c_dev",
+             "mu_delta", "d_dev"]:
         if name in col:
             out[name] = float(row[col[name]])
             continue

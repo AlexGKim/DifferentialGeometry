@@ -38,7 +38,8 @@ def _v_span() -> float:
 def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M_PER_SIDE,
           sample=None, R=None, mode: bool = True, trav: bool = True,
           prior_shape: int = 0, sigma_q=None, sigma_psi=None, alpha_q=None,
-          alpha_psi=None, nu_coef: float = 1.0, free_mean: bool = True) -> dict:
+          alpha_psi=None, nu_coef: float = 1.0, free_mean: bool = True,
+          k_a=None, k_c=None) -> dict:
     """The data block of ``hier.stan`` for the objects ``names``.
 
     ``mode=False`` is for ``hier_nomode.stan``, where Eq. (curvlin) carries no
@@ -60,7 +61,8 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         dt=np.concatenate(dt), f=np.concatenate(f), sig_f=np.concatenate(sig_f),
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), grainsize=int(grainsize),
-        R=np.eye(n_coef(k_psi, k_q, mode, trav)) if R is None else np.asarray(R, dtype=float),
+        R=(np.eye(n_coef(k_psi, k_q, mode, trav, k_a, k_c)) if R is None
+           else np.asarray(R, dtype=float)),
     )
     # Eq. (coefprior)'s treatment, read only by stan/hier_common_scale.stan.
     # The other programs sample the scales unconditionally and ignore these;
@@ -80,6 +82,11 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
     # program as every run on record was sampled, so a data dict built without
     # naming it reproduces those runs.
     data.update(free_mean=int(bool(free_mean)))
+    # The departure modes' orders, read only by stan/hier_modes.stan.  Every
+    # other program carries one order a pair and ignores these, so a data dict
+    # built without naming them reproduces every run on record.
+    ka, kc = _mode_orders(k_psi, k_q, k_a, k_c)
+    data.update(Ka=int(ka), Kc=int(kc))
     return data
 
 
@@ -100,12 +107,26 @@ def for_free_mean(ini: dict, data: dict) -> dict:
     return out
 
 
-def n_coef(k_psi: int, k_q: int, mode: bool = True, trav: bool = True) -> int:
+def _mode_orders(k_psi: int, k_q: int, k_a=None, k_c=None) -> tuple[int, int]:
+    """The departure modes' own orders, defaulting to the mean functions'.
+
+    ``hier_modes.stan`` declares ``Ka`` and ``Kc`` so that q_1 and Psi_1 may be
+    truncated below q_0 and Psi_0.  Every other program carries one order a
+    pair, so the default reproduces them exactly and no existing call changes."""
+    return (k_q if k_a is None else int(k_a), k_psi if k_c is None else int(k_c))
+
+
+def n_coef(k_psi: int, k_q: int, mode: bool = True, trav: bool = True,
+           k_a=None, k_c=None) -> int:
     """The rotated block: z_a, b_til, z_c, d_til laid end to end, dropping
     z_c when the turning mode is absent and z_a when the traversal mode is.
 
-    ``mode`` is Psi_1 of Eq. (curvlin), ``trav`` is q_1 of Eq. (travlog)."""
-    return (2 if trav else 1) * (k_q - 1) + (2 if mode else 1) * (k_psi - 1)
+    ``mode`` is Psi_1 of Eq. (curvlin), ``trav`` is q_1 of Eq. (travlog).
+    ``k_a`` and ``k_c`` shorten z_a and z_c alone, which is hier_modes.stan's
+    truncation of the departure modes; they default to ``k_q`` and ``k_psi``."""
+    k_a, k_c = _mode_orders(k_psi, k_q, k_a, k_c)
+    return (((k_a - 1) if trav else 0) + (k_q - 1)
+            + ((k_c - 1) if mode else 0) + (k_psi - 1))
 
 
 def pack(*vectors) -> np.ndarray:
@@ -114,19 +135,24 @@ def pack(*vectors) -> np.ndarray:
     return np.concatenate([np.asarray(v, dtype=float) for v in vectors])
 
 
-def unpack(raw, k_psi: int, k_q: int, mode: bool = True, trav: bool = True) -> dict:
-    n1, n3 = k_q - 1, k_psi - 1
+def unpack(raw, k_psi: int, k_q: int, mode: bool = True, trav: bool = True,
+           k_a=None, k_c=None) -> dict:
+    k_a, k_c = _mode_orders(k_psi, k_q, k_a, k_c)
+    n_a, n_b, n_c, n_d = k_a - 1, k_q - 1, k_c - 1, k_psi - 1
     raw = np.asarray(raw, dtype=float)
     if not trav:                       # b_til, d_til alone
-        return dict(b_til=raw[:n1], d_til=raw[n1:n1+n3])
+        return dict(b_til=raw[:n_b], d_til=raw[n_b:n_b+n_d])
     if not mode:
-        return dict(z_a=raw[:n1], b_til=raw[n1:2*n1], d_til=raw[2*n1:2*n1+n3])
-    return dict(z_a=raw[:n1], b_til=raw[n1:2*n1], z_c=raw[2*n1:2*n1+n3], d_til=raw[2*n1+n3:])
+        return dict(z_a=raw[:n_a], b_til=raw[n_a:n_a+n_b],
+                    d_til=raw[n_a+n_b:n_a+n_b+n_d])
+    return dict(z_a=raw[:n_a], b_til=raw[n_a:n_a+n_b],
+                z_c=raw[n_a+n_b:n_a+n_b+n_c],
+                d_til=raw[n_a+n_b+n_c:n_a+n_b+n_c+n_d])
 
 
 def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None,
           tau: dict | None = None, R=None, mode: bool = True,
-          trav: bool = True) -> dict:
+          trav: bool = True, k_a=None, k_c=None) -> dict:
     """Initial values: per-supernova from SALT2 and the sample, global
     functions from the SALT2 fits.  The centred pair starts at the coefficients
     themselves; ``z`` is put on unit scale by the same power law.  ``tau`` is
@@ -145,12 +171,20 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
         tau = dict(q=float(D.TAU_Q), psi=float(D.TAU_PSI))
     per = [per_sn_start(sample.loc[n]) for n in names]
     colr0 = np.array([q["colr"] for q in per])
+    # The departure modes may be truncated below their mean functions, in
+    # which case the \salt\ start keeps its leading coefficients and drops
+    # the rest.  Dropping is not an embedding, so the start is not the \salt\
+    # function any more, only its low-order part -- which is all the program
+    # can carry, and the gauge renormalises it.
+    ka, kc = _mode_orders(k_psi, k_q, k_a, k_c)
+    a0 = (G["a"] / wq)[:ka - 1]
+    c0 = (G["c"] / wp)[:kc - 1]
     if not trav:
         raw = pack(G["b"], G["d"])     # no z_a, no z_c
     elif mode:
-        raw = pack(G["a"] / wq, G["b"], G["c"] / wp, G["d"])
+        raw = pack(a0, G["b"], c0, G["d"])
     else:
-        raw = pack(G["a"] / wq, G["b"], G["d"])
+        raw = pack(a0, G["b"], G["d"])
     out = dict(
         # w = R^-1 raw, so that the start is the same point whatever rotation
         # is in force
@@ -256,21 +290,50 @@ def inits_from_optimize(program: str, data: dict, start: dict, k_psi: int, k_q: 
     return out
 
 
+def _perp(v, u, tol: float = 1e-8):
+    """``v`` with its component along ``u`` removed, or None if nothing is left.
+
+    Nothing is left when ``v`` and ``u`` are parallel, and in particular
+    whenever both are one-dimensional: a mode with a single coefficient cannot
+    be both nonzero and orthogonal to anything.  The caller reports that rather
+    than returning a zero vector the gauge cannot normalize."""
+    v = np.asarray(v, dtype=float)
+    u = np.asarray(u, dtype=float)
+    uu = float(u @ u)
+    if uu <= 0:
+        return v
+    w = v - (float(v @ u) / uu) * u
+    return None if np.linalg.norm(w) <= tol * max(np.linalg.norm(v), 1.0) else w
+
+
 def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
                    mode: bool = True, trav: bool = True, sample=None, globals_=None,
                    R=None, program: str | None = None, data: dict | None = None,
                    use_mean: bool = False, verbose: bool = True,
-                   src_names=None) -> dict:
+                   src_names=None, k_a=None, k_c=None) -> dict:
     """Start a richer model at a simpler one's posterior mean.
 
-    The three hierarchy programs are nested, and the embedding is exact: a
-    departure mode contributes to the likelihood only through
-    ``x_p q_1`` or ``x_psi Psi_1``, so setting the amplitudes to zero ---
-    ``mu_p = u_p = 0``, ``mu_psi = u_psi = 0`` --- reproduces the simpler
-    model's prediction whatever the mode vector is.  The mode vector itself
-    cannot be set to zero: the gauge normalizes it, and ``at / ||at||`` is
-    undefined there, so ``z_a`` and ``z_c`` keep their \\salt\\ starting
-    values and are simply not used at the start.
+    The three hierarchy programs are nested, and a departure mode reaches the
+    likelihood only through ``x_p q_1`` or ``x_psi Psi_1``, so setting the
+    amplitudes to zero --- ``mu_p = u_p = 0``, ``mu_psi = u_psi = 0`` --- takes
+    the mode term out of the prediction.  The mode vector itself cannot be set
+    to zero: the gauge normalizes it, and ``at / ||at||`` is undefined there.
+
+    **That is not by itself exact, and the gauge is why.**  A program without
+    the mode uses ``b = b_til``; one with it uses
+    ``b = b_til - (b_til . a) a``, and the forward map reads ``b`` whatever
+    ``x_p`` is.  So a carried ``b_til`` arrives short of its component along
+    ``a``, and no choice of ``b_til`` repairs it --- orthogonal projection is
+    idempotent and its image is ``a``'s orthogonal complement.  What is free
+    is ``a``'s *direction*: the gauge fixes ``||a|| = 1`` and nothing else,
+    and the posterior's ``a`` is orthogonal to ``b`` by construction anyway.
+    So the start places ``a`` perpendicular to the carried ``b_til``, keeping
+    the \\salt\\ direction as far as the projection allows, and the transfer
+    becomes exact.  The turning pair is the same under ``Gs``, which
+    ``stan/gauge_gram.stan`` supplies because Python evaluates no basis.  A
+    mode with one coefficient cannot be made orthogonal to anything, so at
+    ``Ka = 2`` or ``Kc = 2`` the placement is skipped and said to be skipped,
+    and the transfer is inexact by whatever the ``lp`` line then shows.
 
     Why bother.  A converged posterior of a simpler model is a better start
     than the \\salt\\ fit or an optimizer's mode: it is a point a sampler has
@@ -361,7 +424,8 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
     if not s_un:
         s_un = unpack(np.asarray(src["w_coef"], dtype=float), k_psi, k_q,
                       mode="z_c" in _slots(out_dir), trav="z_a" in _slots(out_dir))
-    d_un = unpack(np.asarray(out["w_coef"], dtype=float), k_psi, k_q, mode, trav)
+    d_un = unpack(np.asarray(out["w_coef"], dtype=float), k_psi, k_q, mode, trav,
+                  k_a, k_c)
     for key in d_un:
         if key not in s_un:
             continue
@@ -383,6 +447,32 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
             raise ValueError(
                 f"{key}: the source carries {v.size} coefficients and this fit "
                 f"declares {d_un[key].size}; lowering K is not an embedding")
+    # Onto the gauge surface, which is what makes the transfer exact; see the
+    # docstring.  After the blocks are assembled and before the rotation, so it
+    # acts on the coefficients the program will actually build a and c from.
+    gauged, skipped = [], []
+    if "z_a" in d_un and "b_til" in d_un:
+        w = np.arange(1.0, k_q) ** -(float(out["alpha_q_m"]) + 0.5)
+        n_a = np.size(d_un["z_a"])
+        at = _perp(np.asarray(d_un["z_a"], dtype=float) * w[:n_a],
+                   np.asarray(d_un["b_til"], dtype=float)[:n_a])
+        if at is None:
+            skipped.append(f"a (Ka = {n_a + 1}, one coefficient)")
+        else:
+            d_un["z_a"] = at / w[:n_a]
+            gauged.append("a _|_ b")
+    if "z_c" in d_un and "d_til" in d_un and data is not None:
+        from dgsn.stan.run import fixed_param
+        Gs = np.asarray(fixed_param("gauge_gram", data)["gram_s"], dtype=float)
+        w = np.arange(1.0, k_psi) ** -(float(out["alpha_psi_m"]) + 0.5)
+        n_c = np.size(d_un["z_c"])
+        g = (Gs @ np.asarray(d_un["d_til"], dtype=float))[:n_c]
+        ct = _perp(np.asarray(d_un["z_c"], dtype=float) * w[:n_c], g)
+        if ct is None:
+            skipped.append(f"c (Kc = {n_c + 1}, one coefficient)")
+        else:
+            d_un["z_c"] = ct / w[:n_c]
+            gauged.append("c _|_Gs d")
     raw = pack(*[d_un[k] for k in ("z_a", "b_til", "z_c", "d_til") if k in d_un])
     out["w_coef"] = raw if R is None else np.linalg.solve(np.asarray(R, dtype=float), raw)
     # A source from before Eq. (xsmean) carries x_s itself; split it the way
@@ -403,7 +493,9 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
         out = for_free_mean(out, data)
     if verbose:
         msg = (f"started from {out_dir}: carried {len(set(carried))} blocks"
-               + (f", new modes zeroed: {', '.join(zeroed)}" if zeroed else ""))
+               + (f", new modes zeroed: {', '.join(zeroed)}" if zeroed else "")
+               + (f", gauge-placed: {', '.join(gauged)}" if gauged else "")
+               + (f", GAUGE PLACEMENT SKIPPED: {'; '.join(skipped)}" if skipped else ""))
         # A count of blocks says nothing about fidelity: a transfer that
         # silently drops x_s reports nineteen blocks carried and lands fifteen
         # thousand nats below the Salt2 start.  Report the log density, which

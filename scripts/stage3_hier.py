@@ -10,6 +10,7 @@ Stage 4 is scripts/stage4_full.py, the same program on the training sample.
 """
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -26,19 +27,89 @@ from dgsn.stan.run import (chain_csvs, log_prob, model, sample_four,
                            seconds_per_gradient)
 
 K_PSI, K_Q = 12, 8      # the smallest orders; override with --k-psi/--k-q
-BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m"}
+# sigma_b belongs here: Eq. (18)'s model error is declared <lower=0> like the
+# four scales, so its unconstrained scale is the log and its finite difference
+# needs the same sigma d/dsigma factor.  It was missing until 2026-11-06, which
+# did not show up because gradient_check samples twenty coordinates at random
+# and hier_common has 260 of them.
+BOUNDED = {"tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m", "sigma_b"}
 # flat on a box, so the unconstrained scale is a scaled logit, not a log
 # b_0's box is declared on the mean log rate, b_0/sqrt(vhi - vlo), so it is
 # computed here from the same span rather than written as a number.
 _B0 = np.sqrt(_v_span())
 BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "mu_delta": (-3.0, 3.0),
-            "b_0": (-20.0 * _B0, 10.0 * _B0)}
+            "b_0": (-20.0 * _B0, 10.0 * _B0),
+            # hier_flat declares the departure amplitudes on a box instead of
+            # assembling them from mu + u, so they reach the gradient check as
+            # ordinary two-sided parameters and need the same logit factor.
+            # Left out, the check read 8.9 against the 2.0e-07 hier_modes gives
+            # at the same start -- a harness gap, not a model error, but one
+            # that looks exactly like a model error.
+            "x_p": (-20.0, 20.0), "x_psi": (-20.0, 20.0),
+            # hier_common and hier_abox declare the sampled mean as
+            # mu_delta_raw, which is the name src_info reports and therefore
+            # the name this table is looked up by; keyed only as "mu_delta" it
+            # received no chain-rule factor at all.
+            "mu_delta_raw": (-3.0, 3.0)}
+
+# Two-sided only in hier_abox, where the Exp(1) priors are replaced by boxes.
+BOUNDED2_BY_PROGRAM = {"hier_abox": {"alpha_q_m": (0.0, 8.0),
+                                     "alpha_psi_m": (0.0, 8.0)}}
+
+
+def _declared_bounds(name: str) -> dict:
+    r"""Which of a program's parameters are bounded, and on which sides.
+
+    Read off the \code{parameters} block of the program's own source, because
+    ``src_info`` reports type and dimension and not constraints.  Used only to
+    check the tables above against the program actually being run: a parameter
+    whose declaration gained a bound, or whose declared name differs from the
+    table's key, otherwise reaches ``gradient_check`` with no chain-rule factor
+    and reads as a model error.  Measured, that is a relative mismatch of 8.9
+    against the 2e-07 a correct check gives."""
+    txt = Path(model(name).stan_file).read_text().splitlines()
+    inside, out = False, {}
+    for line in txt:
+        # strip a trailing comment first: "real<lower=0> tau_q;  // ..." does
+        # not end in a semicolon, and skipping such lines would let a bounded
+        # parameter through the check unexamined.
+        s = line.split("//")[0].strip()
+        if line.strip().startswith("parameters {"):
+            inside = True; continue
+        if inside and line.strip().startswith("}"):
+            break
+        if not inside or not s.endswith(";"):
+            continue
+        decl, nm = s[:-1].rsplit(" ", 1)[0], s[:-1].rsplit(" ", 1)[-1]
+        if not nm.isidentifier():
+            continue
+        out[nm] = ("lower" in decl, "upper" in decl)
+    return out
+
 GLOBAL_SCALARS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
                   "mu_p_rel", "mu_psi_rel", "c_bar", "b_0"]
 
 
 def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     """Central differences of the log density in a random subset of coordinates."""
+    bounded = set(BOUNDED) - set(BOUNDED2_BY_PROGRAM.get(name, {}))
+    bounded2 = {**BOUNDED2, **BOUNDED2_BY_PROGRAM.get(name, {})}
+    # Check the tables against the program before trusting the comparison.
+    frozen_sz = {"x_s", "c_dev", "d_dev"}
+    for nm, (lo, hi) in _declared_bounds(name).items():
+        if nm in frozen_sz:
+            continue
+        want = ("BOUNDED2" if (lo and hi) else "BOUNDED" if lo else
+                "neither" if not hi else "unsupported (upper only)")
+        have = ("BOUNDED2" if nm in bounded2 else "BOUNDED" if nm in bounded
+                else "neither")
+        if want != have:
+            raise SystemExit(
+                f"gradient_check cannot be trusted for {name}: {nm} is declared "
+                f"{'two-sided' if lo and hi else 'lower-bounded' if lo else 'unbounded'} "
+                f"and belongs in {want}, but is in {have}.  Stan differentiates on the "
+                f"unconstrained scale, so without the matching chain-rule factor this "
+                f"parameter reads as a model error.")
     lp0, grad = log_prob(name, data, point)
     # flatten the parameter dict in Stan's order to index the gradient
     names = list(model(name).src_info()["parameters"].keys())
@@ -74,12 +145,12 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
         fd = (log_prob(name, data, up)[0] - log_prob(name, data, dn)[0]) / (2 * h)
         # log_prob's gradient is on the unconstrained scale: for a parameter
         # bounded below at zero that is theta d/dtheta.
-        if n in BOUNDED:
+        if n in bounded:
             fd *= float(np.atleast_1d(point[n])[i])
-        elif n in BOUNDED2:
+        elif n in bounded2:
             # two-sided: v = a + (b - a) inv_logit(x), so dv/dx is
             # (v - a)(b - v)/(b - a).  m_peak and c_bar are flat on boxes.
-            a, b = BOUNDED2[n]
+            a, b = bounded2[n]
             v = float(np.atleast_1d(point[n])[i])
             fd *= (v - a) * (b - v) / (b - a)
         rel = abs(grad[j] - fd) / max(abs(fd), 1e-3)
@@ -200,6 +271,153 @@ def warm_start(run_dir):
     print(f"warm start from {run_dir}: {len(cols)} unconstrained, {sum(len(u) for u in unc)} draws; "
           f"inverse-metric condition number {np.linalg.cond(cov):.1e}")
     return inits, cov
+
+
+# hier_common's unconstrained blocks, in the order stan/hier_common.stan
+# declares them.  sum_to_zero_vector[N] contributes N - 1 coordinates; the
+# bounded scalars and vectors contribute one each.  Total 20 + 4 N_sn.
+PER_OBJECT_BLOCKS = ("m_peak", "c_dev", "x_s", "d_dev")
+
+
+def _metric_layout(n_sn: int, k_q: int, k_psi: int, free_mean: int):
+    return [("w_coef", (k_q - 1) + (k_psi - 1)), ("tau_q", 1), ("tau_psi", 1),
+            ("alpha_q_m", 1), ("alpha_psi_m", 1), ("m_peak", n_sn), ("c_bar", 1),
+            ("c_dev", n_sn - 1), ("b_0", 1), ("x_s", n_sn - 1),
+            ("mu_delta_raw", free_mean), ("d_dev", n_sn - 1), ("sigma_b", 2)]
+
+
+def metric_from_run(run_dir, data, program):
+    """A converged run's adapted diagonal inverse metric, padded to this run's
+    object count.
+
+    Stan writes the diagonal it adapted to into each chain's CSV header, so
+    the source is the run itself and not a recomputation from its draws.  The
+    shared blocks -- coefficients, hyperparameters, the scalars -- transfer
+    entry for entry.  The four per-object blocks are extended with the median
+    of the source block: the objects are exchangeable under Eq. (coefprior)'s
+    hierarchy, and the spread within a source block carries no trend in the
+    coordinate index (measured on stage3-k88-n60-floor: |corr(log k, log m)|
+    at most 0.16 across the four blocks, slopes at most 0.13, mixed signs),
+    so the block has a centre and no shape to extrapolate.
+
+    This is a starting point, not a fixed metric -- Stan keeps adapting it.
+    The point is to skip the unit-metric phase, which on that run was 51
+    percent of the whole gradient budget and sits 4 to 5 orders of magnitude
+    off on the per-object blocks (median m_peak entry 3.5e-05 against 1).
+    """
+    if program != "hier_common":
+        raise SystemExit(f"--metric-from knows hier_common's block layout only, not {program}")
+    src = json.loads((Path(run_dir) / "data.json").read_text())
+    for k in ("Kq", "Kpsi"):
+        if src.get(k) != data.get(k):
+            raise SystemExit(f"--metric-from needs matching {k}: "
+                             f"source {src.get(k)}, target {data.get(k)}")
+    rows = []
+    for f in chain_csvs(run_dir):
+        lines = Path(f).read_text().splitlines()
+        i = next((j for j, l in enumerate(lines) if "Diagonal elements" in l), None)
+        if i is None:
+            raise SystemExit(f"{f} has no adapted metric: it did not finish warmup")
+        rows.append([float(x) for x in lines[i + 1].lstrip("# ").split(",")])
+    m = np.asarray(rows, dtype=float)
+    if len({len(r) for r in rows}) != 1:
+        raise SystemExit(f"chains of {run_dir} disagree on metric length")
+    m = m.mean(0)
+    s_free = src.get("free_mean", 1)
+    s_lay = _metric_layout(src["N_sn"], src["Kq"], src["Kpsi"], s_free)
+    if sum(n for _, n in s_lay) != len(m):
+        raise SystemExit(f"layout for {run_dir} sums to {sum(n for _, n in s_lay)} but its "
+                         f"metric has {len(m)} entries -- the block list is wrong")
+    t_lay = _metric_layout(data["N_sn"], data["Kq"], data["Kpsi"], data.get("free_mean", 1))
+    blocks, o = {}, 0
+    for nm, n in s_lay:
+        blocks[nm] = m[o:o + n]
+        o += n
+    # Which target object is which source object, by redshift.  The two
+    # data dicts come from the same table, so the values are bit-identical;
+    # 255 distinct redshifts make it a fingerprint.  Checked against the
+    # name-based positions: identical.  Needed because the samples are
+    # stratified by x1 fifth, so the 60 objects sit at target indices
+    # 0-11, 51-62, 102-113, 153-164, 204-215 and NOT at 0-59 -- carrying
+    # the first 60 entries across would give one object another's scale.
+    sz = np.asarray(src["z"], dtype=float)
+    tz = np.asarray(data["z"], dtype=float)
+    where = []
+    for v in sz:
+        w = np.flatnonzero(tz == v)
+        if len(w) != 1:
+            raise SystemExit(f"redshift {v} matches {len(w)} target objects; cannot "
+                             f"place the per-object metric entries")
+        where.append(int(w[0]))
+    where = np.asarray(where)
+
+    out, padded = [], []
+    for nm, n in t_lay:
+        b = blocks[nm]
+        if n == len(b):
+            out.append(b)
+        elif nm == "m_peak" and n > len(b):
+            # a genuine per-object vector: entry j is object j, so place the
+            # source entries at the objects they belong to.
+            v = np.full(n, float(np.median(b)))
+            v[where] = b
+            out.append(v)
+            padded.append(f"{nm} {len(b)} placed + {n - len(b)} median")
+        elif nm in PER_OBJECT_BLOCKS and n > len(b):
+            # sum_to_zero_vector[N]: the N-1 unconstrained coordinates are an
+            # orthogonal basis that changes with N, so coordinate k carries no
+            # object and there is nothing to place.  The block has a centre and
+            # no shape to extrapolate, so it takes the source median whole.
+            out.append(np.full(n, float(np.median(b))))
+            padded.append(f"{nm} {n} median")
+        else:
+            raise SystemExit(f"block {nm} changes length {len(b)} -> {n} and is not "
+                             f"a per-object block that can be padded")
+    v = np.concatenate(out)
+    assert len(v) == sum(n for _, n in t_lay)
+    print(f"metric from {run_dir}: {len(m)} -> {len(v)} unconstrained coordinates "
+          f"({src['N_sn']} -> {data['N_sn']} objects); padded {', '.join(padded)}")
+    return v
+
+
+def for_flat(ini: dict, k_psi: int, k_q: int, k_a=None, k_c=None, R=None) -> dict:
+    """hier_flat's parameter set from the standard start.
+
+    Three differences from hier_modes, each of which would start the chain
+    somewhere else if it were skipped:
+
+      * no tau, no alpha, no mu -- those parameters are gone;
+      * the amplitudes are parameters, not mu + u, so x_p and x_psi are
+        assembled here and clipped inside their declared box;
+      * ``at = z_a`` rather than ``k^-alpha z_a``, so the z slices must be
+        multiplied back by the weights ``inits`` divided them by.  Skipping
+        this silently starts the mode at a DIFFERENT shape, since a is
+        z_a/||z_a|| and the weights are not a common factor.
+    """
+    from dgsn.stan.hier_data import INIT_ALPHA, _mode_orders
+    drop = ("tau_q", "tau_psi", "alpha_q_m", "alpha_psi_m",
+            "mu_p", "mu_psi", "u_p", "u_psi")
+    out = {k: v for k, v in ini.items() if k not in drop}
+    nsn = len(np.atleast_1d(ini["m_peak"]))
+    for amp, mu, u in (("x_p", "mu_p", "u_p"), ("x_psi", "mu_psi", "u_psi")):
+        if mu in ini:
+            out[amp] = np.clip(float(ini[mu]) + np.asarray(ini[u], dtype=float),
+                               -19.9, 19.9)
+        else:
+            out[amp] = np.zeros(nsn)
+    raw = np.asarray(ini["w_coef"], dtype=float).copy()
+    if R is not None:
+        raw = np.asarray(R, dtype=float) @ raw
+    ka, kc = _mode_orders(k_psi, k_q, k_a, k_c)
+    kq, kp = np.arange(1, k_q), np.arange(1, k_psi)
+    wq = (kq / np.exp(np.log(kq).mean())) ** -INIT_ALPHA
+    wp = (kp / np.exp(np.log(kp).mean())) ** -INIT_ALPHA
+    na, nb, nc = ka - 1, k_q - 1, kc - 1
+    raw[0:na] *= wq[:na]
+    raw[na + nb:na + nb + nc] *= wp[:nc]
+    out["w_coef"] = (raw if R is None
+                     else np.linalg.solve(np.asarray(R, dtype=float), raw))
+    return out
 
 
 def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True,
@@ -324,11 +542,44 @@ def main():
                          "the selections nest, 12 giving a superset of 6")
     ap.add_argument("--k-psi", type=int, default=K_PSI)
     ap.add_argument("--k-q", type=int, default=K_Q)
+    ap.add_argument("--alpha-box", action="store_true",
+                    help="stan/hier_abox.stan: hier_common with Eq. (coefprior)'s Exp(1) "
+                         "priors on the decay exponents removed and alpha - 1/2 flat on "
+                         "[0, 8] instead.  Needs --no-trav-mode.  Isolates that one prior "
+                         "against runs/stage3-k88-n60-floor on the same data and seed")
+    ap.add_argument("--flat", action="store_true",
+                    help="stan/hier_flat.stan: hier_modes with Eq. (coefprior)'s tau/alpha "
+                         "hierarchy removed (the likelihood exceeds its precision by 4600x "
+                         "to 284000x on every observable direction) and the departure "
+                         "amplitudes flat on a box instead of N(mu, 1).  Keeps the gauge "
+                         "priors: unit width on the discarded components and the oblique "
+                         "turning Jacobian")
+    ap.add_argument("--modes", action="store_true",
+                    help="stan/hier_modes.stan: the full six-parameter model of Section 2.2 "
+                         "with Eq. (18)'s model error.  hier.stan, which has the modes but "
+                         "not the model error, is left as the default so every run on "
+                         "record stays reproducible")
+    ap.add_argument("--k-a", type=int, default=None, metavar="K",
+                    help="order of the traversal departure mode q_1, default --k-q.  "
+                         "Lower truncates the mode alone, which keeps the per-object "
+                         "amplitudes measurable; needs --modes")
+    ap.add_argument("--k-c", type=int, default=None, metavar="K",
+                    help="order of the turning departure mode Psi_1, default --k-psi; "
+                         "needs --modes")
     ap.add_argument("--dense", action="store_true", help="dense_e metric, adapted by Stan")
     ap.add_argument("--delta-mean-zero", action="store_true",
                     help="hold <Delta> = 0, declaring no coordinate for it "
                          "(hier_common's free_mean); needs --no-trav-mode")
     ap.add_argument("--adapt-delta", type=float, default=None)
+    ap.add_argument("--metric-from", default=None, metavar="DIR",
+                    help="a converged run's adapted diagonal inverse metric as this "
+                         "run's starting metric, padded over the per-object blocks when "
+                         "the object count differs.  Skips the unit-metric phase, which "
+                         "is half the gradient budget.  Pairs with --init-from, which "
+                         "carries the position and not the metric")
+    ap.add_argument("--init-buffer", type=int, default=None, metavar="N",
+                    help="CmdStan adapt init_buffer, the iterations before the first "
+                         "metric estimate (default 75, sized for a cold start)")
     ap.add_argument("--warm-from", default=None,
                     help="probe: start each chain at the last draw of a previous run's chain, with that "
                          "run's within-chain covariance as a fixed dense metric (step size alone adapted)")
@@ -358,12 +609,31 @@ def main():
     K_PSI, K_Q = args.k_psi, args.k_q
     if args.no_trav_mode:
         args.no_mode = True           # hier_common drops both departure modes
-    prog = ("hier_common" if args.no_trav_mode
-            else "hier_nomode" if args.no_mode else "hier")
+    prog = ("hier_abox" if (args.no_trav_mode and args.alpha_box)
+            else "hier_common" if args.no_trav_mode
+            else "hier_nomode" if args.no_mode
+            else "hier_flat" if args.flat
+            else "hier_modes" if args.modes else "hier")
+    # Ka and Kc are hier_modes.stan's alone: no other program declares them,
+    # and CmdStan leaves data a program does not declare, so a run that asked
+    # for a truncated mode without --modes would silently get a full one.
+    if (args.k_a is not None or args.k_c is not None) and prog not in ("hier_modes", "hier_flat"):
+        raise SystemExit(f"--k-a/--k-c need --modes or --flat; "
+                         f"{prog} declares neither and would ignore them.")
+    if args.alpha_box and not args.no_trav_mode:
+        raise SystemExit("--alpha-box varies hier_common's alpha prior and needs "
+                         "--no-trav-mode, which selects that structure.")
+    if args.flat and (args.no_mode or args.no_trav_mode):
+        raise SystemExit("--flat is a mode-bearing program; it cannot be combined "
+                         "with --no-mode or --no-trav-mode.")
+    if args.modes and args.no_mode:
+        raise SystemExit("--modes is the full model; it cannot be combined with "
+                         "--no-mode or --no-trav-mode, which remove the departure modes.")
+    ka, kc = args.k_a, args.k_c
     mode, trav = not args.no_mode, not args.no_trav_mode
     # free_mean is hier_common's alone; CmdStan leaves data a program does not
     # declare, so any other program would sample <Delta> and report otherwise.
-    if args.delta_mean_zero and prog != "hier_common":
+    if args.delta_mean_zero and prog not in ("hier_common", "hier_abox"):
         raise SystemExit(f"--delta-mean-zero needs hier_common, which declares free_mean; "
                          f"{prog} would ignore it.  Add --no-trav-mode.")
     free_mean = not args.delta_mean_zero
@@ -373,25 +643,28 @@ def main():
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
     data = build(names, k_psi, k_q, sample=sample, mode=mode, trav=trav,
-                 free_mean=free_mean)
-    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode, trav=trav)
+                 free_mean=free_mean, k_a=ka, k_c=kc)
+    ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode, trav=trav,
+                k_a=ka, k_c=kc)
     R = None
     if args.precondition_optimize:
         from dgsn.stan.precondition import from_optimize
         import time as _t
         t0 = _t.time()
         R = from_optimize(data, ini, k_psi, k_q)
-        data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean)
+        data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean,
+                     mode=mode, trav=trav, k_a=ka, k_c=kc)
         print(f"preconditioned at the optimize mode in {_t.time()-t0:.0f} s, "
               f"rotation condition {np.linalg.cond(R):.1e}")
     elif args.precondition_from:
         from dgsn.stan.precondition import from_run
         R = from_run(args.precondition_from, data, k_psi, k_q)
-        data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean)
+        data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean,
+                     mode=mode, trav=trav, k_a=ka, k_c=kc)
         print(f"preconditioned from {args.precondition_from}: "
               f"rotation condition {np.linalg.cond(R):.1e}")
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode,
-                trav=trav)
+                trav=trav, k_a=ka, k_c=kc)
     if args.init_from:
         # The source's own object list, so the per-supernova blocks can be
         # carried by name when this fit's sample is wider.  Identified by
@@ -400,9 +673,14 @@ def main():
         # so position-matching a 60 against a 30 would silently misplace
         # twenty-nine of thirty.
         src_names = _source_names(args.init_from, sample)
+        # program and data are passed so that the lp at the transferred point is
+        # reported -- a block count says nothing about fidelity -- and because
+        # the turning pair's gauge placement needs Gs, which stan/gauge_gram.stan
+        # computes from this data dict.
         ini = inits_from_run(args.init_from, names, k_psi, k_q, x1_ref, mode=mode,
                              trav=trav, sample=sample, globals_=G, R=R,
-                             src_names=src_names)
+                             src_names=src_names, k_a=ka, k_c=kc,
+                             program=prog, data=data)
     if args.init_optimize:
         # the SALT2 fit starts the optimizer; the optimum starts the chains.
         # polish=False was forced by the s_delta ridge, which the constrained
@@ -411,7 +689,9 @@ def main():
         # it is.
         ini = inits_from_optimize(prog, data, ini, k_psi, k_q, mode=mode, trav=trav,
                                   polish=False)
-    print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q}); x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
+    print(f"{prog}: {len(names)} objects, {data['N']} epochs, K = ({K_PSI}, {K_Q})"
+          + (f", modes (Kc, Ka) = ({data['Kc']}, {data['Ka']})" if prog == "hier_modes" else "")
+          + f"; x1 range [{sample.loc[names].x1.min():+.2f}, {sample.loc[names].x1.max():+.2f}]")
     print(f"start: tau_q {ini['tau_q']:.2f} tau_psi {ini['tau_psi']:.2f}, "
           f"|w_coef| {np.linalg.norm(ini['w_coef']):.2f}, "
           + (f" mu_p {ini['mu_p']:.2f}" if 'mu_p' in ini else "")
@@ -426,6 +706,13 @@ def main():
     # start carrying only the scalar mu_delta leaves hier_common's length-
     # free_mean vector to CmdStan's random draw, silently.
     ini = for_free_mean(ini, data)
+    # hier_flat has no tau, alpha or mu, its amplitudes are parameters, and its
+    # at = z_a carries no power-law weight.  CmdStan ignores init entries a
+    # program does not declare but DRAWS the ones it declares and the start
+    # omits, so x_p and x_psi have to be assembled here or the chain starts at
+    # a random amplitude.
+    if prog == "hier_flat":
+        ini = for_flat(ini, k_psi, k_q, ka, kc, R)
 
     lp0, worst = gradient_check(data, ini, name=prog)
     print(f"lp at start {lp0:.2f}; gradient vs finite differences, worst of 20 coordinates: {worst:.1e}")
@@ -450,10 +737,19 @@ def main():
         write_stan_json(str(metric_file), {"inv_metric": inv_metric})
         # below 20 warmup iterations Stan adapts the step size and not the metric
         metric, warmup, refresh = "dense_e", 19, 10
+    if args.metric_from:
+        if args.warm_from:
+            raise SystemExit("--metric-from and --warm-from both set a metric")
+        inv = metric_from_run(args.metric_from, data, prog)
+        out.mkdir(parents=True, exist_ok=True)
+        metric_file = out / "inv_metric.json"
+        write_stan_json(str(metric_file), {"inv_metric": inv.tolist()})
+        metric = "diag_e"
     t = time.time()
     fit = sample_four(prog, data, starts, out, seed=1, threads_per_chain=args.threads,
                       iter_warmup=warmup, iter_sampling=args.iter, max_treedepth=args.max_treedepth,
                       metric=metric, metric_file=metric_file, adapt_delta=args.adapt_delta,
+                      init_buffer=args.init_buffer,
                       refresh=refresh, save_warmup=args.save_warmup)
     print(f"\nfour chains in {time.time() - t:.0f} s wall")
     report(fit, names, sample, data)

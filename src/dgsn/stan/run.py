@@ -37,7 +37,7 @@ def chain_csvs(out_dir) -> list[Path]:
     return got
 
 
-THREADED = {"hier", "hier_nomode", "hier_common", "hier_common_scale"}
+THREADED = {"hier", "hier_nomode", "hier_common", "hier_common_scale", "hier_abox"}
 # compiled with STAN_THREADS, for reduce_sum
 
 
@@ -166,7 +166,8 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
                 threads_per_chain: int = 1, parallel: bool = True, iter_warmup: int | None = None,
                 iter_sampling: int | None = None, max_treedepth: int | None = None,
                 metric: str | None = None, metric_file: Path | None = None,
-                adapt_delta: float | None = None, refresh: int = 100,
+                adapt_delta: float | None = None, init_buffer: int | None = None,
+                refresh: int = 100,
                 save_warmup: bool = False,
                 detach: bool = False, **kw) -> CmdStanMCMC | list[int]:
     """Four chains as four separate jobs (Section 5), then combined.
@@ -177,6 +178,10 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
     ``inits`` may be one dict or a list of four.  ``metric`` is CmdStan's
     ``diag_e`` (its default) or ``dense_e``; ``metric_file`` a JSON
     ``inv_metric`` over the unconstrained parameters to start from.
+    ``init_buffer`` is CmdStan's ``adapt init_buffer``, the iterations run
+    before the first metric estimate.  Its default of 75 is sized for a
+    cold start and costs 37 percent of a run's gradient budget here; a
+    run that arrives with a position and a metric has no use for it.
 
     ``detach`` puts each chain in its own session so that a run of days
     outlives the process that launched it, and returns the four pids rather
@@ -209,8 +214,12 @@ def sample_four(name: str, data: dict, inits, out_dir: Path, seed: int = 1,
             cmd.append(f"num_samples={iter_sampling}")
         if save_warmup:
             cmd.append("save_warmup=1")
-        if adapt_delta is not None:
-            cmd += ["adapt", f"delta={adapt_delta}"]
+        if adapt_delta is not None or init_buffer is not None:
+            cmd.append("adapt")
+            if adapt_delta is not None:
+                cmd.append(f"delta={adapt_delta}")
+            if init_buffer is not None:
+                cmd.append(f"init_buffer={init_buffer}")
         if max_treedepth is not None or metric is not None:
             cmd.append("algorithm=hmc")
             if metric is not None:
