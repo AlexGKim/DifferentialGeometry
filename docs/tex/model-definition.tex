@@ -676,19 +676,107 @@ flipping $q_{1}$ carries every supernova's $x_p$ with it, and flipping $\turnone
 $\shapeturn$, since it is only the products that the likelihood leaves alone. Doing this
 inside the fit rather than afterwards is what makes the saved draws comparable across
 chains, which land in either branch independently.
-The raw coefficients are given normal priors whose width decays with the mode index, one
+The mean coefficients are given normal priors whose width decays with the mode index, one
 pair of hyperparameters per domain since the traversal and the turning need not be equally
 smooth,
 \begin{equation}
-  \tilde a_{k},\, \tilde b_{k} \;\sim\; \mathcal{N}\!\left(0,\; \tau_{q}^{2} k^{-2\alpha_{q}}\right) ,
+  b_{k} \;\sim\; \mathcal{N}\!\left(0,\; \tau_{q}^{2} k^{-2\alpha_{q}}\right) ,
   \qquad
-  \tilde c_{k},\, \tilde d_{k} \;\sim\; \mathcal{N}\!\left(0,\; \tau_{\psi}^{2} k^{-2\alpha_{\psi}}\right) ,
+  d_{k} \;\sim\; \mathcal{N}\!\left(0,\; \tau_{\psi}^{2} k^{-2\alpha_{\psi}}\right) ,
   \qquad \alpha_{q}, \alpha_{\psi} > \tfrac{1}{2} ,
   \label{eq:coefprior}
 \end{equation}
-with the $\tau$ flat on $\tau > 0$ and $\alpha - \tfrac{1}{2} \sim \mathrm{Exp}(1)$, all
+
+and the departure coefficients carry the same decay with their scale removed by
+\eqref{eq:gauge}, $\tilde a_{k} = k^{-\alpha_{q}}z_{k}$ with $z_{k}$ standard normal and
+likewise $\tilde c_{k}$, so that $\|q_{1}\| = \|\turnone\| = 1$ fixes what $\tau$ would
+otherwise set. \eqref{eq:coefprior} is written on the coefficients that satisfy
+\eqref{eq:gauge} and not on the raw $\tilde{\mathbf{b}}, \tilde{\mathbf{d}}$ the sampler
+moves on. The distinction is not
+cosmetic. \eqref{eq:coefprior} is a statement about the smoothness of $q_{0}$ and
+$\turnzero$, and those functions are built from $\mathbf{b}$ and $\mathbf{d}$; the tilde is
+an artifact of how the gauge is imposed. Writing the prior on the tilde instead gives a
+prior to a direction that reaches nothing. The orthogonalization
+$\mathbf{b} = \tilde{\mathbf{b}} - (\tilde{\mathbf{b}}\!\cdot\!\mathbf{a})\mathbf{a}$
+discards $\tilde{\mathbf{b}}$'s component along $\mathbf{a}$, and
+$\mathbf{d} = \tilde{\mathbf{d}} - (\tilde{\mathbf{d}}^{\mathsf T}G_{\arc}\mathbf{c})\mathbf{c}$
+discards $\tilde{\mathbf{d}}$'s, so those two components enter neither the forward map nor
+the likelihood; under the tilde form their only curvature is
+\eqref{eq:coefprior}'s own, whose width grows with $\tau$, so the posterior's condition
+number grows with $\tau$ along directions that carry no information at all. Measured on
+the mode-bearing runs, removing the four such directions takes $\sqrt{\kappa}$ from $5.62$
+to $1.00$ and from $9.84$ to $1.38$ at median draws.
+
+Two of the four cost nothing already: the departure pairs are non-centered, so the scales
+of $\tilde{\mathbf{a}}$ and $\tilde{\mathbf{c}}$ are carried by standard normal
+$\mathbf{z}$ and have unit precision. It is the mean pairs that need the change.
+
+Written on $\mathbf{b}$, \eqref{eq:coefprior} is a density on the hyperplane
+$\{\mathbf{x} : \mathbf{n}^{\mathsf T}\mathbf{x} = 0\}$ with $\mathbf{n} = \mathbf{a}$, and
+on that hyperplane it must be normalized, the orientation being a parameter. For a
+diagonal covariance $\Sigma = \mathrm{diag}(w_{k}^{2})$ and $\mathbf{n}$ of unit length the
+normalization is
+\begin{equation}
+  -\log Z = \mathrm{const} - \sum_{k}\log w_{k}
+          + \tfrac{1}{2}\log\!\left(\sum_{k} n_{k}^{2} w_{k}^{2}\right) ,
+  \label{eq:hypernorm}
+\end{equation}
+the last term being the only departure from the unconstrained case. The turning pair is
+the same with $\mathbf{n} = G_{\arc}\mathbf{c}$ rescaled to unit length, the constraint
+$\langle \turnzero, \turnone\rangle = 0$ being $\mathbf{n}^{\mathsf T}\mathbf{d} = 0$.
+
+The discarded components are given unit width, $\tilde{\mathbf{b}}\!\cdot\!\mathbf{a} \sim
+\mathcal{N}(0,1)$ and $\tilde{\mathbf{d}}^{\mathsf T}G_{\arc}\mathbf{c} \sim
+\mathcal{N}(0,1)$. Their priors are unobservable --- nothing downstream of them depends on
+either --- so the choice is free, and unit width is what makes the precision along them
+independent of $\tau$. The change of variables from $\tilde{\mathbf{b}}$ to the pair
+$(\mathbf{b}, \tilde{\mathbf{b}}\!\cdot\!\mathbf{a})$ has unit Jacobian, $\mathbf{a}$ being
+a unit vector; for the turning pair the decomposition is oblique in the coefficient basis,
+$\mathbf{c}$ being normalized under $G_{\arc}$ rather than Euclidean, and the Jacobian is
+$\|G_{\arc}\mathbf{c}\|^{-1}$.
+
+What \eqref{eq:hypernorm} does \emph{not} do is say anything about where $q_{1}$ and
+$\turnone$ point, and it is worth being explicit because the opposite is easy to
+believe: the normalization depends on $\mathbf{n}$, so it looks like a prior on the
+departure direction. It is the reverse. The joint factors as
+$p(\mathbf{z}_{c})\,p(\tilde{\mathbf{d}} \mid \mathbf{c})$, and
+\eqref{eq:hypernorm} together with the Jacobian is exactly what makes the conditional
+integrate to one at every $\mathbf{c}$ --- so the marginal prior on $\mathbf{c}$ is the
+projected normal that $\mathbf{z}_{c}$ carries and nothing else, unchanged by any of this.
+Dropping the two terms is what would tilt it, by a factor of $1.8$ across six draws from
+the prior and $6$ to $8$ across its range.
+
+What does change is the measure on $\mathbf{d}$ itself. Under the tilde form
+$\mathbf{d}$ was the \emph{pushforward} of \eqref{eq:coefprior} through the projection,
+covariance $P\Sigma P^{\mathsf T}$; written on $\mathbf{d}$ it is \eqref{eq:coefprior}
+\emph{restricted} to the hyperplane, covariance
+$\Sigma - \Sigma\mathbf{n}\mathbf{n}^{\mathsf T}\Sigma / (\mathbf{n}^{\mathsf T}\Sigma\mathbf{n})$.
+These are different measures and the difference is not small: per-coefficient prior
+standard deviations are up to $1.83$ times narrower under restriction at $K_{\psi} = 12$.
+The second change is that $\tau$ now normalizes $K-2$ coefficients rather than $K-1$,
+shifting its own effective prior by one power.
+
+None of these terms reaches the likelihood, which is all the transfer gate of
+Section~\ref{sec:staging} tests, so a prior error here passes that gate silently. They are
+checked instead on the directions along which the likelihood is \emph{exactly} invariant,
+which isolates them without a second implementation of it: adding $\lambda\mathbf{a}$ to
+$\tilde{\mathbf{b}}$ or $\lambda\mathbf{c}$ to $\tilde{\mathbf{d}}$ must change the target
+by the unit prior on the discarded component alone; rescaling $\mathbf{z}_{a}$ or
+$\mathbf{z}_{c}$ must change it by the standard normal alone; rescaling $\tau$ must change
+it by \eqref{eq:coefprior}'s quadratic plus $-(K-2)\log\lambda$; and the declared
+conditional must integrate to one whatever the hyperplane's orientation.
+with the $\tau$ flat on $\tau > 0$ and the $\alpha$ flat on
+$\tfrac{1}{2} < \alpha < 8\tfrac{1}{2}$, all
 sampled with the rest; the smoothness of the global functions is
-thus inferred and not asserted. The mode index is referred to its geometric mean,
+thus inferred and not asserted. The bounds on $\alpha$ carry no preference: the lower is
+\eqref{eq:coefprior}'s own convergence condition, and the upper is there only to make the
+flat prior proper, standing some ten posterior standard deviations above where the training
+sample puts either exponent. An $\mathrm{Exp}(1)$ on $\alpha - \tfrac12$ was carried
+through \texttt{model-v1.1} and is not neutral: on the same data, orders and start it
+returns $\alpha_{q}$ and $\alpha_{\psi}$ lower by $0.77$ and $0.41$ of a posterior standard
+deviation, a pull toward rougher $q_{0}$ and $\turnzero$ than the sample asks for, while
+moving no other quantity in the model by as much as $0.16\sigma$. Asserting less of the
+smoothness is the point of \eqref{eq:coefprior} being a hierarchy at all. The mode index is referred to its geometric mean,
 $\bar k = \exp\langle \log k\rangle$, the width reading
 $\tau^{2}(k/\bar k)^{-2\alpha}$: written against $k$ itself, \eqref{eq:coefprior} is a
 line in $\log k$ whose intercept is read at $k = 1$, a mode neither series carries, and
@@ -701,8 +789,8 @@ identifies them. The departure coefficients are written non-centered,
 $\tilde a_{k} = k^{-\alpha_{q}}z_{k}$ with $z_{k}$ standard normal --- the gauge normalizes
 the functions they carry, so their scale is the prior's alone, and a scale sampled jointly
 with coefficients it multiplies is the geometry Hamiltonian Monte Carlo handles worst. The
-mean coefficients are written centered, $\tilde b_{k}$ sampled directly under
-\eqref{eq:coefprior}: the training sample pins them, and under strong data the non-centered
+mean coefficients are written centered, $\tilde{\mathbf{b}}$ sampled directly and
+$\mathbf{b}$ carrying \eqref{eq:coefprior}: the training sample pins them, and under strong data the non-centered
 form is the pathology rather than the cure --- the first hierarchical fit, with all four
 vectors non-centered, held $\|\tilde{\mathbf{b}}\|$ fixed while trading $\tau_{q}$ against
 $\|\mathbf{z}_{b}\|$ at correlation $-0.6$, with $88$ percent of transitions at the maximum

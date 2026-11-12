@@ -741,12 +741,13 @@ $\sum \ln V$ term, tabulating $\sigma_{g}(K), \sigma_{r}(K)$ alongside. The orde
 \S\ref{sec:run1res} predates the term and is unaffected only because it ranks optima of a
 likelihood without it.
 
-\section{\file{hier\_common.stan} in full}
+\section{\file{hier\_abox.stan} in full}
 \label{sec:common}
 
 Self-contained: this section repeats in particular what the sections above give in general,
 so that the simplest program can be read without them. Everything here is the code's, taken
-from \file{stan/hier\_common.stan} and the \code{functions} block it includes.
+from \file{stan/hier\_abox.stan} and the \code{functions} block it includes. It is the
+program of \file{runs/stage3-abox-k88-n60}.
 
 \subsection{What the model says}
 
@@ -830,9 +831,12 @@ $0.038$.  Produced by \file{scripts/plot\_traversal.py}.}
 \label{fig:coords}
 \end{figure}
 
-Because $x_{s}$ is a constant in \eqref{eq:ctrav} and the basis carries no constant, the two
-cannot trade: $x_{s}$ is the mean log rate and $q_{0}$ its shape, exactly and by
-construction.
+Because the basis carries no constant, $q_{0}$ cannot absorb a shift of the log rate; the
+degree-zero term is carried outside it, by $b_{0}$. So $b_{0}P_{0}$ is the population's mean
+log rate and $q_{0}$ is its shape, exactly and by construction, while the per-supernova
+$x_{s,n}$ are deviations about that mean. Only the sum $x_{s,n} + b_{0}P_{0}$ reaches
+\eqref{eq:ctrav}, so $b_{0}$ and $x_{s}$ would trade exactly; $\sum_{n} x_{s,n} = 0$, which
+\code{sum\_to\_zero\_vector} enforces by construction, is what separates them.
 
 \subsection{Softening}
 \label{sec:csoft}
@@ -935,12 +939,30 @@ occupies. Produced by \file{scripts/plot\_traversal.py}.}
 
 \subsection{The likelihood}
 
-In native flux, on the archive's errors alone, with the taper of Section~\ref{sec:csoft} as
-a per-epoch weight:
+In native flux, with the taper of \S\ref{sec:csoft} as a per-epoch weight. This is the
+note's Eq.~(18) as \code{neg2\_loglike\_floor} computes it:
 \begin{equation}
-  -2\ln\mathcal{L} = \sum_{i} \mathcal{T}_{i}\,
-    \frac{(f_{i} - \hat f_{i})^{2}}{\sigma_{f,i}^{2}} .
+  -2\ln\mathcal{L} = \sum_{i} \mathcal{T}_{i}
+    \left[\frac{(f_{i} - \hat f_{i})^{2}}{V_{i}} + \ln V_{i}\right] ,
+  \qquad
+  V_{i} = \sigma_{f,i}^{2} + \bigl(0.4\ln 10\;\sigma_{b(i)}\,f_{i}\bigr)^{2} .
+  \label{eq:clike}
 \end{equation}
+The variance is the archive's error in quadrature with a fitted model error: $\sigma_{b}$ is
+one scalar per band, in magnitudes, \code{sigma\_b[1]} for $g$ and \code{sigma\_b[2]} for
+$r$ as \code{band} indexes them, and $0.4\ln 10 = \ln 10/2.5$ converts a magnitude error to
+the fractional flux error $\dd f/f$. It is not measurement error --- \code{sig\_f} already
+carries the sky and the source --- but the gap between the model curve and the supernova's
+own, fitted because its size is not known.
+
+Three properties of \eqref{eq:clike} are worth separating, because each is a choice the code
+makes explicitly. $V_{i}$ rides on the \emph{observed} $f_{i}$ and not on $\hat f_{i}$, so
+it is data but for one scalar per band and $\ln V_{i}$ couples to no coordinate of the
+geometry. The $\sum\ln V_{i}$ is not optional: a larger $\sigma_{b}$ always reduces the
+first term, so without the log-determinant a fitted $\sigma_{b}$ runs to infinity. And the
+weight $\mathcal{T}_{i}$ multiplies the whole bracket, log-determinant included, so an epoch
+leaving the window stops contributing both terms rather than keeping a prior-like residue.
+
 Nothing is converted to magnitudes and negative fluxes are ordinary measurements. The sum
 is a \code{reduce\_sum} over supernovae, and $\hat f_{i}$ is the predicted flux itself, so
 an epoch outside the window has its \emph{contribution} suppressed and its expected value
@@ -995,33 +1017,61 @@ $\bigl[(K_{q}{-}1)+(K_{\psi}{-}1)\bigr]^{2}$ matrix supplied as \code{data}, the
 unless a preconditioner has been built; being constant its Jacobian is constant, so it
 changes no posterior, and a rotation built at one $(K_{\psi}, K_{q})$ cannot be reused at
 another because its dimension is fixed by the basis it was measured in. And
-\code{transformed parameters} holds only the seven intermediates the table implies ---
-\code{delta\_t}, \code{x\_s\_tot}, \code{colr}, \code{b\_til}, \code{d\_til}, \code{b},
-\code{d} --- of which
+\code{transformed parameters} holds only the eight intermediates the table implies ---
+\code{mu\_delta}, \code{delta\_t}, \code{x\_s\_tot}, \code{colr}, \code{b\_til},
+\code{d\_til}, \code{b}, \code{d} --- of which
 the last two equal $\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$ here, the note's Eq.~(11)
 being vacuous in a program whose every gauge condition names a departure mode.
 
 \medskip\noindent
-Four hyperparameters are sampled beside these and reach the model only through the prior on
-$\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$: \code{tau\_q} and \code{tau\_psi}, both
-\code{real<lower=0>} and flat, and \code{alpha\_q\_m} and \code{alpha\_psi\_m}, both
-\code{real<lower=0>} with $\mathrm{Exp}(1)$, being $\alpha - \frac12$ of \eqref{eq:ccoef}.
-At $K_{\psi} = 24$, $K_{q} = 16$ and $N = 30$ the whole \code{parameters} block is $165$
-named values, four of them per supernova, of which Stan samples $162$: a
+Six further values are sampled beside the seven. Four are hyperparameters that reach the
+model only through the prior on $\tilde{\mathbf{b}}$ and $\tilde{\mathbf{d}}$:
+\code{tau\_q} and \code{tau\_psi}, both \code{real<lower=0>} under a half-normal of scale
+$10$, and \code{alpha\_q\_m} and \code{alpha\_psi\_m}, both
+\code{real<lower=0, upper=8>} and \emph{flat on that box}, being $\alpha - \frac12$ of
+\eqref{eq:ccoef}. The half-normal on $\tau$
+is a tail bound rather than a fit to the observed amplitudes: flat on $(0,\infty)$ leaves
+nothing to bound $\tau$'s excursions, and holding $\tau$ as data stiffens the scale, so the
+curved tail is the interpolation between them. The two $\alpha$ carry no density of their
+own at all. Their lower bound is \eqref{eq:ccoef}'s own condition $\alpha > \tfrac12$
+written as a constraint, and their upper bound exists only so that the flat prior is
+proper: it is never approached, the largest draw of \file{runs/stage3-abox-k88-n60} being
+$\alpha_{q} = 5.00$ and $\alpha_{\psi} = 3.12$ against a ceiling of $8.5$. A decaying
+density on $\alpha$ would not be a tail bound but a preference, and it acts: under
+$\mathrm{Exp}(1)$ on \code{alpha\_m} the same data, orders and start return
+$\alpha_{q} = 1.665 \pm 0.668$ and $\alpha_{\psi} = 0.910 \pm 0.306$, which is lower by
+$0.77$ and $0.41$ of a posterior standard deviation than the $2.198 \pm 0.725$ and
+$1.047 \pm 0.366$ the flat box returns. That shift is the whole of its effect: it moves no
+other quantity in the model by more than $0.16\sigma$. The other two are \code{sigma\_b}, a
+\code{vector<lower=0>[2]} under a half-normal of scale $0.1$~mag, which does \emph{not}
+reach the forward map at all: it enters \eqref{eq:clike} only, through $V_{i}$.
+
+So the prior is flat or absent on every placement parameter, and informative on exactly
+three things --- the two basis coefficient vectors through \eqref{eq:ccoef}, the two scales
+$\tau_{q}$ and $\tau_{\psi}$, and $\sigma_{b}$. The two decay exponents are sampled but not
+informed: they are bounded and otherwise flat. The paragraphs after \eqref{eq:ccoef} say what each
+bound is for and why \code{c\_dev} needs none.
+
+At $K_{q} = K_{\psi} = 8$ over $60$ supernovae the \code{parameters} block is $263$ named
+values, four of them per supernova, of which Stan samples $260$: a
 \code{sum\_to\_zero\_vector[N]} is an orthogonal transform carrying $N-1$ unconstrained
-coordinates, and there are three of them. Every prior above is flat or absent except the two
-on the basis coefficients; the paragraphs after \eqref{eq:ccoef} say what each bound is for
-and why \code{c\_dev} needs none.
+coordinates, and \code{x\_s}, \code{c\_dev} and \code{d\_dev} are three of them.
 
 \medskip\noindent
 Both coefficient vectors carry the note's Eq.~(21) at the geometric-mean pivot
-$\bar k = \exp[\overline{\ln k}]$:
+$\bar k = \exp[\overline{\ln k}]$, written here as the note writes it, on the variance:
 \begin{equation}
-  \tilde b_{k} \sim \mathcal{N}\!\left(0,\ \tau_{q}\,(k/\bar k_{q})^{-\alpha_{q}}\right) ,
+  \tilde b_{k} \sim \mathcal{N}\!\left(0,\ \tau_{q}^{2}\,(k/\bar k_{q})^{-2\alpha_{q}}\right) ,
   \qquad
-  \tilde d_{k} \sim \mathcal{N}\!\left(0,\ \tau_{\psi}\,(k/\bar k_{\psi})^{-\alpha_{\psi}}\right) .
+  \tilde d_{k} \sim \mathcal{N}\!\left(0,\ \tau_{\psi}^{2}\,(k/\bar k_{\psi})^{-2\alpha_{\psi}}\right) .
   \label{eq:ccoef}
 \end{equation}
+Stan's \code{normal} takes the standard deviation, so the two statements read
+\code{tau\_q * pow(kq / kbar\_q, -(alpha\_q\_m + 0.5))} and its $\psi$ counterpart, with
+$\alpha = $ \code{alpha\_m} $+ \frac12$. The pivot is the code's and not the note's: Eq.~(21)
+is written on $k^{-2\alpha}$, so $\tau$ there is the scale at $k = 1$ and here it is the
+scale at $\bar k$, which is the same family reparameterized and makes $\tau$ and $\alpha$
+less correlated across the basis.
 
 Each of the seven in turn, with what carries it, what fixes its freedom, and what bounds
 it. Three things recur. A \emph{gauge} is a direction the likelihood is flat along, exactly
@@ -1133,6 +1183,16 @@ upper half of the basis is held up by \eqref{eq:ccoef} rather than by the data. 
 opposite of every placement prior above, which shrink by $10^{-4}$ and were removed for
 costing nothing.
 
+\paragraph{$\sigma_{b}$, from \code{sigma\_b}.} The one sampled quantity that does not enter
+the forward map: it reaches \eqref{eq:clike} alone, through $V_{i}$. There is no gauge and no
+flat tail --- upward $V_{i}$ grows and $\sum\ln V_{i}$ drives the density to zero, downward
+\eqref{eq:clike} returns to the archive's error --- so the half-normal is a tail bound and
+nothing more. Its scale of $0.1$~mag puts $95\%$ of the mass below $0.196$ and leaves $0.15$
+at $1.5\sigma$, which covers the range implied by a $\chi^{2}$ per epoch of $17.72$ against a
+median $\sigma_{f}/f$ of $0.021$ without asserting it. What makes it worth sampling rather
+than declaring is that its value is the measurement of how far the declared orders fall
+short, and therefore the quantity worth minimizing when $K_{q}$ and $K_{\psi}$ are chosen.
+
 \paragraph{$\mathbf{d}$, from the same \code{w\_coef}.} The remaining $K_{\psi}-1$ entries,
 carrying \eqref{eq:ccoef} with $\tau_{\psi}$ and $\alpha_{\psi}$. The same story and more
 of it: at $K_{\psi} = 24$ the crossover is at $k = 3$ and $10$ of the $23$ modes are
@@ -1142,12 +1202,24 @@ are the scales of $q_{0}$ and $\turnzero$ at a mid-range mode.
 
 \subsection{What it reports}
 
-Per draw: $\alpha_{q}$ and $\alpha_{\psi}$; $\curv(0) =
-\turnzero'(0)/\delta$, the turning rate at the anchor; $\arc$ at both ends of the data window
-for every supernova, against which the declared interval is checked; the fractions of epochs
-tapered and arclength-clamped; and $\ln\mathcal{L}$ per supernova, from which a per-epoch
-figure of merit follows. No sign flags and no relabeled copies: with no departure mode there
-is no sign freedom to record.
+Per draw: $\alpha_{q}$ and $\alpha_{\psi}$, being the \code{alpha\_m} of
+\eqref{eq:ccoef} plus $\frac12$; $\curv(0) = \turnzero'(0)/\delta$, the turning rate at the
+anchor; $\arc$ at both ends of the data window for every supernova, against which the
+declared interval is checked; and the fractions of epochs tapered and arclength-clamped.
+
+Three per-supernova likelihood columns are reported, and they are not interchangeable. All
+three carry the taper; they differ in the variance and in the log-determinant.
+\code{lp\_sn} is $-\frac12\sum_{i}\mathcal{T}_{i}(f_{i}-\hat f_{i})^{2}/\sigma_{f,i}^{2}$ ---
+the archive's error, no model error, no log-determinant --- and is kept with that meaning
+exactly so that figures quoted for runs made before \eqref{eq:clike} existed stay
+comparable. \code{ll\_sn} is $-\frac12$ of \eqref{eq:clike} per object, which is what the
+target actually receives. \code{chi2\_sn} is the
+goodness-of-fit on the floored variance, $\sum_{i}\mathcal{T}_{i}(f_{i}-\hat f_{i})^{2}/V_{i}$,
+which is about the object's epoch count when the model error is adequate. Only the second
+is the objective; the first is for continuity and the third for reading fit quality.
+
+No sign flags and no relabeled copies: with no departure mode there is no sign freedom to
+record.
 
 \section{The declared constants}
 \label{sec:constants}
