@@ -1,3 +1,53 @@
+// The model of model-v1.2.  Eq. (coefprior)'s DECAY EXPONENTS are left to the
+// data: alpha_q - 1/2 and alpha_psi - 1/2 carry no density of their own, each
+// bounded instead, flat on [0, 8].  The structure this sits in is described
+// further down; what follows immediately is about the exponents.
+//
+// Through model-v1.1 both carried Exp(1).  runs/stage3-abox-k88-n60 isolated
+// that one prior against runs/stage3-k88-n60-floor on the same data, orders,
+// seed and start, and it was not neutral; the measurements are below.
+//
+// Why a box and not simply flat.  At the geometric-mean pivot the prior's
+// log-determinant is alpha-independent -- sum_k log(k/kbar) = 0 exactly,
+// measured at 3.33e-16 -- so nothing pulls alpha back from above.  As alpha
+// grows the widths vanish for k > kbar and DIVERGE for k < kbar, the low-order
+// coefficients run out until the traversal meets its clamp, and there the
+// likelihood tends to a positive constant.  model-definition.tex records the
+// tail: "as alpha -> infinity every mode but the first has gone and the fit is
+// poor but finite ... a flat prior over them integrates to infinity."  The box
+// closes it the way m_peak's, c_bar's, b_0's and mu_delta's boxes close theirs.
+//
+// Why 8.  Over the 2000 post-warmup draws of runs/stage3-k88-n60-floor,
+// alpha_q_m sat at 1.165 +- 0.668 with a 97.5th percentile of 2.598, and
+// alpha_psi_m at 0.410 +- 0.306 with 1.156.  Eight is about ten standard
+// deviations above the first and is never approached; like the other boxes
+// here it is a statement about where the likelihood stops falling away, not
+// about what the decay should be.
+//
+// What it cost, measured on runs/stage3-abox-k88-n60 against
+// runs/stage3-k88-n60-floor.  Convergence is not lost: max split R-hat 1.011
+// over 776 coordinates against 1.014, two coordinates above 1.01 against
+// sixty, no post-warmup divergence in either, treedepth 8 and median leapfrog
+// 255 in both, gradient totals agreeing to 1.3 percent.
+//
+// alpha moves and nothing else does.  alpha_q goes 1.665 +- 0.668 to
+// 2.198 +- 0.725 and alpha_psi 0.910 +- 0.306 to 1.047 +- 0.366, higher by
+// 0.77 and 0.41 of a posterior sd.  Exp(1) decays with alpha_m, so it pulled
+// both toward the 1/2 floor -- toward ROUGHER q_0 and Psi_0 than the sample
+// asks for.  No other quantity moves by as much as 0.16 sigma: kappa_0, b_0
+// and both sigma_b by 0.01 each, every b_k within 0.16, every d_k within 0.06.
+//
+// Two predictions made here before the run were wrong, and are kept so that
+// the next one is read with more suspicion.  alpha_psi was called
+// "data-determined already" and expected barely to move; it moved 0.41 sd.
+// And the Exp(1)'s near-perfect mixing -- ESS 1421 and 2000 of 2000 -- was
+// called headroom to spend, as though removing the prior could only cost the
+// exponents.  It cost the coefficients instead: ESS falls about twenty percent
+// across every b_k at equal gradient count, minimum 313 against 375 and median
+// 781 against 985 over twenty-four globals, alpha's wider posterior being what
+// sets the b widths.  That is the price of the change and it is worth paying,
+// but it was not predicted.
+//
 // The hierarchy with both departure modes removed: the turning of
 // Eq. (curvlin) reduced to psi = -pi/2 + Psi_0 and the traversal of
 // Eq. (travlog) to log ds/dp = x_s + q_0, so every supernova walks one curve
@@ -110,8 +160,9 @@ parameters {
   // prior, which Section 5 removed for x_s and m_peak respectively.
   real<lower=0> tau_q;
   real<lower=0> tau_psi;
-  real<lower=0> alpha_q_m;         // alpha - 1/2, Eq. (coefprior)
-  real<lower=0> alpha_psi_m;
+  // Flat on [0, 8]; the bound is the whole prior.  See the header.
+  real<lower=0, upper=8> alpha_q_m;    // alpha - 1/2, Eq. (coefprior)
+  real<lower=0, upper=8> alpha_psi_m;
   // Eq. (xsmean)'s device, applied to every placement parameter whose
   // population mean was previously a fitted Gaussian's.  None of the three
   // below is a population model, and nothing is assumed about how the
@@ -275,8 +326,7 @@ model {
   d_til ~ normal(0, tau_psi * pow(kpsi / kbar_psi, -(alpha_psi_m + 0.5)));
   tau_q ~ normal(0, 10);           // half-normal: tau is <lower=0>
   tau_psi ~ normal(0, 10);
-  alpha_q_m ~ exponential(1);      // Section 5: alpha - 1/2 ~ Exp(1)
-  alpha_psi_m ~ exponential(1);
+  // No statement on alpha_q_m or alpha_psi_m: flat on the boxes declared above.
   // Propriety, as Section 5 requires: with a flat prior the likelihood tends
   // to a positive constant as x_s -> -infinity, where the supernova freezes
   // at peak.  Neither of these is a population model.

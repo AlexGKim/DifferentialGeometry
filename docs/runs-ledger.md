@@ -1083,12 +1083,12 @@ standard deviation and doing nothing else.
 
 | | |
 |---|---|
-| commit | `stan/hier_abox.stan` added on top of `067c876` |
-| program | `stan/hier_abox.stan` — `hier_common.stan` with the four lines above |
+| commit | `7fa2216`, where the change entered as `stan/hier_abox.stan`; folded into `stan/hier_common.stan` immediately after, so that `--no-trav-mode` gives model-v1.2 and the old program is reached by the `model-v1.1` tag |
+| program | `stan/hier_abox.stan` as run; now `stan/hier_common.stan`, whose code differs from the `model-v1.1` tag's by the four lines above and nothing else |
 | `free_mean` | 1, so ⟨Δ⟩ is sampled |
 | orders | `Kq = 8`, `Kpsi = 8` |
 | selection | `stage3_sample(n_per_fifth=12)` — 60 objects, 3682 epochs |
-| `data.json` | sha256 `3a017877acbd860d…` against v1.1's `00e0cd556ecfd05f…`. **Every key the program reads is bit-identical**; the dict carries two extra keys, `Ka` and `Kc`, which `hier_abox.stan` does not declare and Stan therefore ignores. Checked key by key, not by sha. |
+| `data.json` | sha256 `3a017877acbd860d…` against v1.1's `00e0cd556ecfd05f…`. **Every key the program reads is bit-identical**; the dict carries two extra keys, `Ka` and `Kc`, which the program does not declare and Stan therefore ignores. Checked key by key, not by sha. |
 | `inits-1..4.json` | sha256 `312a7d110d5b9e3d…` — all four identical |
 | initialised from | `runs/stage3-k88-n60-floor`, its best-`lp__` draw |
 | metric | **none transferred, deliberately** — v1.1 adapted its own from a unit start, and a warm metric would pre-solve the conditioning this run exists to test |
@@ -1102,7 +1102,13 @@ save_warmup on, diag_e, adapt_delta at CmdStan's default
 ```
 
 ```bash
+# as run, when the change lived in its own program:
 python scripts/stage3_hier.py --no-trav-mode --alpha-box --k-psi 8 --k-q 8 \
+  --n-per-fifth 12 --init-from runs/stage3-k88-n60-floor \
+  --iter 500 --max-treedepth 12 --save-warmup --out runs/stage3-abox-k88-n60
+
+# the same run at HEAD, --alpha-box having been retired with the duplicate:
+python scripts/stage3_hier.py --no-trav-mode --k-psi 8 --k-q 8 \
   --n-per-fifth 12 --init-from runs/stage3-k88-n60-floor \
   --iter 500 --max-treedepth 12 --save-warmup --out runs/stage3-abox-k88-n60
 ```

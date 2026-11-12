@@ -46,15 +46,17 @@ BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "mu_delta": (-3.0, 3.0)
             # at the same start -- a harness gap, not a model error, but one
             # that looks exactly like a model error.
             "x_p": (-20.0, 20.0), "x_psi": (-20.0, 20.0),
-            # hier_common and hier_abox declare the sampled mean as
+            # hier_common declares the sampled mean as
             # mu_delta_raw, which is the name src_info reports and therefore
             # the name this table is looked up by; keyed only as "mu_delta" it
             # received no chain-rule factor at all.
             "mu_delta_raw": (-3.0, 3.0)}
 
-# Two-sided only in hier_abox, where the Exp(1) priors are replaced by boxes.
-BOUNDED2_BY_PROGRAM = {"hier_abox": {"alpha_q_m": (0.0, 8.0),
-                                     "alpha_psi_m": (0.0, 8.0)}}
+# Two-sided only in hier_common, whose decay exponents carry no density and
+# are bounded instead (model-v1.2).  The mode-bearing programs still declare
+# them one-sided under Exp(1), so this cannot go in BOUNDED2.
+BOUNDED2_BY_PROGRAM = {"hier_common": {"alpha_q_m": (0.0, 8.0),
+                                       "alpha_psi_m": (0.0, 8.0)}}
 
 
 def _declared_bounds(name: str) -> dict:
@@ -542,11 +544,6 @@ def main():
                          "the selections nest, 12 giving a superset of 6")
     ap.add_argument("--k-psi", type=int, default=K_PSI)
     ap.add_argument("--k-q", type=int, default=K_Q)
-    ap.add_argument("--alpha-box", action="store_true",
-                    help="stan/hier_abox.stan: hier_common with Eq. (coefprior)'s Exp(1) "
-                         "priors on the decay exponents removed and alpha - 1/2 flat on "
-                         "[0, 8] instead.  Needs --no-trav-mode.  Isolates that one prior "
-                         "against runs/stage3-k88-n60-floor on the same data and seed")
     ap.add_argument("--flat", action="store_true",
                     help="stan/hier_flat.stan: hier_modes with Eq. (coefprior)'s tau/alpha "
                          "hierarchy removed (the likelihood exceeds its precision by 4600x "
@@ -609,8 +606,7 @@ def main():
     K_PSI, K_Q = args.k_psi, args.k_q
     if args.no_trav_mode:
         args.no_mode = True           # hier_common drops both departure modes
-    prog = ("hier_abox" if (args.no_trav_mode and args.alpha_box)
-            else "hier_common" if args.no_trav_mode
+    prog = ("hier_common" if args.no_trav_mode
             else "hier_nomode" if args.no_mode
             else "hier_flat" if args.flat
             else "hier_modes" if args.modes else "hier")
@@ -620,9 +616,6 @@ def main():
     if (args.k_a is not None or args.k_c is not None) and prog not in ("hier_modes", "hier_flat"):
         raise SystemExit(f"--k-a/--k-c need --modes or --flat; "
                          f"{prog} declares neither and would ignore them.")
-    if args.alpha_box and not args.no_trav_mode:
-        raise SystemExit("--alpha-box varies hier_common's alpha prior and needs "
-                         "--no-trav-mode, which selects that structure.")
     if args.flat and (args.no_mode or args.no_trav_mode):
         raise SystemExit("--flat is a mode-bearing program; it cannot be combined "
                          "with --no-mode or --no-trav-mode.")
@@ -633,7 +626,7 @@ def main():
     mode, trav = not args.no_mode, not args.no_trav_mode
     # free_mean is hier_common's alone; CmdStan leaves data a program does not
     # declare, so any other program would sample <Delta> and report otherwise.
-    if args.delta_mean_zero and prog not in ("hier_common", "hier_abox"):
+    if args.delta_mean_zero and prog != "hier_common":
         raise SystemExit(f"--delta-mean-zero needs hier_common, which declares free_mean; "
                          f"{prog} would ignore it.  Add --no-trav-mode.")
     free_mean = not args.delta_mean_zero

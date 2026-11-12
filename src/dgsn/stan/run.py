@@ -37,7 +37,7 @@ def chain_csvs(out_dir) -> list[Path]:
     return got
 
 
-THREADED = {"hier", "hier_nomode", "hier_common", "hier_common_scale", "hier_abox"}
+THREADED = {"hier", "hier_nomode", "hier_common", "hier_common_scale"}
 # compiled with STAN_THREADS, for reduce_sum
 
 
