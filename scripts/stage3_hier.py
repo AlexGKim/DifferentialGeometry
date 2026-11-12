@@ -281,11 +281,60 @@ def warm_start(run_dir):
 PER_OBJECT_BLOCKS = ("m_peak", "c_dev", "x_s", "d_dev")
 
 
-def _metric_layout(n_sn: int, k_q: int, k_psi: int, free_mean: int):
-    return [("w_coef", (k_q - 1) + (k_psi - 1)), ("tau_q", 1), ("tau_psi", 1),
-            ("alpha_q_m", 1), ("alpha_psi_m", 1), ("m_peak", n_sn), ("c_bar", 1),
-            ("c_dev", n_sn - 1), ("b_0", 1), ("x_s", n_sn - 1),
-            ("mu_delta_raw", free_mean), ("d_dev", n_sn - 1), ("sigma_b", 2)]
+def _wcoef_parts(program: str, k_q: int, k_psi: int, k_a=None, k_c=None):
+    """w_coef's constituent vectors, in the order the program slices them.
+
+    Needed because w_coef's length depends on BOTH the orders and whether the
+    program carries departure modes, and its entries are only meaningful by
+    (vector, mode index).  hier_base lays b_til then d_til; hier_full lays
+    z_a, b_til, z_c, d_til.  Copying one into the other by position would put
+    a source d_til entry onto a target z_c entry and still pass every length
+    check there is.
+    """
+    n_b, n_d = k_q - 1, k_psi - 1
+    if program in ("hier_full", "hier_modes"):
+        n_a = (k_q if k_a is None else int(k_a)) - 1
+        n_c = (k_psi if k_c is None else int(k_c)) - 1
+        return [("z_a", n_a), ("b_til", n_b), ("z_c", n_c), ("d_til", n_d)]
+    return [("b_til", n_b), ("d_til", n_d)]
+
+
+def _metric_layout(n_sn: int, k_q: int, k_psi: int, free_mean: int,
+                   program: str = "hier_common", k_a=None, k_c=None):
+    """The sampled blocks in declaration order, which is the order Stan writes
+    the adapted diagonal in.
+
+    Program-dependent and hand-maintained: Stan's src_info() reports a
+    program's parameter names and dimensions but NOT their order, and the
+    metric is a bare list of numbers whose meaning is entirely positional.  A
+    layout that sums to the right length but names the blocks in the wrong
+    order transfers every entry to the wrong coordinate and still passes the
+    length check, so the sum is a necessary test and not a sufficient one.
+    """
+    if program == "hier_base":
+        # hier_base drops the two scales and two decay exponents with
+        # Eq. (coefprior), and names the sampled mean offset mu_delta.
+        return [("w_coef", (k_q - 1) + (k_psi - 1)), ("m_peak", n_sn),
+                ("c_bar", 1), ("c_dev", n_sn - 1), ("b_0", 1),
+                ("x_s", n_sn - 1), ("mu_delta", 1), ("d_dev", n_sn - 1),
+                ("sigma_b", 2)]
+    if program == "hier_full":
+        # hier_base's blocks plus the two departure vectors and the two
+        # per-object amplitudes.  w_coef is z_a, b_til, z_c, d_til laid end to
+        # end, which is why n_a and n_c appear before the mean blocks.
+        # Ka and Kc default to Kq and Kpsi but need not equal them, so take
+        # the width from _wcoef_parts rather than assuming the untruncated case.
+        n_w = sum(n for _, n in _wcoef_parts(program, k_q, k_psi, k_a, k_c))
+        return [("w_coef", n_w), ("m_peak", n_sn),
+                ("c_bar", 1), ("c_dev", n_sn - 1), ("b_0", 1), ("x_s", n_sn - 1),
+                ("x_p", n_sn), ("x_psi", n_sn), ("mu_delta", 1),
+                ("d_dev", n_sn - 1), ("sigma_b", 2)]
+    if program in ("hier_common", "hier_abox"):
+        return [("w_coef", (k_q - 1) + (k_psi - 1)), ("tau_q", 1), ("tau_psi", 1),
+                ("alpha_q_m", 1), ("alpha_psi_m", 1), ("m_peak", n_sn), ("c_bar", 1),
+                ("c_dev", n_sn - 1), ("b_0", 1), ("x_s", n_sn - 1),
+                ("mu_delta_raw", free_mean), ("d_dev", n_sn - 1), ("sigma_b", 2)]
+    raise SystemExit(f"_metric_layout has no block order for {program}")
 
 
 def metric_from_run(run_dir, data, program):
@@ -307,12 +356,25 @@ def metric_from_run(run_dir, data, program):
     percent of the whole gradient budget and sits 4 to 5 orders of magnitude
     off on the per-object blocks (median m_peak entry 3.5e-05 against 1).
     """
-    if program != "hier_common":
-        raise SystemExit(f"--metric-from knows hier_common's block layout only, not {program}")
+    if program not in ("hier_common", "hier_abox", "hier_base", "hier_full"):
+        raise SystemExit(f"--metric-from has no block layout for {program}")
     src = json.loads((Path(run_dir) / "data.json").read_text())
+    # The SOURCE program is read off its own CSV, not assumed to be the target's:
+    # hier_base is seeded from a hier_common run, whose metric carries four
+    # hyperparameter entries hier_base does not have.
+    src_prog = Path(chain_csvs(run_dir)[0]).name.rsplit("-", 1)[0]
+    # Orders may RISE but not fall.  The bases nest, so every coordinate the
+    # source had is the same coordinate here and its adapted entry transfers;
+    # the orders the target adds are new directions the source never explored,
+    # and they are left at the identity rather than guessed.  Inverse mass is a
+    # posterior-variance estimate, and under a program carrying no
+    # Eq. (coefprior) there is no shrinkage to extrapolate along, so a guessed
+    # small entry would tell the sampler a direction is stiff when it may be
+    # the loosest in the problem.  Falling is refused: a source entry would
+    # then have no target coordinate and the block would silently shift.
     for k in ("Kq", "Kpsi"):
-        if src.get(k) != data.get(k):
-            raise SystemExit(f"--metric-from needs matching {k}: "
+        if src.get(k) > data.get(k):
+            raise SystemExit(f"--metric-from cannot lower {k}: "
                              f"source {src.get(k)}, target {data.get(k)}")
     rows = []
     for f in chain_csvs(run_dir):
@@ -326,15 +388,46 @@ def metric_from_run(run_dir, data, program):
         raise SystemExit(f"chains of {run_dir} disagree on metric length")
     m = m.mean(0)
     s_free = src.get("free_mean", 1)
-    s_lay = _metric_layout(src["N_sn"], src["Kq"], src["Kpsi"], s_free)
+    s_lay = _metric_layout(src["N_sn"], src["Kq"], src["Kpsi"], s_free, src_prog,
+                           src.get("Ka"), src.get("Kc"))
     if sum(n for _, n in s_lay) != len(m):
         raise SystemExit(f"layout for {run_dir} sums to {sum(n for _, n in s_lay)} but its "
                          f"metric has {len(m)} entries -- the block list is wrong")
-    t_lay = _metric_layout(data["N_sn"], data["Kq"], data["Kpsi"], data.get("free_mean", 1))
+    t_lay = _metric_layout(data["N_sn"], data["Kq"], data["Kpsi"],
+                           data.get("free_mean", 1), program,
+                           data.get("Ka"), data.get("Kc"))
+    # mu_delta_raw and mu_delta are the same coordinate under two names.
+    if "mu_delta" in dict(t_lay) and "mu_delta_raw" in dict(s_lay):
+        s_lay = [("mu_delta" if nm == "mu_delta_raw" else nm, n) for nm, n in s_lay]
     blocks, o = {}, 0
     for nm, n in s_lay:
         blocks[nm] = m[o:o + n]
         o += n
+    # w_coef is the only block whose length depends on the orders.  Lay the
+    # source's entries into the target's slots by (vector, mode index) rather
+    # than by position: at Kq = 8 the source's w_coef is b_til[1:7] then
+    # d_til[1:7], and at (8, 12) the target's is b_til[1:7] then d_til[1:11],
+    # so a straight copy would put the source's d_til on the target's and
+    # leave four entries of d_til holding b_til's scales.
+    if len(blocks["w_coef"]) != dict(t_lay)["w_coef"]:
+        s_parts = _wcoef_parts(src_prog, src["Kq"], src["Kpsi"],
+                               src.get("Ka"), src.get("Kc"))
+        t_parts = _wcoef_parts(program, data["Kq"], data["Kpsi"],
+                               data.get("Ka"), data.get("Kc"))
+        s_at, o = {}, 0
+        for nm, n in s_parts:
+            s_at[nm] = blocks["w_coef"][o:o + n]; o += n
+        w, o, notes = np.ones(sum(n for _, n in t_parts)), 0, []
+        for nm, n in t_parts:
+            have = s_at.get(nm)
+            k = 0 if have is None else min(n, len(have))
+            if k:
+                w[o:o + k] = have[:k]
+            notes.append(f"{nm} {k}/{n}")
+            o += n
+        print(f"  metric: w_coef {len(blocks['w_coef'])} -> {len(w)}; "
+              f"carried " + ", ".join(notes) + "; the rest left at 1.0")
+        blocks["w_coef"] = w
     # Which target object is which source object, by redshift.  The two
     # data dicts come from the same table, so the values are bit-identical;
     # 255 distinct redshifts make it a fingerprint.  Checked against the
