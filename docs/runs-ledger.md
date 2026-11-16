@@ -1229,3 +1229,125 @@ One correction worth keeping. At 67 post-warmup draws `x_p.10` read R̂ 1.400 an
 looked like a per-object failure; at 500 draws it reads 1.029. The 67-draw floor,
 measured on runs known to converge — max 1.107 on n255, 1.056 on v1.1 — is what
 said not to interpret it. Measure the floor first.
+
+## stage3-base-k812-n255 — hier_base at 255 objects, and the first clean converged fit at Kψ = 12
+
+`runs/stage3-base-k812-n255`, finished 2026-11-15 01:20. **Converged.**
+
+`stan/hier_base.stan`: `hier_full` with both departure modes removed and nothing
+else changed — no `q₁`, no `Ψ₁`, no `x_p`, no `x_psi`, no gauge redundancy, and
+`b` and `d` carrying no prior at all. 255 objects, 19027 epochs, Kq = 8,
+Kψ = 12, seed 1, 500 + 500, max_treedepth 12. Started from
+`stage3-k88-n255-warm`'s position and adapted metric with `--init-buffer 15`.
+
+Convergence was gated on **global** coordinates only, max split R̂ < 1.05, per-SN
+coordinates excluded:
+
+```
+GLOBAL      60 coords  max 1.0122  >1.05 0  >1.01 12
+  worst: w_coef.8 1.012, d_til.1 1.012, d.1 1.012, w_coef.9 1.012, d_til.2 1.012
+PER-SN   41114 coords  max 1.0153  >1.05 0  >1.01 25   (does not gate)
+```
+
+The per-SN block would have passed the same bar unaided.
+
+| | this run | stage3-k88-n255-warm (its source) |
+|---|---|---|
+| orders | (Kq, Kψ) = (8, 12) | (8, 8) |
+| max global split R̂ | **1.0122** (60 coords) | — |
+| post-warmup divergences | **0, 0, 0, 0** | 0, 0, 0, 0 |
+| post-warmup treedepth | 9–10 | 8 |
+| median post-warmup leapfrog | 511 | 255 |
+| post-warmup step size | 5.86–7.42e-3 | — |
+| global ESS | min 266, median 416 of 2000 | — |
+
+Raising Kψ from 8 to 12 at 255 objects costs one doubling of the path length and
+nothing else. The (12, 12) failure at sixty objects was therefore not Kψ = 12 as
+such.
+
+**Warmup divergences cleared completely.** They ran at 48–59 cumulative and a
+steady 2–10 per fifty iterations right through adaptation, and the count after
+warmup is zero on every chain. A divergence rate during warmup, with the step
+size still being tuned, is not a finding; only the post-warmup count is.
+
+Two readings taken during the run and recorded because they were nearly
+misread. Chain 2's step size fell to 8.76e-04 near iteration 50, an order of
+magnitude below its siblings, and recovered to 4.99e-03 by iteration 350.
+Chain 3 read 1.014e-01 at iteration 452, ten times its siblings; that is the
+terminal buffer's step-size reinitialisation against the final metric, and it
+settled to 6.46e-03 within hours. Neither was a signal.
+
+The matched-window R̂ check that cleared it mid-run: on the last 100 warmup
+draws the global max read 1.108, and on the last 150 it read 1.035. A longer
+window giving a *smaller* R̂ is autocorrelation, not a between-chain offset —
+an offset persists or sharpens as the within-chain variance is better
+estimated. Per-chain block means over 50 iterations reshuffled their ordering
+every block, spread/sd 0.42–1.30 with no trend, against a floor of 1.021
+measured on the converged (8, 8) n255 run at the same window length.
+
+`⟨Δ⟩ = -0.530 ± 0.139` d here, against `-0.55 ± 0.035` at sixty objects.
+`b_0 = -7.622 ± 0.086`, `c_bar = +0.0238 ± 0.0049`,
+`σ_b = (0.0557 ± 0.0008, 0.0579 ± 0.0006)`.
+
+## stage3-full-k812-n255 — the departure modes at 255 objects, stopped
+
+`runs/stage3-full-k812-n255`, launched 2026-11-15 01:20 by the gate above,
+stopped 2026-11-16 08:53 after 31 h 33 m and 179–195 of 1000 iterations.
+**Does not converge; q₁ does not earn its place.**
+
+`stan/hier_full.stan` at 255 objects, 19027 epochs, (Kq, Kψ) = (8, 12),
+Ka = 8, Kc = 12, 1568 sampled dimensions. Position and metric from
+`stage3-base-k812-n255`, the four blocks `hier_base` does not have — `z_a`,
+`z_c`, `x_p`, `x_psi` — supplied by `--metric-fill-from stage3-flat-k88-n60`.
+
+| | this run | stage3-base-k812-n255 |
+|---|---|---|
+| max global split R̂ | **2.427** (77 coords, last 100 draws) | 1.0122 |
+| global coords > 1.05 | **69 of 77** | 0 |
+| chain-mean spread / within-sd | **2.4–3.6, ordering stable** | 0.42–1.30, reshuffling |
+| divergences, last 50 | **17–34 (34–68%)** | 2–10% in warmup, 0 after |
+| treedepth | **0–12, median leapfrog 3718–4095** | 9–10, 511 |
+| step size | **5.8e-4 to 1.5e-3** | 5.9–7.4e-3 |
+| `lp__` split R̂ | 1.043 | 1.004 |
+
+All of it still warmup, and stopped there deliberately: the divergence rate by
+blocks of 25 ran 28–36%, 24–48%, 24–56%, 32–76%, 24–92% — flat to rising over
+175 iterations, never decaying — the median leapfrog has been pinned at the
+treedepth-12 cap of 4095 since iteration 26, and `lp__` has been flat at
+≈ −161520 since iteration 26. Finishing would have taken a further ~8.6 days at
+the measured 17.5 gradients/s.
+
+**The traversal mode is what fails, not the turning mode:**
+
+```
+b 2.43   a 2.32   z_a 1.88   b_til 1.80 | d_til 1.69  c 1.56  d 1.52  z_c 1.34
+```
+
+Everything outside the global functions is fine — `mu_delta` 1.04, `b_0` 1.03,
+`σ_b` 1.02, `c_bar` 1.01. This is consistent with what was measured at sixty
+objects: `corr(x_p, x_s) = -0.854` across objects, and `rms(x_p q₁) = 0.648`
+against `rms(q₀) = 0.642`, so `q₁` and `q₀` contribute equally to the log rate
+and are very nearly interchangeable. Four times the objects does not separate
+them.
+
+`x_psi` meanwhile drifted from rms 0.907 at the first saved draw to 4.40–4.70,
+for a mode measured at sixty objects to be worth 1.8σ_g and 0.7σ_r. A large
+amplitude on a mode that barely shows is a poorly identified direction.
+
+**Two things that are not the cause.** The supplied metric was correct: 1568
+coordinates, condition number 1.21e+04 — identical to the source's own — with
+zero entries at the identity and every block at its adapted scale. And the
+start's amplitudes were not stuck at the nesting point: the first saved draw
+already has rms `x_p` 0.907, so they left zero on the first transition.
+
+**The transfer path had never been exercised and failed in four places**, all
+found by `--check-only` before this run and all fixed first: the lp report
+evaluated the density on a dict missing `x_p` and `x_psi`, which meant
+`--full --init-from` could not start *from any source*; the metric transfer
+raised `KeyError: 'x_p'`; the `z_a` and `z_c` slices of `w_coef` were padded at
+1.0 against an adapted scale of 3e-2 to 5e-2, 20× to 150× out, the same
+mechanism that pinned the first transfer attempt at the treedepth cap; and
+`stage3-flat-k88-n60` was unreadable as a metric source at all because its CSVs
+keep the pre-rename `hier_flat` basename. `--check-only` also returned before
+the metric block, so the one path that can refuse a launch was the one path the
+check never reached; it does now.

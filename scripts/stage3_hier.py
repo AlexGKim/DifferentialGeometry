@@ -279,6 +279,25 @@ def warm_start(run_dir):
 # declares them.  sum_to_zero_vector[N] contributes N - 1 coordinates; the
 # bounded scalars and vectors contribute one each.  Total 20 + 4 N_sn.
 PER_OBJECT_BLOCKS = ("m_peak", "c_dev", "x_s", "d_dev")
+# Blocks of length N whose entry j IS object j, so a source entry has a
+# target object to be placed at.  The rest of PER_OBJECT_BLOCKS are the
+# N-1 unconstrained coordinates of a sum_to_zero_vector, whose basis
+# changes with N, so coordinate k carries no object and there is nothing
+# to place.  x_p and x_psi are hier_full's amplitudes and belong here;
+# leaving them out left them to the "changes length and is not a
+# per-object block" refusal.
+PER_OBJECT_PLACED = ("m_peak", "x_p", "x_psi")
+
+
+# stage3-flat-k88-n60 was run before hier_flat.stan was renamed hier_full.stan
+# and its CSVs keep the old basename, which is where the source program's name
+# is read from.  Without the alias that run cannot be a metric source for
+# anything, under either name.
+PROGRAM_ALIASES = {"hier_flat": "hier_full"}
+
+
+def _canon(program: str) -> str:
+    return PROGRAM_ALIASES.get(program, program)
 
 
 def _wcoef_parts(program: str, k_q: int, k_psi: int, k_a=None, k_c=None):
@@ -292,7 +311,7 @@ def _wcoef_parts(program: str, k_q: int, k_psi: int, k_a=None, k_c=None):
     check there is.
     """
     n_b, n_d = k_q - 1, k_psi - 1
-    if program in ("hier_full", "hier_modes"):
+    if _canon(program) in ("hier_full", "hier_modes"):
         n_a = (k_q if k_a is None else int(k_a)) - 1
         n_c = (k_psi if k_c is None else int(k_c)) - 1
         return [("z_a", n_a), ("b_til", n_b), ("z_c", n_c), ("d_til", n_d)]
@@ -311,6 +330,7 @@ def _metric_layout(n_sn: int, k_q: int, k_psi: int, free_mean: int,
     order transfers every entry to the wrong coordinate and still passes the
     length check, so the sum is a necessary test and not a sufficient one.
     """
+    program = _canon(program)
     if program == "hier_base":
         # hier_base drops the two scales and two decay exponents with
         # Eq. (coefprior), and names the sampled mean offset mu_delta.
@@ -337,7 +357,7 @@ def _metric_layout(n_sn: int, k_q: int, k_psi: int, free_mean: int,
     raise SystemExit(f"_metric_layout has no block order for {program}")
 
 
-def metric_from_run(run_dir, data, program):
+def metric_from_run(run_dir, data, program, fill_dir=None):
     """A converged run's adapted diagonal inverse metric, padded to this run's
     object count.
 
@@ -358,11 +378,27 @@ def metric_from_run(run_dir, data, program):
     """
     if program not in ("hier_common", "hier_abox", "hier_base", "hier_full"):
         raise SystemExit(f"--metric-from has no block layout for {program}")
+    # A primary source that is a SIMPLER program has no entry for the blocks
+    # this one adds -- hier_base carries neither x_p, x_psi nor the z_a, z_c
+    # slices of w_coef -- and there is nothing in it to extrapolate from.
+    # ``fill_dir`` is a run OF THIS PROGRAM that supplies exactly those blocks
+    # and nothing else; the recursion puts it in this run's layout first, so
+    # the object padding and the order raising are the same code as always.
+    #
+    # The identity is not the alternative.  Measured on stage3-flat-k88-n60,
+    # the only run that has adapted these blocks: z_a median 4.92e-02 (8.31e-03
+    # to 1.78e-01), z_c median 2.98e-02 (6.48e-03 to 2.43e-01), x_p 3.39e-03,
+    # x_psi 3.28e-03.  A 1.0 would sit 20x to 150x above the adapted scale on
+    # eighteen of thirty-six coefficient coordinates, which is the mechanism
+    # that put every chain of the first transfer attempt at the treedepth cap.
+    fill = fill_vec = None
+    if fill_dir is not None:
+        fill_vec = metric_from_run(fill_dir, data, program)
     src = json.loads((Path(run_dir) / "data.json").read_text())
     # The SOURCE program is read off its own CSV, not assumed to be the target's:
     # hier_base is seeded from a hier_common run, whose metric carries four
     # hyperparameter entries hier_base does not have.
-    src_prog = Path(chain_csvs(run_dir)[0]).name.rsplit("-", 1)[0]
+    src_prog = _canon(Path(chain_csvs(run_dir)[0]).name.rsplit("-", 1)[0])
     # Orders may RISE but not fall.  The bases nest, so every coordinate the
     # source had is the same coordinate here and its adapted entry transfers;
     # the orders the target adds are new directions the source never explored,
@@ -396,6 +432,14 @@ def metric_from_run(run_dir, data, program):
     t_lay = _metric_layout(data["N_sn"], data["Kq"], data["Kpsi"],
                            data.get("free_mean", 1), program,
                            data.get("Ka"), data.get("Kc"))
+    if fill_vec is not None:
+        fill, o = {}, 0
+        for nm, n in t_lay:
+            fill[nm] = fill_vec[o:o + n]; o += n
+        o = 0
+        for nm, n in _wcoef_parts(program, data["Kq"], data["Kpsi"],
+                                  data.get("Ka"), data.get("Kc")):
+            fill[nm] = fill["w_coef"][o:o + n]; o += n
     # mu_delta_raw and mu_delta are the same coordinate under two names.
     if "mu_delta" in dict(t_lay) and "mu_delta_raw" in dict(s_lay):
         s_lay = [("mu_delta" if nm == "mu_delta_raw" else nm, n) for nm, n in s_lay]
@@ -417,16 +461,56 @@ def metric_from_run(run_dir, data, program):
         s_at, o = {}, 0
         for nm, n in s_parts:
             s_at[nm] = blocks["w_coef"][o:o + n]; o += n
+        # Modes the source never had take the MEDIAN of the same vector's
+        # source entries, not 1.0.  The identity is not neutral here: an
+        # adapted metric runs 1e-5 to 1e-2, so a 1.0 asserts a variance three
+        # to four orders out and the sampler takes steps ~100x too large in
+        # exactly those directions.  Measured, on the first attempt at this
+        # transfer: the four padded d_til entries sat at 1.0 against siblings
+        # of 1.2e-4 to 1.3e-3, took the supplied metric's condition number from
+        # 1.21e4 to 5.06e4, and put every chain at the treedepth cap with four
+        # to five divergences inside ten iterations.
+        #
+        # The median and not an extrapolated trend: over the source's seven
+        # d_til entries corr(log k, log m) is +0.35 with a decade of internal
+        # scatter, and hier_base carries no Eq. (coefprior) to justify a slope.
+        # The block has a centre and no shape to extrapolate -- the same
+        # argument the per-object blocks already use.
         w, o, notes = np.ones(sum(n for _, n in t_parts)), 0, []
         for nm, n in t_parts:
             have = s_at.get(nm)
             k = 0 if have is None else min(n, len(have))
             if k:
                 w[o:o + k] = have[:k]
-            notes.append(f"{nm} {k}/{n}")
+            if k < n:
+                if k:
+                    # Modes the source never had take the MEDIAN of the same
+                    # vector's source entries, not 1.0 -- see the note at the
+                    # top of this function.  The median and not an extrapolated
+                    # trend: over the source's d_til entries corr(log k, log m)
+                    # is +0.35 with a decade of internal scatter, and hier_base
+                    # carries no Eq. (coefprior) to justify a slope.
+                    w[o + k:o + n] = float(np.median(have[:k]))
+                    notes.append(f"{nm} {k}/{n} (+{n - k} at "
+                                 f"{float(np.median(have[:k])):.2e})")
+                elif fill is not None:
+                    # The source has no entry for this vector AT ALL, so there
+                    # is no median to take; the fill run supplies the block.
+                    w[o:o + n] = fill[nm]
+                    notes.append(f"{nm} 0/{n} (all from the fill run, median "
+                                 f"{float(np.median(fill[nm])):.2e})")
+                else:
+                    raise SystemExit(
+                        f"the metric source carries no {nm} and this program "
+                        f"declares {n} of them; pass --metric-fill-from with a "
+                        f"run of {program} to supply it. Leaving it at the "
+                        f"identity is not neutral: an adapted metric runs 1e-5 "
+                        f"to 1e-1 here.")
+            else:
+                notes.append(f"{nm} {k}/{n}")
             o += n
         print(f"  metric: w_coef {len(blocks['w_coef'])} -> {len(w)}; "
-              f"carried " + ", ".join(notes) + "; the rest left at 1.0")
+              f"carried " + ", ".join(notes))
         blocks["w_coef"] = w
     # Which target object is which source object, by redshift.  The two
     # data dicts come from the same table, so the values are bit-identical;
@@ -448,10 +532,22 @@ def metric_from_run(run_dir, data, program):
 
     out, padded = [], []
     for nm, n in t_lay:
+        if nm not in blocks:
+            # A block this program has and the source program does not.  There
+            # is nothing in the source to place or to take a median of, so it
+            # comes whole from the fill run, already in this run's layout.
+            if fill is None:
+                raise SystemExit(
+                    f"the metric source has no {nm} block and {program} "
+                    f"declares {n} of them; pass --metric-fill-from with a run "
+                    f"of {program} to supply it")
+            out.append(fill[nm])
+            padded.append(f"{nm} {n} from the fill run")
+            continue
         b = blocks[nm]
         if n == len(b):
             out.append(b)
-        elif nm == "m_peak" and n > len(b):
+        elif nm in PER_OBJECT_PLACED and n > len(b):
             # a genuine per-object vector: entry j is object j, so place the
             # source entries at the objects they belong to.
             v = np.full(n, float(np.median(b)))
@@ -694,6 +790,13 @@ def main():
                          "the object count differs.  Skips the unit-metric phase, which "
                          "is half the gradient budget.  Pairs with --init-from, which "
                          "carries the position and not the metric")
+    ap.add_argument("--metric-fill-from", default=None, metavar="DIR",
+                    help="a run OF THIS PROGRAM whose adapted metric supplies the "
+                         "blocks --metric-from's source does not have at all, which is "
+                         "what a simpler source program leaves missing (hier_base has "
+                         "no x_p, x_psi, z_a or z_c).  Only those blocks are taken from "
+                         "it; everything the primary source adapted comes from the "
+                         "primary source")
     ap.add_argument("--init-buffer", type=int, default=None, metavar="N",
                     help="CmdStan adapt init_buffer, the iterations before the first "
                          "metric estimate (default 75, sized for a cold start)")
@@ -799,10 +902,23 @@ def main():
         # reported -- a block count says nothing about fidelity -- and because
         # the turning pair's gauge placement needs Gs, which stan/gauge_gram.stan
         # computes from this data dict.
+        # ``adapt`` is how the reported lp is made the lp of the point the
+        # chain actually starts from.  inits() writes the hierarchy's mu_p,
+        # u_p, mu_psi, u_psi; hier_full declares x_p and x_psi instead, and
+        # the conversion lives below, after this call.  Without it the density
+        # was evaluated on a dict missing two declared vectors and CmdStan
+        # refused the point outright, so --full with --init-from could not
+        # start at all, whatever the source program.
+        adapt = None
+        if prog == "hier_full":
+            def adapt(d):
+                return for_full(d, k_psi, k_q, ka, kc, R)
+        elif prog == "hier_base":
+            adapt = for_base
         ini = inits_from_run(args.init_from, names, k_psi, k_q, x1_ref, mode=mode,
                              trav=trav, sample=sample, globals_=G, R=R,
                              src_names=src_names, k_a=ka, k_c=kc,
-                             program=prog, data=data)
+                             program=prog, data=data, adapt=adapt)
     if args.init_optimize:
         # the SALT2 fit starts the optimizer; the optimum starts the chains.
         # polish=False was forced by the s_delta ridge, which the constrained
@@ -846,6 +962,26 @@ def main():
           f"-> {per_ep * 1e6:.0f} us per epoch; projected per gradient for 442 objects at ~31400 epochs: "
           f"{per_ep * 31400 + (nodes - 0.0) * 442 / data['N_sn']:.2f} s (upper bound: node term includes launch)")
     if args.check_only:
+        # The metric transfer, which --check-only did not reach before: it
+        # returned here and the metric was built below, so the one path that
+        # can refuse a launch outright was the one path the check never
+        # exercised.  Built and summarised, never written -- nothing under
+        # --out is created.
+        if args.metric_from:
+            if args.warm_from:
+                raise SystemExit("--metric-from and --warm-from both set a metric")
+            inv = metric_from_run(args.metric_from, data, prog, args.metric_fill_from)
+            lay = _metric_layout(data["N_sn"], data["Kq"], data["Kpsi"],
+                                 data.get("free_mean", 1), prog,
+                                 data.get("Ka"), data.get("Kc"))
+            o, worst = 0, []
+            for nm, n in lay:
+                b = inv[o:o + n]; o += n
+                worst.append(f"{nm} {np.median(b):.2e}")
+            print(f"metric: {len(inv)} coordinates, condition number "
+                  f"{inv.max() / inv.min():.2e}, "
+                  f"{int((inv == 1.0).sum())} left at the identity")
+            print("  block medians: " + ", ".join(worst))
         return
 
     starts = ini
@@ -864,7 +1000,7 @@ def main():
     if args.metric_from:
         if args.warm_from:
             raise SystemExit("--metric-from and --warm-from both set a metric")
-        inv = metric_from_run(args.metric_from, data, prog)
+        inv = metric_from_run(args.metric_from, data, prog, args.metric_fill_from)
         out.mkdir(parents=True, exist_ok=True)
         metric_file = out / "inv_metric.json"
         write_stan_json(str(metric_file), {"inv_metric": inv.tolist()})

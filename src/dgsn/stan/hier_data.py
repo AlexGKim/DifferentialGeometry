@@ -310,7 +310,7 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
                    mode: bool = True, trav: bool = True, sample=None, globals_=None,
                    R=None, program: str | None = None, data: dict | None = None,
                    use_mean: bool = False, verbose: bool = True,
-                   src_names=None, k_a=None, k_c=None) -> dict:
+                   src_names=None, k_a=None, k_c=None, adapt=None) -> dict:
     """Start a richer model at a simpler one's posterior mean.
 
     The three hierarchy programs are nested, and a departure mode reaches the
@@ -351,6 +351,9 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
     (8, 8) to (24, 16).  The non-centred ``z_a`` and ``z_c`` keep their own
     \\salt\\ values past the source's length, zero being forbidden there by
     the gauge.
+
+    ``adapt``, when given, is applied to the assembled start before the log
+    density is reported -- see the call below.
 
     ``src_names`` is the source run's object list, needed when this fit's
     differs.  The per-supernova blocks are then carried by name: an object the
@@ -502,7 +505,16 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
         # cannot be fooled that way.
         if program is not None and data is not None:
             from dgsn.stan.run import log_prob
-            msg += f"; lp at the transferred point {log_prob(program, data, out)[0]:.1f}"
+            # ``adapt`` carries the point into the TARGET program's parameter
+            # set before the density is evaluated.  inits() writes the
+            # hierarchy's names -- mu_p, u_p, mu_psi, u_psi -- and hier_full
+            # declares x_p and x_psi instead, so without this the call is made
+            # with two declared vectors missing and CmdStan refuses the point
+            # ("dims declared=(N); dims found=()").  The reported number is
+            # then the density at the point the chain actually starts from,
+            # which is the only version of it worth printing.
+            point = out if adapt is None else adapt(out)
+            msg += f"; lp at the transferred point {log_prob(program, data, point)[0]:.1f}"
         print(msg)
     return out
 
