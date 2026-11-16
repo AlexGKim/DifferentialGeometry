@@ -837,6 +837,33 @@ posterior; writing the mean separately makes the common mode of the block one co
 rather than thirty, for the reason the deviations of $x_p$ and $\Delta$ are written the same
 way.
 
+Where the departure amplitudes are given flat boxes in place of the normal population prior
+above --- the variant that drops the hierarchy entirely --- they take the same split and for
+the same reason, with both parts flat as in \eqref{eq:xsmean}:
+\begin{equation}
+  x_{p,n} = \bar x_{p} + \delta_{p,n} , \quad \sum_{n} \delta_{p,n} = 0 ;
+  \qquad
+  x_{\psi,n} = \bar x_{\psi} + \delta_{\psi,n} , \quad \sum_{n} \delta_{\psi,n} = 0 ,
+  \label{eq:ampmean}
+\end{equation}
+$\bar x_{p}$ and $\bar x_{\psi}$ flat on $[-20, 20]$ and the deviations flat on the same
+box, which spans the realized amplitudes with room to spare --- the largest drawn are $4.4$
+and $9.6$. The box is on each part rather than on the sum, so the reachable set is not
+quite the one a single box gives; nothing has approached either wall. Written without the
+split, the mean of a block of $N$ amplitudes is one direction inside it and a diagonal
+metric must give it the scale it gives the deviations. Measured as
+$\mathrm{var}(\bar x)\,N / \overline{\mathrm{var}(x_{n})}$, which is unity when that
+scale is right, the unsplit amplitudes read $6.3$ to $8.2$ over sixty supernovae and $2.4$
+to $46.2$ over $255$, against exactly zero for every block already written this way. The
+cost is the whole of it: at $255$ the unsplit $\bar x_{p}$ was the slowest direction in the
+problem, an integrated autocorrelation time of $28.8$ draws against $2.0$ for $\bar c$, and
+a split $\hat{R}$ of $2.48$ where its own deviations sat at $1.07$. Like \eqref{eq:xsmean}
+this is a change of coordinates and not of the model: the amplitudes span the same $N$
+coordinates and, under flat priors, the same posterior. It buys conditioning, not
+identification --- $\langle q_{0}, q_{1}\rangle = 0$ fixes $\bar x_{p}$, so its value is a
+statement about the gauge and not about supernovae, and whether $q_{1}$ earns its place is
+read from the spread of the $\delta_{p}$ and from prediction, never from the mean.
+
 An earlier version of this section centred $\xstretch$ on $\bar x_{s}$, the mean of
 $\log\,\dd\arc/\dd\phase$ in $v$ of the \salt\ track at the sample-median $x_{1}$, $-3.0$.
 That was a template-derived constant inside the prior rather than the start, and it was

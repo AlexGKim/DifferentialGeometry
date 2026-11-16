@@ -45,7 +45,12 @@ BOUNDED2 = {"m_peak": (5.0, 30.0), "c_bar": (-5.0, 5.0), "mu_delta": (-3.0, 3.0)
             # Left out, the check read 8.9 against the 2.0e-07 hier_modes gives
             # at the same start -- a harness gap, not a model error, but one
             # that looks exactly like a model error.
+            # Under Eq. (ampmean) the sampled names are the means; the
+            # deviations are sum_to_zero_vector and carry no declared bound,
+            # so they take no factor here.  The old x_p/x_psi keys are kept so
+            # that a run predating the split still checks.
             "x_p": (-20.0, 20.0), "x_psi": (-20.0, 20.0),
+            "mu_x_p": (-20.0, 20.0), "mu_x_psi": (-20.0, 20.0),
             # hier_common declares the sampled mean as
             # mu_delta_raw, which is the name src_info reports and therefore
             # the name this table is looked up by; keyed only as "mu_delta" it
@@ -97,7 +102,7 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     bounded = set(BOUNDED) - set(BOUNDED2_BY_PROGRAM.get(name, {}))
     bounded2 = {**BOUNDED2, **BOUNDED2_BY_PROGRAM.get(name, {})}
     # Check the tables against the program before trusting the comparison.
-    frozen_sz = {"x_s", "c_dev", "d_dev"}
+    frozen_sz = {"x_s", "c_dev", "d_dev", "x_p_dev", "x_psi_dev"}
     for nm, (lo, hi) in _declared_bounds(name).items():
         if nm in frozen_sz:
             continue
@@ -119,20 +124,21 @@ def gradient_check(data, point, n_coords=20, h=1e-5, seed=0, name="hier"):
     # of length N carries N - 1 coordinates though it is reported as N.  Index
     # by the constrained length and every block after it is off by one, which
     # showed up here as a finite-difference mismatch of 87.
-    short = {"x_s": 1, "c_dev": 1, "d_dev": 1}
+    short = {"x_s": 1, "c_dev": 1, "d_dev": 1, "x_p_dev": 1, "x_psi_dev": 1}
     flat = []
     for n in names:
         v = np.atleast_1d(np.asarray(point[n], dtype=float))
         flat += [(n, i) for i in range(len(v) - short.get(n, 0))]
     rng = np.random.default_rng(seed)
-    # The two sum_to_zero_vector blocks cannot be moved one element at a time:
-    # the constraint is then violated and Stan refuses to unconstrain the
-    # point.  Their forward paths are covered here anyway, x_s reaching the map
-    # as s_bar + x_s_dev and colr as c_bar + c_dev with both scalars checked.
-    # delta_t is no longer among them --- it is an ordinary boxed vector now,
-    # so it moves one element at a time like any other and is checked directly,
-    # through BOUNDED2's logit factor.
-    frozen = {"x_s", "c_dev", "d_dev"}
+    # A sum_to_zero_vector cannot be moved one element at a time: the
+    # constraint is then violated and Stan refuses to unconstrain the point,
+    # which surfaces as log_prob exiting 1 rather than as a wrong number.
+    # Their forward paths are covered anyway, each reaching the map as a named
+    # mean plus the block --- x_s as b_0 + x_s, colr as c_bar + c_dev, delta_t
+    # as mu_delta + d_dev, and under Eq. (ampmean) the amplitudes as
+    # mu_x_p + x_p_dev and mu_x_psi + x_psi_dev --- with every one of those
+    # scalars movable and checked through BOUNDED2's logit factor.
+    frozen = {"x_s", "c_dev", "d_dev", "x_p_dev", "x_psi_dev"}
     movable = [j for j, (nm, _) in enumerate(flat) if nm not in frozen]
     idx = rng.choice(movable, min(n_coords, len(movable)), replace=False)
     worst = 0.0
@@ -278,15 +284,16 @@ def warm_start(run_dir):
 # hier_common's unconstrained blocks, in the order stan/hier_common.stan
 # declares them.  sum_to_zero_vector[N] contributes N - 1 coordinates; the
 # bounded scalars and vectors contribute one each.  Total 20 + 4 N_sn.
-PER_OBJECT_BLOCKS = ("m_peak", "c_dev", "x_s", "d_dev")
+PER_OBJECT_BLOCKS = ("m_peak", "c_dev", "x_s", "d_dev", "x_p_dev", "x_psi_dev")
 # Blocks of length N whose entry j IS object j, so a source entry has a
 # target object to be placed at.  The rest of PER_OBJECT_BLOCKS are the
 # N-1 unconstrained coordinates of a sum_to_zero_vector, whose basis
 # changes with N, so coordinate k carries no object and there is nothing
-# to place.  x_p and x_psi are hier_full's amplitudes and belong here;
-# leaving them out left them to the "changes length and is not a
-# per-object block" refusal.
-PER_OBJECT_PLACED = ("m_peak", "x_p", "x_psi")
+# to place.  Under Eq. (ampmean) hier_full's amplitudes are sum-to-zero
+# deviations about a named mean, so they are in PER_OBJECT_BLOCKS with the
+# other constrained blocks and NOT here: coordinate k of a sum_to_zero_vector
+# carries no object, the basis changing with N.
+PER_OBJECT_PLACED = ("m_peak",)
 
 
 # stage3-flat-k88-n60 was run before hier_flat.stan was renamed hier_full.stan
@@ -345,10 +352,16 @@ def _metric_layout(n_sn: int, k_q: int, k_psi: int, free_mean: int,
         # Ka and Kc default to Kq and Kpsi but need not equal them, so take
         # the width from _wcoef_parts rather than assuming the untruncated case.
         n_w = sum(n for _, n in _wcoef_parts(program, k_q, k_psi, k_a, k_c))
+        # Eq. (ampmean): the amplitudes are a named mean plus sum-to-zero
+        # deviations now, so each contributes 1 + (N-1) where it used to
+        # contribute N.  The total is unchanged, which is exactly why the sum
+        # check below cannot catch getting this wrong -- the order is what
+        # matters and the order is hand-maintained.
         return [("w_coef", n_w), ("m_peak", n_sn),
                 ("c_bar", 1), ("c_dev", n_sn - 1), ("b_0", 1), ("x_s", n_sn - 1),
-                ("x_p", n_sn), ("x_psi", n_sn), ("mu_delta", 1),
-                ("d_dev", n_sn - 1), ("sigma_b", 2)]
+                ("mu_x_p", 1), ("x_p_dev", n_sn - 1),
+                ("mu_x_psi", 1), ("x_psi_dev", n_sn - 1),
+                ("mu_delta", 1), ("d_dev", n_sn - 1), ("sigma_b", 2)]
     if program in ("hier_common", "hier_abox"):
         return [("w_coef", (k_q - 1) + (k_psi - 1)), ("tau_q", 1), ("tau_psi", 1),
                 ("alpha_q_m", 1), ("alpha_psi_m", 1), ("m_peak", n_sn), ("c_bar", 1),
@@ -597,8 +610,11 @@ def for_full(ini: dict, k_psi: int, k_q: int, k_a=None, k_c=None, R=None) -> dic
     somewhere else if it were skipped:
 
       * no tau, no alpha, no mu -- those parameters are gone;
-      * the amplitudes are parameters, not mu + u, so x_p and x_psi are
-        assembled here and clipped inside their declared box;
+      * the amplitudes are parameters, not mu + u, and under Eq. (ampmean)
+        each is a named mean plus sum-to-zero deviations, so the hierarchy's
+        mu + u is re-split here: the mean goes to mu_x_p, clipped inside its
+        declared box, and the deviations are centred to sum to zero exactly,
+        which sum_to_zero_vector requires of its input;
       * ``at = z_a`` rather than ``k^-alpha z_a``, so the z slices must be
         multiplied back by the weights ``inits`` divided them by.  Skipping
         this silently starts the mode at a DIFFERENT shape, since a is
@@ -610,11 +626,20 @@ def for_full(ini: dict, k_psi: int, k_q: int, k_a=None, k_c=None, R=None) -> dic
     out = {k: v for k, v in ini.items() if k not in drop}
     nsn = len(np.atleast_1d(ini["m_peak"]))
     for amp, mu, u in (("x_p", "mu_p", "u_p"), ("x_psi", "mu_psi", "u_psi")):
-        if mu in ini:
-            out[amp] = np.clip(float(ini[mu]) + np.asarray(ini[u], dtype=float),
-                               -19.9, 19.9)
+        if amp in ini:                      # already split, or carried whole
+            tot = np.asarray(ini[amp], dtype=float)
+        elif mu in ini:
+            tot = float(ini[mu]) + np.asarray(ini[u], dtype=float)
         else:
-            out[amp] = np.zeros(nsn)
+            tot = np.zeros(nsn)
+        tot = np.clip(tot, -19.9, 19.9)
+        # The mean takes the box; the deviations must sum to zero to machine
+        # precision or CmdStan rejects the start outright.  Centring after the
+        # clip, not before, so the clip cannot reintroduce a nonzero mean.
+        m = float(np.mean(tot))
+        out["mu_" + amp] = float(np.clip(m, -19.9, 19.9))
+        out[amp + "_dev"] = tot - m
+        out.pop(amp, None)
     raw = np.asarray(ini["w_coef"], dtype=float).copy()
     if R is not None:
         raw = np.asarray(R, dtype=float) @ raw

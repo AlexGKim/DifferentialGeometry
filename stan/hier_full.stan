@@ -206,8 +206,33 @@ parameters {
   // overflows to NaN by 2000, so both take the wall.  Fitted ranges are
   // -0.126 to +3.783 and +2.268 to +7.303, so 20 is three times outside and
   // matches the box x_s already carries.
-  vector<lower=-20, upper=20>[N_sn] x_p;
-  vector<lower=-20, upper=20>[N_sn] x_psi;
+  //
+  // Eq. (ampmean): each amplitude as a named mean plus deviations summing to
+  // zero, both flat, exactly as colr and x_s are already written and for the
+  // same reason.  Written without the split, the mean of a block of N
+  // amplitudes is one direction inside it and a diagonal metric is obliged to
+  // give it the scale it gives the deviations.  Measured as
+  // var(<x>) * N / mean(var(x_n)), which is 1 when that scale is right: the
+  // unsplit amplitudes read 6.3 to 8.2 over sixty objects and 2.4 to 46.2 over
+  // 255, against exactly 0 for every block already carrying the split.  At 255
+  // the unsplit <x_p> was the slowest direction in the problem -- integrated
+  // autocorrelation time 28.8 draws against 2.0 for c_bar -- with split R-hat
+  // 2.48 where its own deviations sat at 1.07, 34 to 68 percent of transitions
+  // divergent and the median leapfrog pinned at the treedepth-12 cap.
+  //
+  // The box is now on each part and not on the sum, so the reachable set is
+  // not quite the single box's: |x_p| reached 4.4 and |x_psi| 9.6 against 20,
+  // and neither wall has been approached.  The deviations take a wall in the
+  // model block, sum_to_zero_vector admitting no declared bound.
+  //
+  // This buys conditioning, not identification.  <q_0, q_1> = 0 fixes mu_x_p,
+  // so its value states the gauge and not the supernovae, and whether q_1
+  // earns its place is read from the spread of the deviations and from
+  // prediction -- never from the mean.
+  real<lower=-20, upper=20> mu_x_p;
+  sum_to_zero_vector[N_sn] x_p_dev;
+  real<lower=-20, upper=20> mu_x_psi;
+  sum_to_zero_vector[N_sn] x_psi_dev;
   // Delta flat on a box, per object, with no parameter for the mean; see
   // hier_common.stan for the measurements.  In brief: <Delta> is a near
   // gauge worth 1.96 nats over 1568 epochs, the box confines it rather than
@@ -239,6 +264,9 @@ parameters {
 }
 transformed parameters {
   vector[N_sn] delta_t = mu_delta + d_dev;
+  // Eq. (ampmean), assembled the same way delta_t is
+  vector[N_sn] x_p = mu_x_p + x_p_dev;
+  vector[N_sn] x_psi = mu_x_psi + x_psi_dev;
   // what reaches the exponent: the deviation plus q_0's degree-zero term
   vector[N_sn] x_s_tot = x_s + b_0 * inv_sqrt(vhi - vlo);
   vector[N_sn] colr = c_bar + c_dev;
@@ -345,6 +373,9 @@ model {
   // objects measured, and room above them, without asserting either.
   sigma_b ~ normal(0, 0.1);
   // x_p and x_psi are flat on their declared boxes and take no statement.
+  // Under Eq. (ampmean) the means carry that box as a declared bound and the
+  // deviations take it as a wall here, sum_to_zero_vector admitting no
+  // declaration -- the same arrangement x_s and d_dev already use.
   // Propriety, not population structure.  Section 5 records that with a flat
   // prior the likelihood tends to a positive constant as x_s -> -infinity,
   // where the supernova freezes at peak, so some proper prior in that
@@ -361,6 +392,8 @@ model {
   // sampling statement, contributing exactly 0 inside.
   x_s ~ uniform(-20, 20);
   d_dev ~ uniform(-3, 3);   // see the declaration; mu_delta is flat on its box
+  x_p_dev ~ uniform(-20, 20);     // Eq. (ampmean); mu_x_p flat on its box
+  x_psi_dev ~ uniform(-20, 20);   // Eq. (ampmean); mu_x_psi flat on its box
   // c_dev has no prior and needs none: colour is the only placement direction
   // the forward map does not clamp, so a runaway inside the sum-to-zero
   // hyperplane drives a predicted r flux to infinity where the Gaussian-in-
