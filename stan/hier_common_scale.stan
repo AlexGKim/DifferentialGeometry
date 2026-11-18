@@ -161,7 +161,7 @@ parameters {
   // q_0 is expanded in Legendre degrees 1..Kq-1 and so contains no constant;
   // b_0 restores the degree-zero term, P_0 = 1/sqrt(vhi - vlo).  It is held
   // here rather than inside the rotated coefficient block for one reason: the
-  // same traversal_row builds q_1, and Eq. (gauge) requires qbar_1 = 0, so
+  // same traversal_row builds q_1, and Eq. (gauge) requires q_1(0) = 0, so
   // widening the slice to [1:Kq] would hand the departure mode a constant and
   // break its gauge.  Since P_0 is constant, b_0 * P_0 is a constant in the
   // exponent and the two forms are identical -- b_0 is the k = 0 coefficient,

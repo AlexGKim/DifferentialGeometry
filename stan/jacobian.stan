@@ -52,8 +52,8 @@ generated quantities {
     // the gauge of hier.stan, Eq. (gauge)
     vector[Kq - 1] at = pow(kq, -(alpha_q_m + 0.5)) .* z_a;
     vector[Kpsi - 1] ct = pow(kpsi, -(alpha_psi_m + 0.5)) .* z_c;
-    vector[Kq - 1] a = has_mode ? at / sqrt(dot_self(at)) : rep_vector(0.0, Kq - 1);
-    vector[Kq - 1] b = has_mode ? b_til - dot_product(b_til, a) * a : b_til;
+    vector[Kq - 1] a = has_mode ? at / sqrt(quad_form(Gv, at)) : rep_vector(0.0, Kq - 1);
+    vector[Kq - 1] b = has_mode ? b_til - (b_til' * Gv * a) * a : b_til;
     vector[Kpsi - 1] c = has_mode ? ct / sqrt(quad_form(Gs, ct)) : rep_vector(0.0, Kpsi - 1);
     vector[Kpsi - 1] d = has_mode ? d_til - (d_til' * Gs * c) * c : d_til;
     for (n in 1:N_sn) {

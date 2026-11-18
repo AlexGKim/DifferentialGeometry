@@ -51,11 +51,14 @@ generated quantities {
   matrix[2 * m * J, Kq - 1] Xv_nodes_out = Xv_nodes;
   matrix[Kpsi - 1, Kpsi - 1] T_out = T;
   matrix[Kpsi - 1, Kpsi - 1] Gs_out = Gs;
+  matrix[Kq - 1, Kq - 1] Gv_out = Gv;
+  row_vector[Kq - 1] P0v_out = P0v;
   for (i in 1:Ns) {
     real u = u_of_s(s_eval[i], delta);
     psi[i] = psi_at(u, d + x_psi * c, Kpsi, ulo, uhi, P0, T);
     Xu[i] = turning_row(u, Kpsi, ulo, uhi, P0, T);
   }
   for (i in 1:Np)
-    Xv[i] = traversal_row(v_of_p(p_eval[i], delta_p), Kq, vlo, vhi);
+    // the anchored basis of Eq. (gauge): every mode vanishes at v = 0.
+    Xv[i] = traversal_row(v_of_p(p_eval[i], delta_p), Kq, vlo, vhi) - P0v;
 }

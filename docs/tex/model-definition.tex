@@ -216,16 +216,25 @@ hierarchical fits place $\arc(-15\,\mathrm{d})$ in $[-6.3, -2.3]$ and $\arc(+40\
 in $[3.0, 6.2]$ across thirty objects, nine in ten of the latter below $4.2$. Normed over the
 whole interval, $\turnone$ put half its norm outside the arclengths reached, and $\mu_{\psi}$
 and every $\shapeturn$ grew to compensate --- a direction the gauge was meant to have
-removed --- and $\bar f$ for the corresponding mean,
+removed --- the gauge conditions are
 \begin{equation}
-  \bar q_{1} = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
-  \bar q_{0} = 0, \quad \langle q_{0},q_{1}\rangle = 0;
+  q_{1}(0) = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
+  q_{0}(0) = 0, \quad \langle q_{0},q_{1}\rangle = 0;
   \qquad
   \langle \turnone,\turnone\rangle = 1, \quad
   \langle \turnzero,\turnone\rangle = 0 ,
   \label{eq:gauge}
 \end{equation}
-four conditions for four freedoms and two for two. Each pair leaves a sign, fixed by
+four conditions for four freedoms and two for two. Both pairs are anchored at the origin,
+so the traversal reads as the turning already did, and the per-supernova constant in
+$\ln \dd\arc/\dd p$ is that rate at $p = 0$ exactly rather than its mean over $v$. The
+traversal inner products are taken on the anchored modes $P_{k} - P_{k}(0)$, which carry the
+Gram matrix $G = I + (v_{\max} - v_{\min})\,\mathbf{P}(0)^{\top}\mathbf{P}(0)$ rather than
+the identity, the cross terms vanishing because every retained $P_{k}$ is orthogonal to the
+constant. Anchoring changes no prediction --- per supernova the reachable family is
+$q_{0} + \mathrm{span}\{1, q_{1}\}$ under either choice --- but \eqref{eq:coefprior} is read
+in the anchored basis, and a coefficient prior is basis dependent, so the posterior is not
+the mean-zero gauge's. Each pair leaves a sign, fixed by
 $\int_{0}^{v_{\max}} q_{1}\,\dd v > 0$ and $\turnone(\arc_{\mathrm{g}+}) > 0$, so a positive
 coefficient speeds the late traversal and turns the track further --- the second literally,
 $\turnone(\arc_{\mathrm{g}+})$ being the turning the departure mode accumulates over the span.
@@ -280,11 +289,11 @@ traversal's face of the hairpin the turning meets in arclength, and it is met th
 \end{equation}
 with $\delta_{p}$ set, like $\delta$ below, from the sharpest dip rather than the typical
 one. The constant mode is omitted because $\xstretch$
-already carries it, so that $\bar q_{0} = \bar q_{1} = 0$ holds identically, the means being
-taken in $v$. Writing
+already carries it, and each retained mode is taken relative to its value at the anchor, so
+that $q_{0}(0) = q_{1}(0) = 0$ holds identically. Writing
 \begin{equation}
-  q_{1} = \sum_{k \geq 1} a_{k}P_{k}(v), \qquad
-  q_{0} = \sum_{k \geq 1} b_{k}P_{k}(v),
+  q_{1} = \sum_{k \geq 1} a_{k}\bigl[P_{k}(v) - P_{k}(0)\bigr], \qquad
+  q_{0} = \sum_{k \geq 1} b_{k}\bigl[P_{k}(v) - P_{k}(0)\bigr],
   \label{eq:basisq}
 \end{equation}
 the conditions of \eqref{eq:gauge} on this pair are $\norm{\mathbf{a}}^{2} = 1$ and
@@ -819,12 +828,15 @@ The time origin is written
 $\tmax = t_{0} + \Delta$ with $\Delta \sim \mathcal{N}(\mu_{\Delta}, s_{\Delta}^{2})$,
 $\mu_{\Delta}$ flat and $s_{\Delta}$ flat on $s_{\Delta} > 0$: $t_{0}$ is $B$ maximum and
 $\tmax$ is $g$ maximum, and the offset between them is measured by the fit, centre and
-sign included, rather than assumed. The traversal basis of \eqref{eq:basisq} drops the constant Legendre term, so
-$\bar q_{0} = 0$ identically and $q_{0}$ cannot carry the mean log rate: it is $\xstretch$
-that carries it outright, and not the log of a mean speed --- the $v$ measure weights the
-anchor, where the rate is smallest, so the two differ by more than a unit ($-1.8$ for the log
-of the median span over the window against $-3.0$ here, the same to $0.1$ across $x_{1}$ and
-for the \citet{Hsiao2007} template). That mean is written as a parameter of its own,
+sign included, rather than assumed. The traversal basis of \eqref{eq:basisq} drops the constant Legendre term and anchors each
+mode at the origin, so $q_{0}(0) = 0$ identically and $q_{0}$ cannot carry the mean log rate:
+it is $\xstretch$ that carries it outright, and under this gauge it is $\ln \dd\arc/\dd p$
+at $p = 0$ exactly rather than a mean speed over the window. Under the mean-zero gauge the
+same parameter was instead the $v$-weighted mean of the log rate, which that measure pulls
+towards the anchor where the rate is smallest, and it differed from a mean speed by more than
+a unit ($-1.8$ for the log of the median span over the window against $-3.0$ for the
+parameter, the same to $0.1$ across $x_{1}$ and for the \citet{Hsiao2007} template); the
+anchored value has not been measured. That mean is written as a parameter of its own,
 \begin{equation}
   x_{s,n} = \bar s + \delta_{n} , \qquad \sum_{n} \delta_{n} = 0 ,
   \label{eq:xsmean}
@@ -905,12 +917,25 @@ vanishes, and the two boxes above are what close it. And as $\alpha \to \infty$ 
 but the first has gone and the fit is poor but finite. A chain started in any of those tails
 would stay there, and a flat prior over them integrates to infinity.
 
-The deviations of $\colr$ and the whole of $\Delta$ keep normal priors,
-$\mathcal{N}(0,1)$ and $\mathcal{N}(0, 3^{2})$, where $\peakmag$ and $\bar c$ take boxes.
-The asymmetry is not a judgement: \texttt{sum\_to\_zero\_vector} does not admit bounds, so a
-box is not available for a constrained block, and the widths are set the same way the others
-are --- the realized spread of $\Delta$ across thirty objects is $0.076$~d and of the colour
-deviations $0.255$~mag, so the two are forty and four times too wide to shape either.
+The deviations of $\Delta$ take a broad normal, $\mathcal{N}(0, \sigma_{\Delta}^{2})$ with
+$\sigma_{\Delta} = 3$~d held fixed and $\mu_{\Delta}$ fitted, and those of $\colr$ take no
+prior at all. The colour deviations need none because colour is the only placement direction
+the forward map does not clamp: a runaway inside the sum-to-zero hyperplane drives a
+predicted $r$ flux to infinity, where the Gaussian-in-flux likelihood closes it unaided.
+$\Delta$'s do need one, since with the mean held a hyperplane ray saturates the phase clamp
+and the density goes flat. Through 2026-11-16 that was a flat wall at $3$~d, imposed as a
+sampling statement --- a \texttt{sum\_to\_zero\_vector} admits no declared bound, but a
+\texttt{uniform} statement on one still returns $-\infty$ outside the interval while
+contributing exactly nothing inside. Rejecting proved to be the wrong instrument: the
+deviations were the only block pressed against a wall, and a crossing mid-trajectory is an
+$-\infty$ the sampler records as a divergence. Three days is $3.2$ times the realized spread
+of $0.929$~d, so the normal shapes nothing it replaces, while supplying the restoring
+gradient the wall withheld --- $\chi^{2}$ of $1.0$ at $3$~d and $4.0$ at $6$~d, which is the
+pushback holding $\tmax$ near where the data lie that the taper of
+Section~\ref{sec:likelihood} gives up. It is fixed and never fitted: fitting it is the
+$(s_{\Delta}, \mathbf{u})$ degeneracy of \eqref{eq:deltaridge}, whose supremum is at
+$s_{\Delta} \to \infty$. On a sum-to-zero block the marginal width is
+$\sigma_{\Delta}\sqrt{(N-1)/N}$. \texttt{docs/runs-ledger.md} carries the measurement.
 Whether either is needed at all is unmeasured: the sum-to-zero constraint forces a
 compensating object, and for colour the compensating direction drives the predicted flux to
 $+\infty$, where the Gaussian likelihood dies, which may make a flat prior proper on its own,

@@ -200,6 +200,13 @@ functions {
                    vector xg, vector wg) {
     int N = rows(p);
     vector[N] s;
+    // Eq. (gauge) anchors the traversal pair at the origin, q_0(0) = q_1(0) = 0.
+    // The anchored functions are b.P(v) - b.P(0) and a.P(v) - a.P(0), so both
+    // constants ride with qc and ONE subtraction of qc.P(0) from the log rate
+    // anchors the pair at once.  Taken out here rather than inside the
+    // integrand so that it scales the prefix table and the fresh panel
+    // identically; x_s is then ln(ds/dp) at p = 0 exactly.
+    real x_s_a = x_s - legendre_row(0, Kq, vlo, vhi)[2:Kq] * qc;
     vector[2 * m + 1] C = prefix_from_zero(exp(Xv_nodes * qc) .* jacw_v, m, J);
     for (i in 1:N) {
       real v = v_of_p(p[i], delta_p);
@@ -211,7 +218,7 @@ functions {
       for (j in 1:J)
         part += wj[j] * exp(traversal_row(vj[j], Kq, vlo, vhi) * qc)
                 * delta_p * cosh(vj[j]);
-      s[i] = exp(x_s) * (C[q] + part);
+      s[i] = exp(x_s_a) * (C[q] + part);
     }
     return s;
   }

@@ -36,7 +36,7 @@ def design_at(track: dict, k_psi: int, k_q: int, m_per_side: int = D.M_PER_SIDE)
     out = fixed_param("forward", data)
     return dict(inside=inside, Xu=out["Xu"][:-1], Xu_gsmax=out["Xu"][-1], Xv=out["Xv"],
                 Xv_nodes=out["Xv_nodes_out"], v_nodes=out["v_nodes_out"], w_v=out["w_v_out"],
-                Gs=out["Gs_out"])
+                Gs=out["Gs_out"], Gv=out["Gv_out"], P0v=out["P0v_out"])
 
 
 def _weights(x: np.ndarray) -> np.ndarray:
@@ -67,15 +67,19 @@ def _ridge_rows(n: int, scale: float) -> np.ndarray:
 
 def fit_track(track: dict, k_psi: int, k_q: int, m_per_side: int = D.M_PER_SIDE) -> dict:
     """Raw coefficients of one track: ``psi + pi/2`` on the turning basis in
-    ``u``, ``log ds/dp`` less its mean in ``v`` on the traversal basis, with
-    the ridge above."""
+    ``u``, ``log ds/dp`` less its value at the anchor on the traversal basis,
+    with the ridge above."""
     des = design_at(track, k_psi, k_q, m_per_side)
     inside = des["inside"]
     wu = _weights(track["u"][inside])
     wv = _weights(track["v"])
     y_psi = track["psi"][inside] + np.pi / 2
-    vlo, vhi = np.arcsinh(np.array(D.MODEL_WINDOW) / D.DELTA_P)
-    x_s = float(np.trapezoid(track["log_rate"], track["v"]) / (vhi - vlo))
+    # Eq. (gauge) anchors every traversal mode at v = 0, so the target has to
+    # vanish there too.  Fitted against the mean in v instead, the residual
+    # carries the offset log_rate(0) - mean, which no anchored mode can
+    # represent -- more than a unit on a SALT2 track -- and the start lands
+    # that far off.  x_s is the log rate AT the anchor under this gauge.
+    x_s = float(np.interp(0.0, track["v"], track["log_rate"]))
     y_rate = track["log_rate"] - x_s
     Au = np.vstack([wu[:, None] * des["Xu"], _ridge_rows(k_psi - 1, RIDGE_LSTSQ)])
     Av = np.vstack([wv[:, None] * des["Xv"], _ridge_rows(k_q - 1, RIDGE_LSTSQ)])
@@ -90,12 +94,13 @@ def fit_track(track: dict, k_psi: int, k_q: int, m_per_side: int = D.M_PER_SIDE)
 def fix_gauge(a_raw, b_raw, c_raw, d_raw, design: dict) -> dict:
     """Eq. (gauge) and the two signs of Section 2.3, on the coefficients.
 
-    The traversal pair under the flat measure in ``v``, where the basis is
-    orthonormal and the conditions are the Euclidean ones; the turning pair
-    under ``ds``, the measure the light curve sees, through the Gram matrix
-    ``G_s`` of the basis in that measure."""
-    a = a_raw / np.linalg.norm(a_raw)
-    x_p = float(b_raw @ a)
+    Both pairs go through a Gram matrix now that both are anchored: the
+    traversal under the flat measure in ``v``, where the anchored modes
+    ``P_k - P_k(0)`` carry ``G_v = I + (vhi - vlo) P(0)' P(0)``; the turning
+    under ``ds``, the measure the light curve sees, through ``G_s``."""
+    Gv = design["Gv"]
+    a = a_raw / np.sqrt(a_raw @ Gv @ a_raw)
+    x_p = float(b_raw @ Gv @ a)
     b = b_raw - x_p * a
     Gs = design["Gs"]
     c = c_raw / np.sqrt(c_raw @ Gs @ c_raw)
@@ -103,7 +108,8 @@ def fix_gauge(a_raw, b_raw, c_raw, d_raw, design: dict) -> dict:
     d = d_raw - x_psi * c
     # int_0^{v_max} q1 dv > 0, on the fixed nodes right of zero
     right = design["v_nodes"] > 0
-    if float(design["w_v"][right] @ (design["Xv_nodes"][right] @ a)) < 0:
+    q1_right = design["Xv_nodes"][right] @ a - float(design["P0v"] @ a)
+    if float(design["w_v"][right] @ q1_right) < 0:
         a, x_p = -a, -x_p
     # Psi_1 > 0 at the gauge span's upper edge
     if float(design["Xu_gsmax"] @ c) < 0:

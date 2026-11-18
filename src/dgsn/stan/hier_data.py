@@ -39,7 +39,7 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
           sample=None, R=None, mode: bool = True, trav: bool = True,
           prior_shape: int = 0, sigma_q=None, sigma_psi=None, alpha_q=None,
           alpha_psi=None, nu_coef: float = 1.0, free_mean: bool = True,
-          k_a=None, k_c=None) -> dict:
+          k_a=None, k_c=None, d_sd: float = 3.0) -> dict:
     """The data block of ``hier.stan`` for the objects ``names``.
 
     ``mode=False`` is for ``hier_nomode.stan``, where Eq. (curvlin) carries no
@@ -86,7 +86,7 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
     # other program carries one order a pair and ignores these, so a data dict
     # built without naming them reproduces every run on record.
     ka, kc = _mode_orders(k_psi, k_q, k_a, k_c)
-    data.update(Ka=int(ka), Kc=int(kc))
+    data.update(Ka=int(ka), Kc=int(kc), d_sd=float(d_sd))
     return data
 
 
@@ -180,7 +180,13 @@ def inits(names, k_psi: int, k_q: int, x1_ref: float, sample=None, globals_=None
     a0 = (G["a"] / wq)[:ka - 1]
     c0 = (G["c"] / wp)[:kc - 1]
     if not trav:
-        raw = pack(G["b"], G["d"])     # no z_a, no z_c
+        # No departure mode, so nothing carries the a-direction that
+        # fix_gauge projects out of b for <q_0,q_1> = 0.  Start from the
+        # track's own traversal fit, b + x_p a, or the start omits that
+        # piece outright: with the anchored gauge of Eq. (gauge) the
+        # reference x_p is 5.46 and omitting it cost 19 nats per epoch at
+        # 255 objects (lp at start -9.87e6 against -5.0e5).
+        raw = pack(G["b"] + G["x_p"] * G["a"], G["d"])   # no z_a, no z_c
     elif mode:
         raw = pack(a0, G["b"], c0, G["d"])
     else:

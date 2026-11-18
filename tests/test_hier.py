@@ -116,8 +116,9 @@ def test_gauge_and_signs(sample, names, G):
     fd = D.grid_data(k_psi=K_PSI, k_q=K_Q); fd.update(D.zero_globals(K_PSI, K_Q)); fd.update(D.params_data())
     fd.update(z=0.0); fd.update(D.eval_points())
     from dgsn.stan.run import fixed_param
-    Gs = fixed_param("forward", fd)["Gs_out"]
-    assert abs(v["a"] @ v["a"] - 1) < 1e-14 and abs(v["b"] @ v["a"]) < 1e-14
+    fo = fixed_param("forward", fd)
+    Gs, Gv = fo["Gs_out"], fo["Gv_out"]
+    assert abs(v["a"] @ Gv @ v["a"] - 1) < 1e-14 and abs(v["b"] @ Gv @ v["a"]) < 1e-14
     assert abs(v["c"] @ Gs @ v["c"] - 1) < 1e-13 and abs(v["d"] @ Gs @ v["c"]) < 1e-13
     sq, sp = (-1 if v["flip_q"] else 1), (-1 if v["flip_psi"] else 1)
     x_p = ini["mu_p"] + ini["u_p"]

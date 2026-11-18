@@ -54,6 +54,10 @@ data {
   array[N_sn] int<lower=1> stop;
   vector[N_sn] z;
   int<lower=1> grainsize;
+  // Prior sd of Delta's deviations in days, Section 5.  Data rather than a
+  // literal so that a run is identified by its data.json, and fixed rather
+  // than fitted so that no scale can run away.
+  real<lower=0> d_sd;
   // The departure modes' own orders, Section 2.2's q_1 and Psi_1.  Ka = Kq
   // and Kc = Kpsi is the full model; lower is a truncation of the mode
   // alone, which by Cauchy interlacing cannot raise the condition number of
@@ -154,8 +158,8 @@ parameters {
   real<lower=-5, upper=5> c_bar;
   sum_to_zero_vector[N_sn] c_dev;
   // The mean log rate as a named global, and the per-supernova part summing
-  // to zero.  The traversal basis drops the constant Legendre term, so
-  // qbar_0 = 0 identically and q_0 cannot carry the mean: it has to live in
+  // to zero.  The traversal basis drops the constant and anchors each mode at v = 0, so
+  // q_0(0) = 0 identically and q_0 cannot carry the mean: it has to live in
   // x_s, and Section 5 used to centre x_s's prior on a \salt\ track's value,
   // -3.0.  Measured, that prior was both misplaced and idle --- the
   // population mean came out -2.85 and -2.70 at the two orders, 2.3 and 3.1
@@ -171,7 +175,7 @@ parameters {
   // rate as deviations summing to zero.  b_0 restores the degree-zero
   // Legendre term that traversal_row's [2:Kq] slice drops, P_0 = 1/sqrt(vhi -
   // vlo), and is held outside the rotated block because the same row builds
-  // q_1, whose gauge requires qbar_1 = 0.  (b_0, x_s) carry an exact gauge --
+  // q_1, whose gauge requires q_1(0) = 0.  (b_0, x_s) carry an exact gauge --
   // only their sum reaches the exponent -- so sum(x_s) = 0 fixes it at no
   // cost.  The bound is written on the mean log rate so it survives a change
   // of phase window, and it is needed: both tails are flat, at -4.83e6 frozen
@@ -233,22 +237,41 @@ parameters {
   sum_to_zero_vector[N_sn] x_p_dev;
   real<lower=-20, upper=20> mu_x_psi;
   sum_to_zero_vector[N_sn] x_psi_dev;
-  // Delta flat on a box, per object, with no parameter for the mean; see
-  // hier_common.stan for the measurements.  In brief: <Delta> is a near
-  // gauge worth 1.96 nats over 1568 epochs, the box confines it rather than
-  // deleting it, the bound is what makes the flat prior proper -- both tails
-  // are flat, the phase clamp saturating the model's dependence on Delta
-  // entirely -- and +-3 d is 8.6 times the largest t0 uncertainty DR2
-  // reports over the thirty.  The cost is that the common mode, the long
-  // direction of this block at a ratio of 3.3 to 4.0 over the deviations at
-  // N = 30, is left mixed across all thirty coordinates where a diagonal
-  // metric cannot scale it on its own.
-  // Delta as mu_delta + deviations summing to zero; see hier_common.stan.  The
-  // mean is named so a diagonal metric can scale the common mode on its own,
-  // measured as the slowest-mixing direction when it was not.  mu_delta takes
-  // a declared bound and the deviations a wall, sum_to_zero_vector admitting
-  // none, and both are needed: with the mean held, a hyperplane ray saturates
-  // the phase clamp and the density goes flat.
+  // Delta as mu_delta + deviations summing to zero; see hier_common.stan for
+  // the measurements.  <Delta> is a near gauge worth 1.96 nats over 1568
+  // epochs, and the mean is named so a diagonal metric can scale the common
+  // mode on its own -- measured as the slowest-mixing direction when it was
+  // not.
+  //
+  // The deviations take a broad normal, N(0, d_sd^2), where through
+  // 2026-11-16 they took a flat wall at +-3 d.  A prior they do need: with
+  // the mean held, a hyperplane ray saturates the phase clamp and the density
+  // goes flat, so flat and unbounded is improper.  What the wall did badly was
+  // reject where it should have restored.  Measured on stage3-full-k812-n255
+  // and stage3-ampmean-k88-n60, d_dev was the only block pressed against its
+  // wall -- 99.7 percent of it, against 59 for the two runs that converged --
+  // and the only one whose approach tracked divergence, corr +0.52.  Per
+  // object the wall sat 1.7 to 4.3 sigma away for the sparsely sampled and 53
+  // to 65 for the well covered, and a crossing mid-trajectory returns -inf,
+  // which the sampler records as a divergence.  Delta is not unidentified
+  // there -- sigma(Delta) is 0.15 to 0.71 d against 0.045 to 0.056 for the
+  // well covered -- the posterior simply wants 1.8 to 2.5 d, which is where
+  // the wall was.
+  //
+  // d_sd = 3 d is 3.2 times the realized spread of 0.929 d, so it shapes
+  // nothing: 0.25 to 5.6 percent of the curvature for the sparse objects and
+  // 0.02 to 0.04 for the well covered.  What it adds is a restoring gradient
+  // where the wall gave none -- chi2 of 1.0 at 3 d and 4.0 at 6 d, the
+  // pushback holding tmax near the data that Section 4 says the taper gives
+  // up, and which a WIDER box would have weakened instead.  Scaling it by the
+  // DR2 t0 uncertainty was measured and rejected: t0_err runs to 0.816 d over
+  // the 255 with a median of 0.129, roughly ten times too small, because
+  // Delta is the B-to-g maximum offset and not a t0 measurement error.
+  //
+  // The scale is DATA and not fitted.  Fitting it is the (s_delta, u)
+  // degeneracy of Section 5, whose supremum is at s_delta -> infinity.  On a
+  // sum_to_zero_vector the marginal sd is d_sd sqrt((N-1)/N), 0.2 percent at
+  // N = 255.
   real<lower=-3, upper=3> mu_delta;
   sum_to_zero_vector[N_sn] d_dev;
   // Eq. (modelerr): the fractional model error, in magnitudes, one per band
@@ -299,8 +322,8 @@ transformed parameters {
     vector[Kpsi - 1] ct = rep_vector(0, Kpsi - 1);
     at[1:n_a] = z_a;
     ct[1:n_c] = z_c;
-    a = at / sqrt(dot_self(at));
-    b = b_til - dot_product(b_til, a) * a;
+    a = at / sqrt(quad_form(Gv, at));
+    b = b_til - (b_til' * Gv * a) * a;
     c = ct / sqrt(quad_form(Gs, ct));
     d = d_til - (d_til' * Gs * c) * c;
   }
@@ -391,7 +414,22 @@ model {
   // declared bound is impossible on a sum_to_zero_vector, so this is a
   // sampling statement, contributing exactly 0 inside.
   x_s ~ uniform(-20, 20);
-  d_dev ~ uniform(-3, 3);   // see the declaration; mu_delta is flat on its box
+  // Widened from +-3 on 2026-11-16.  Measured on stage3-full-k812-n255 and
+  // stage3-ampmean-k88-n60, d_dev was the only block pressed against its
+  // wall -- 99.7 percent of it, against 59 percent for the converged runs --
+  // and the only one whose approach tracked divergence (corr +0.52).  Per
+  // object the wall sat 1.7 to 4.3 sigma away for the sparsely sampled and
+  // 53 to 65 sigma for the well covered, every mid-trajectory crossing
+  // returning -inf and being recorded as a divergence.  At +-6 the same four
+  // objects sit 6 to 23 sigma inside.
+  //
+  // This weakens the second job the bound does.  The taper deweights an
+  // out-of-window epoch rather than penalising it, so once Delta pushes
+  // epochs out nothing pulls it back and the bound is the pushback; Section 4
+  // records the window already crossed below the old bound for sixteen of
+  // thirty objects.  frac_tapered is the diagnostic and must be read against
+  // the +-3 run, not assumed unchanged.
+  d_dev ~ normal(0, d_sd);   // see the declaration; mu_delta is flat on its box
   x_p_dev ~ uniform(-20, 20);     // Eq. (ampmean); mu_x_p flat on its box
   x_psi_dev ~ uniform(-20, 20);   // Eq. (ampmean); mu_x_psi flat on its box
   // c_dev has no prior and needs none: colour is the only placement direction

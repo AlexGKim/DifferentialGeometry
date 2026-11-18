@@ -95,8 +95,8 @@ parameters {
   real<lower=-5, upper=5> c_bar;
   sum_to_zero_vector[N_sn] c_dev;
   // The mean log rate as a named global, and the per-supernova part summing
-  // to zero.  The traversal basis drops the constant Legendre term, so
-  // qbar_0 = 0 identically and q_0 cannot carry the mean: it has to live in
+  // to zero.  The traversal basis drops the constant and anchors each mode at v = 0, so
+  // q_0(0) = 0 identically and q_0 cannot carry the mean: it has to live in
   // x_s, and Section 5 used to centre x_s's prior on a \salt\ track's value,
   // -3.0.  Measured, that prior was both misplaced and idle --- the
   // population mean came out -2.85 and -2.70 at the two orders, 2.3 and 3.1
@@ -112,7 +112,7 @@ parameters {
   // rate as deviations summing to zero.  b_0 restores the degree-zero
   // Legendre term that traversal_row's [2:Kq] slice drops, P_0 = 1/sqrt(vhi -
   // vlo), and is held outside the rotated block because the same row builds
-  // q_1, whose gauge requires qbar_1 = 0.  (b_0, x_s) carry an exact gauge --
+  // q_1, whose gauge requires q_1(0) = 0.  (b_0, x_s) carry an exact gauge --
   // only their sum reaches the exponent -- so sum(x_s) = 0 fixes it at no
   // cost.  The bound is written on the mean log rate so it survives a change
   // of phase window, and it is needed: both tails are flat, at -4.83e6 frozen
@@ -162,8 +162,8 @@ transformed parameters {
   }
   {
     vector[Kq - 1] at = pow(kq, -(alpha_q_m + 0.5)) .* z_a;
-    a = at / sqrt(dot_self(at));
-    b = b_til - dot_product(b_til, a) * a;
+    a = at / sqrt(quad_form(Gv, at));
+    b = b_til - (b_til' * Gv * a) * a;
     d = d_til;
   }
 }
@@ -211,7 +211,8 @@ generated quantities {
   // One sign convention is left, on the traversal pair; the turning pair's
   // went with Psi_1.
   int flip_q = (dot_product(w_v[(m * J + 1):(2 * m * J)],
-                            (Xv_nodes * a)[(m * J + 1):(2 * m * J)]) < 0);
+                            (Xv_nodes * a)[(m * J + 1):(2 * m * J)])
+                - (P0v * a) * vhi < 0);
   vector[Kq - 1] a_rel = flip_q ? -a : a;
   vector[N_sn] x_p_rel = flip_q ? -x_p : x_p;
   real mu_p_rel = flip_q ? -mu_p : mu_p;

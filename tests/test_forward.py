@@ -61,9 +61,19 @@ def test_unit_rate_is_identity(m_per_side):
 
 
 def test_bases_orthonormal():
-    """Both bases orthonormal under their own flat measure; every turning mode
-    zero at s = 0; the transform triangular; the shifted Gram conditioned as
-    the note says.
+    """The turning basis orthonormal under its own flat measure and the
+    traversal basis carrying the anchored Gram of Eq. (gauge); every turning
+    mode zero at s = 0 and every traversal mode zero at p = 0; the transform
+    triangular; the shifted Gram conditioned as the note says.
+
+    Eq. (gauge) anchors the traversal pair at the origin, so the modes are
+    P_k(v) - P_k(0) and are NOT orthonormal under the flat measure in v.
+    Their Gram is exactly I + L P_0' P_0 with L = vhi - vlo, since the shifted
+    modes are orthonormal and each integrates to zero against the constant.
+    That matrix is what the programs carry as Gv and what the gauge conditions
+    are imposed under, so the test measures the Gram by quadrature and checks
+    it against BOTH the exported Gv and the closed form -- the export alone
+    would pass even if Gv and the basis were wrong in the same way.
 
     The inner products are taken with a 64-point Gauss-Legendre rule over the
     whole interval, exact for products of the modes.  The model's own grid is
@@ -75,15 +85,20 @@ def test_bases_orthonormal():
     u = 0.5 * (uhi + ulo) + 0.5 * (uhi - ulo) * x
     v = 0.5 * (vhi + vlo) + 0.5 * (vhi - vlo) * x
     out = run_forward(s_eval=np.concatenate([[0.0], D.DELTA * np.sinh(u)]),
-                      p_eval=D.DELTA_P * np.sinh(v))
-    Xu, Xv = out["Xu"][1:], out["Xv"]
+                      p_eval=np.concatenate([[0.0], D.DELTA_P * np.sinh(v)]))
+    Xu, Xv = out["Xu"][1:], out["Xv"][1:]
     Gu = Xu.T @ (0.5 * (uhi - ulo) * w[:, None] * Xu)
     Gv = Xv.T @ (0.5 * (vhi - vlo) * w[:, None] * Xv)
+    P0v = out["P0v_out"]
+    Gv_closed = np.eye(D.K_Q - 1) + (vhi - vlo) * np.outer(P0v, P0v)
     eu = np.abs(Gu - np.eye(D.K_PSI - 1)).max()
-    ev = np.abs(Gv - np.eye(D.K_Q - 1)).max()
-    print(f"orthonormality: turning {eu:.2e}, traversal {ev:.2e}")
-    assert eu < 1e-12 and ev < 1e-12
+    ev = np.abs(Gv - out["Gv_out"]).max()
+    ec = np.abs(out["Gv_out"] - Gv_closed).max()
+    print(f"turning orthonormality {eu:.2e}; "
+          f"traversal Gram vs export {ev:.2e}, export vs closed form {ec:.2e}")
+    assert eu < 1e-12 and ev < 1e-12 and ec < 1e-12
     assert np.abs(out["Xu"][0]).max() == 0.0          # vanishes at s = 0, exactly
+    assert np.abs(out["Xv"][0]).max() == 0.0          # vanishes at p = 0, exactly
     T = out["T_out"]
     assert np.abs(np.tril(T, -1)).max() == 0.0        # upper triangular: ascending degree
     # T = R^{-T} with R R^T the Gram matrix: cond(Gram) = cond(T)^2

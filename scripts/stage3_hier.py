@@ -684,11 +684,17 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
         for key in ("z_a", "z_c"):
             if key in co:
                 co[key] = co[key] + 0.5 * rng.normal(size=len(co[key]))
-        # the centred pair in coefficient units: half the prior width at the start
-        for key, tau, alpha_m, K in (("b_til", ini["tau_q"], ini["alpha_q_m"], k_q),
-                                     ("d_til", ini["tau_psi"], ini["alpha_psi_m"], k_psi)):
-            kk = np.arange(1, K)
-            w = tau * (kk / np.exp(np.log(kk).mean())) ** -(alpha_m + 0.5)
+        # The centred pair, at half the start's own scale.  hier_common wrote
+        # this as half the prior width, tau k^-alpha, but hier_full and
+        # hier_base have no tau or alpha: the coefficient scales became fixed
+        # data and the in-gauge components carry no density at all, only the
+        # projected-out directions taking std_normal.  There is therefore no
+        # prior width to halve, and ini["tau_q"] raised KeyError on every
+        # dispersed run of either program.  The start's own RMS per block is
+        # the scale the data actually put there; the floor keeps a block that
+        # starts near zero from being left undispersed.
+        for key, K in (("b_til", k_q), ("d_til", k_psi)):
+            w = max(float(np.sqrt(np.mean(np.asarray(co[key], float) ** 2))), 1.0)
             co[key] = co[key] + 0.5 * w * rng.normal(size=K - 1)
         if not trav:
             raw = pack(co["b_til"], co["d_til"])
@@ -703,16 +709,20 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
         # blind to exactly what it is meant to test.
         # The two sum_to_zero blocks have to stay on their hyperplanes, or the
         # start is rejected as violating its own constraint.
-        for key, w in (("x_s", 0.3), ("c_dev", 0.3), ("d_dev", 0.5)):
+        for key, w in (("x_s", 0.3), ("c_dev", 0.3), ("d_dev", 0.5),
+                       ("x_p_dev", 0.5), ("x_psi_dev", 0.5)):
             if key in s:
                 j = w * rng.normal(size=len(np.atleast_1d(s[key])))
                 s[key] = s[key] + j - j.mean()
-        for key, w in (("mu_p", 1.0), ("mu_psi", 1.0), ("c_bar", 0.3),
-                       ("b_0", 0.9)):
+        for key, w in (("mu_p", 1.0), ("mu_psi", 1.0),
+                       ("mu_x_p", 1.0), ("mu_x_psi", 1.0),
+                       ("c_bar", 0.3), ("b_0", 0.9)):
             if key in s:
                 s[key] = s[key] + w * float(rng.normal())
-        for key, w in (("m_peak", 0.3), ("x_s", 0.3),
-                       ("u_p", 1.0), ("u_psi", 1.0)):
+        # x_s was in this list as well as the sum_to_zero block above.  It is
+        # a sum_to_zero_vector, so this pass -- which does not remove the mean
+        # -- pushed the start off its own hyperplane, where Stan rejects it.
+        for key, w in (("m_peak", 0.3), ("u_p", 1.0), ("u_psi", 1.0)):
             if key in s:
                 s[key] = s[key] + w * rng.normal(size=len(np.atleast_1d(s[key])))
         # delta_t is boxed: disperse it, including its mean, which is the
@@ -721,6 +731,10 @@ def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True
         if "mu_delta" in s:
             s["mu_delta"] = float(np.clip(s["mu_delta"] + 0.3 * rng.normal(),
                                           -3.0 + 1e-6, 3.0 - 1e-6))
+        touched = [k for k in ("mu_p", "mu_psi", "mu_x_p", "mu_x_psi") if k in s]
+        assert touched, ("no common amplitude location was dispersed: the keys "
+                         "have been renamed again and the check would be blind "
+                         "to the slowest-mixing directions it exists to test")
         starts.append(s)
     return starts
 
@@ -842,6 +856,13 @@ def main():
                          "simpler program: the three hierarchies are nested, and a mode "
                          "contributes only through its amplitude, so zeroing the new "
                          "amplitudes reproduces the simpler fit exactly")
+    ap.add_argument("--d-sd", type=float, default=3.0, metavar="DAYS",
+                    help="prior sd of Delta's deviations in days.  Replaces the +-3 d "
+                         "wall every recorded run used: d_dev was the only block pressed "
+                         "against its wall and a crossing mid-trajectory is an -inf the "
+                         "sampler records as a divergence.  3 d is 3.2x the realized "
+                         "spread, so it shapes nothing while restoring rather than "
+                         "rejecting.  Fixed, never fitted -- see Section 5 on s_delta.")
     ap.add_argument("--no-trav-mode", action="store_true",
                     help="hier_common.stan: also without x_p q_1, so one shared rate "
                          "profile as well; implies --no-mode, that being the only "
@@ -893,7 +914,7 @@ def main():
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
     data = build(names, k_psi, k_q, sample=sample, mode=mode, trav=trav,
-                 free_mean=free_mean, k_a=ka, k_c=kc)
+                 free_mean=free_mean, k_a=ka, k_c=kc, d_sd=args.d_sd)
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode, trav=trav,
                 k_a=ka, k_c=kc)
     R = None
@@ -903,14 +924,14 @@ def main():
         t0 = _t.time()
         R = from_optimize(data, ini, k_psi, k_q)
         data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean,
-                     mode=mode, trav=trav, k_a=ka, k_c=kc)
+                     mode=mode, trav=trav, k_a=ka, k_c=kc, d_sd=args.d_sd)
         print(f"preconditioned at the optimize mode in {_t.time()-t0:.0f} s, "
               f"rotation condition {np.linalg.cond(R):.1e}")
     elif args.precondition_from:
         from dgsn.stan.precondition import from_run
         R = from_run(args.precondition_from, data, k_psi, k_q)
         data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean,
-                     mode=mode, trav=trav, k_a=ka, k_c=kc)
+                     mode=mode, trav=trav, k_a=ka, k_c=kc, d_sd=args.d_sd)
         print(f"preconditioned from {args.precondition_from}: "
               f"rotation condition {np.linalg.cond(R):.1e}")
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode,

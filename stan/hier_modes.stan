@@ -150,8 +150,8 @@ parameters {
   real<lower=-5, upper=5> c_bar;
   sum_to_zero_vector[N_sn] c_dev;
   // The mean log rate as a named global, and the per-supernova part summing
-  // to zero.  The traversal basis drops the constant Legendre term, so
-  // qbar_0 = 0 identically and q_0 cannot carry the mean: it has to live in
+  // to zero.  The traversal basis drops the constant and anchors each mode at v = 0, so
+  // q_0(0) = 0 identically and q_0 cannot carry the mean: it has to live in
   // x_s, and Section 5 used to centre x_s's prior on a \salt\ track's value,
   // -3.0.  Measured, that prior was both misplaced and idle --- the
   // population mean came out -2.85 and -2.70 at the two orders, 2.3 and 3.1
@@ -167,7 +167,7 @@ parameters {
   // rate as deviations summing to zero.  b_0 restores the degree-zero
   // Legendre term that traversal_row's [2:Kq] slice drops, P_0 = 1/sqrt(vhi -
   // vlo), and is held outside the rotated block because the same row builds
-  // q_1, whose gauge requires qbar_1 = 0.  (b_0, x_s) carry an exact gauge --
+  // q_1, whose gauge requires q_1(0) = 0.  (b_0, x_s) carry an exact gauge --
   // only their sum reaches the exponent -- so sum(x_s) = 0 fixes it at no
   // cost.  The bound is written on the mean log rate so it survives a change
   // of phase window, and it is needed: both tails are flat, at -4.83e6 frozen
@@ -248,8 +248,8 @@ transformed parameters {
     vector[Kpsi - 1] ct = rep_vector(0, Kpsi - 1);
     at[1:n_a] = pow(kq[1:n_a], -(alpha_q_m + 0.5)) .* z_a;
     ct[1:n_c] = pow(kpsi[1:n_c], -(alpha_psi_m + 0.5)) .* z_c;
-    a = at / sqrt(dot_self(at));
-    b = b_til - dot_product(b_til, a) * a;
+    a = at / sqrt(quad_form(Gv, at));
+    b = b_til - (b_til' * Gv * a) * a;
     c = ct / sqrt(quad_form(Gs, ct));
     d = d_til - (d_til' * Gs * c) * c;
   }
@@ -355,7 +355,8 @@ generated quantities {
   // int_0^{v_max} q_1 dv on the fixed nodes right of zero: the panels past
   // edge m+1 in the two-sided layout, with the plain weights.
   int flip_q = (dot_product(w_v[(m * J + 1):(2 * m * J)],
-                            (Xv_nodes * a)[(m * J + 1):(2 * m * J)]) < 0);
+                            (Xv_nodes * a)[(m * J + 1):(2 * m * J)])
+                - (P0v * a) * vhi < 0);
   int flip_psi = (turning_row(guhi, Kpsi, ulo, uhi, P0, T) * c < 0);
   vector[Kq - 1] a_rel = flip_q ? -a : a;
   vector[Kpsi - 1] c_rel = flip_psi ? -c : c;
