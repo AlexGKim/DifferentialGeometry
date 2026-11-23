@@ -8,7 +8,8 @@ import numpy as np
 
 # Every block that is one-per-supernova.  Anything else is global.
 PER_SN = ("m_peak", "colr", "c_dev", "x_s", "x_s_tot", "d_dev", "delta_t",
-          "x_p", "x_psi", "x_p_rel", "x_psi_rel", "u_p", "u_psi", "u_del",
+          "x_p", "x_psi", "x_p_dev", "x_psi_dev", "x_s_dev",
+          "x_p_rel", "x_psi_rel", "u_p", "u_psi", "u_del",
           "lp_sn", "ll_sn", "chi2_sn", "s_pmin", "s_pmax", "s_epoch", "resid_z")
 
 
