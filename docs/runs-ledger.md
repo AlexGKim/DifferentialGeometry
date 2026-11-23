@@ -1351,3 +1351,147 @@ mechanism that pinned the first transfer attempt at the treedepth cap; and
 keep the pre-rename `hier_flat` basename. `--check-only` also returned before
 the metric block, so the one path that can refuse a launch was the one path the
 check never reached; it does now.
+
+## ladder-base-k812-n60 — hier_base at sixty objects under the anchored gauge, converged
+
+`runs/ladder-base-k812-n60`, finished 2026-11-18. **Converged.** Rung 1 of a
+three-rung ladder, run to supply a position and an adapted metric to rung 2.
+
+`stan/hier_base.stan` as of `30acb09`, the traversal gauge anchored at the
+origin and `Δ` given a Gaussian prior. 60 objects, 3682 epochs, (Kq, Kψ) =
+(8, 12), seed 1, 500 + 500, `max_treedepth 12`, `save_warmup`. Here `b` is q₀
+(7 coefficients) and `d` is Ψ₀ (11); `a` and `c` do not exist, the forward call
+passes `a_zero, b, c_zero, d`, and Eq. (gauge) is vacuous. `w_coef` is
+n_b + n_d = 18.
+
+```
+GLOBAL      60 coords  max 1.0097  >1.05 0  >1.01 0
+  worst: w_coef.13 1.010, d_til.6 1.010, d.6 1.010, w_coef.17 1.009
+PER-SN    8084 coords  max 1.0093  >1.05 0  >1.01 0   (does not gate)
+```
+
+| | value |
+|---|---|
+| max global split R̂ | **1.0097**, median 1.0033 |
+| post-warmup divergences | **0, 0, 0, 0** |
+| post-warmup treedepth | median 9, **0.0% at the cap** |
+| median post-warmup leapfrog | 511 |
+| post-warmup step size | 5.0–7.6e-3 |
+| global ESS | min 361, median 562 of 2000 |
+| wall | 33594–48797 s per chain |
+
+**The apparent pathology in early warmup was Stan's schedule, not the model.**
+All four chains sat at 4095 leapfrogs and a step size of 1.59e-4 through the
+first hundred iterations, which was read at the time as a failing run. At
+`num_warmup = 500` the init buffer is 75 and the first adaptation window closes
+at 100, so no metric exists before iteration 101; the sampler was using what it
+was handed. The first update took the run to 1023 leapfrogs at 4.88e-3 — half
+the path length of the Kψ = 8 control — and it fell to 511 by the end.
+
+`mu_delta = -2.8867 ± 0.0894` is **pressed against its `<lower=-3>` box**
+(`hier_base.stan:268`): the minimum draw is exactly -3.0000 and 5.7% of draws
+lie within 0.01 of the wall. The number is a bound, not a measurement, and it
+sits oddly against the `-0.55 ± 0.035` d on record for `⟨Δ⟩`. The hypothesis —
+untested — is that anchoring the gauge at the origin moved where `s = 0` sits.
+`b_0 = -8.9447 ± 0.2590`, `c_bar = 0.0404 ± 0.0120`,
+`σ_b = (0.0472 ± 0.0014, 0.0622 ± 0.0014)`, `κ₀ = -5.71 ± 40.86`.
+`corr(c_bar, κ₀) = -0.722`.
+
+The worst object by −2 lp per epoch, ZTF18aasdted (z 0.0181, 222 epochs, 291.4),
+under-predicts the r decline from +15 to +40 d systematically. That is model
+error, not sampling error, and it is the kind of departure `Ψ₁` exists to absorb
+and `hier_base` cannot.
+
+## ladder-full-k812-n120 — the departure modes at 120 objects, run to completion, failed
+
+`runs/ladder-full-k812-n120`, launched 2026-11-18 05:36, finished 2026-11-23.
+**Does not converge in 1000 iterations.** Rung 2. Run to completion deliberately
+rather than stopped, because `stage3-full-k812-n255` was stopped early and the
+question of whether it would have converged could not afterwards be answered.
+
+`stan/hier_full.stan` at 120 objects, 7915 epochs, (Kq, Kψ) = (8, 12), seed 1,
+500 + 500, `max_treedepth 12`. Position and metric from `ladder-base-k812-n60`,
+with `--metric-fill-from runs/stage3-gauss-k88-n60` supplying only the blocks
+rung 1 does not have at all. Of 758 metric coordinates, 500 came from rung 1 and
+258 from the fill (`z_a` 7, `z_c` 11, `mu_x_p` 1, `x_p_dev` 119, `mu_x_psi` 1,
+`x_psi_dev` 119); none was left at the identity. `d_til` came 11/11 from rung 1
+against the fill's own 7/11, which is what running rung 1 at Kψ = 12 bought.
+Supplied metric condition number 5.55e+04.
+
+```
+GLOBAL     139 coords  max 1.1772  median 1.0504  >1.05 74  >1.01 119
+  worst: c_rel.8 1.177, c.8 1.177, d.8 1.161, c_rel.11 1.147, c.11 1.147
+PER-SN   17990 coords  max 2.9604  >1.05 215  (does not gate)
+  worst: s_epoch.2250 2.960, x_psi_rel.26 2.788, x_psi_dev.26 2.683
+```
+
+| | rung 2 | rung 1 |
+|---|---|---|
+| max global split R̂ | **1.1772** | 1.0097 |
+| post-warmup divergences | 1, 1, 1, 3 of 2000 (**0.3%**) | 0, 0, 0, 0 |
+| post-warmup treedepth | median 12, **99.7% at the cap** | median 9, 0.0% |
+| median post-warmup leapfrog | 4095 | 511 |
+| post-warmup step size | ~1.0–1.2e-3 | 5.0–7.6e-3 |
+| global ESS | min 77, median 206 of 2000 | min 361, median 562 |
+| wall | 423500–427930 s (4 d 22 h) | 33594–48797 s |
+
+**It samples validly and still fails.** Six divergences in 2000 draws is well
+inside the bar; the failure is not a cusp the sampler falls off. What never
+cleared is the treedepth cap: 99.7% of transitions truncate at 4095 leapfrogs
+without completing a U-turn, unchanged from iteration 26 onward through five
+days of adaptation. The seeded metric did not condition the enlarged posterior —
+where rung 1's step size rose thirtyfold at its first metric update, rung 2's
+*fell*, from 2.22e-3 at block 76–100 to 1.24e-3 at 151–175, and recovered only
+to ~1.34e-3.
+
+**The failure is one chain, and it is stable.** Chain 3 held an `lp__` deficit
+of 7–9 units for all 500 sampling draws without once rejoining, and is displaced
+on every global: `κ₀` 190 against 210–212, `mu_x_psi` -2.78 against -2.96 to
+-3.02, `b_0` -14.67 against -14.40 to -14.51. Split in half, its two halves
+agree with each other and not with the others.
+
+```
+all 4 chains   max 1.1772  median 1.0504  >1.05 74
+chains 1,2,4   max 1.0674  median 1.0263  >1.05 23
+chains 1,2,3   max 1.1906                 >1.05 74
+chains 2,3,4   max 1.1989                 >1.05 72
+```
+
+R̂ did not fall as the run lengthened — 1.1804 at 110 draws, 1.2064 at 149,
+1.2118 at 329, 1.1772 at 500 — which is a between-chain offset and not a slow
+direction still equilibrating. **Dropping chain 3 does not rescue it**: 23 global
+coordinates remain above 1.05, all in the `c`/`d` blocks, so the major mode's own
+Ψ coefficients are under-mixed independently of the minor mode.
+
+**No individual supernova is responsible.** Decomposing chain 3's `lp__` deficit
+over objects: 68 fit worse and 52 fit better, gross movement `Σ|Δll| = 44.71`
+against a net of `-9.78`, so only 22% survives cancellation, and the mean
+per-object penalty is `-0.08 ± 0.05`. Per-object parameters are barely displaced
+at all — median |z| 0.17–0.35 against the spread of chains 1, 2, 4, with one
+coordinate of 720 beyond 2σ. The difference lives in the global functions and
+each object pays a little. The largest single mover, ZTF19abbvzgr at -3.83
+(z = -6.5), is 39% of a residual and not a cause.
+
+**The box is no longer inert, and this run is not sampling the unsplit model.**
+Splitting `x_p` into `mu_x_p + x_p_dev` replaced one `-20 < x_p < 20` box with
+two bounds whose sum can leave it. It now does: `max |x_p| = 25.974`, with 375
+of 240000 draw-object pairs outside ±20 across 13 objects — object 14 is outside
+10.1% of the time, object 71 3.5%, object 26 2.5%. `mu_x_p` ranges
+[5.705, 7.683] and `x_p_dev` [-9.998, 18.937], each inside its own bound.
+`x_psi` is unaffected (max 10.53, no excursions). `model-definition.tex` does
+not say which bound is meant; until it does, comparisons against pre-split runs
+are not like-for-like.
+
+Posterior under chains 1, 2, 4 only (1500 draws), recorded so the run is not a
+total loss, and **not to be quoted as a result** — the run failed its gate:
+`mu_x_p` 6.697 [6.405, 7.033], `mu_x_psi` -3.055 [-3.340, -2.729],
+`c_bar` 0.0323 [0.0280, 0.0366], `b_0` -14.454 [-14.836, -14.079],
+`mu_delta` **0.1978 [0.0970, 0.3111]**, `κ₀` 213.7 [175.4, 258.2],
+`σ_b` (0.0377, 0.0474). Adding the departure modes moved `mu_delta` off the
+`<lower=-3>` wall rung 1 was pressed against, into the interior.
+
+Left open: whether the minor mode is a gauge image of the major one (`flip_q`
+and `flip_psi` are in the output and were not examined); whether Kψ = 12 is
+simply too many turning coefficients at 120 objects, rung 1 having converged at
+the same Kψ without departure modes; and `s_epoch.2250–2253` at R̂ 2.96 with
+object 26's `x_psi` at 2.79, the per-object failures, unexplained.
