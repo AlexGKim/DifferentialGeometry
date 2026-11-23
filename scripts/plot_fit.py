@@ -42,21 +42,47 @@ from dgsn.data.sample import (analysis_sample, stage3_sample,  # noqa: E402
                               training_split)
 from dgsn.stan.run import chain_csvs, fixed_param  # noqa: E402
 
+# Every global scalar any of these programs samples; the list is filtered
+# against the run's own columns, so a program that has none of a given one
+# simply drops that panel.  mu_delta, kappa0 and the two sigma_b are
+# hier_base's and hier_full's and were missing here, which left a hier_base
+# corner plot showing two panels out of six.
 GLOBALS = ["tau_q", "tau_psi", "alpha_q", "alpha_psi",
-           "mu_p_rel", "mu_psi_rel", "c_bar", "b_0"]
+           "mu_p_rel", "mu_psi_rel", "mu_x_p", "mu_x_psi",
+           "c_bar", "b_0", "mu_delta", "kappa0", "sigma_b.1", "sigma_b.2"]
 LOGGED = {"tau_q", "tau_psi"}                 # plotted as log10, their range spanning decades
 CHAIN_COLOURS = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]
 GRID_KEYS = ["Kpsi", "Kq", "m", "J", "delta", "delta_p", "pmin", "pmax",
              "smin", "smax", "gsmin", "gsmax", "eps", "eps_t", "eps_s", "zp"]
 
 
-def read_draws(out: Path) -> pd.DataFrame:
-    """Post-warmup draws of every chain, with a chain label."""
+def read_draws(out: Path, keep: set[int] | None = None) -> pd.DataFrame:
+    """Post-warmup draws of every chain, with a chain label.
+
+    ``keep``, when given, is the set of chain numbers to read; the rest are
+    skipped.  Excluding a chain is a claim about the run, so it is a command
+    line argument and never a default: see ``--chains``.
+
+    A run made with ``save_warmup=1`` writes its warmup iterations into the
+    same CSV, so keeping every row silently pools adaptation with the
+    posterior.  That is not a cosmetic difference: on ladder-base-k812-n60
+    the warmup transient puts 80 percent of iterations 1-100 at b_0 < -10.5
+    and NONE of the sampling draws there, so the pooled corner plot shows a
+    second cluster and a third, and the fit has neither.  Both counts are
+    read from the CSV's own header rather than assumed, so a run written
+    without save_warmup keeps every row as before."""
     frames = []
     for k in chain_csvs(out):
-        hdr, rows = None, []
+        if keep is not None and int(k.stem.split("-")[1]) not in keep:
+            continue
+        hdr, rows, warm, saved = None, [], 0, False
         for line in open(k):
             if line.startswith("#"):
+                t = line.lstrip("# ").replace(" ", "")
+                if t.startswith("num_warmup="):
+                    warm = int(t.split("=")[1].split("(")[0])
+                elif t.startswith("save_warmup="):
+                    saved = t.split("=")[1].split("(")[0] not in ("0", "false")
                 continue
             if hdr is None:
                 hdr = line.strip().split(",")
@@ -64,7 +90,14 @@ def read_draws(out: Path) -> pd.DataFrame:
             p = line.strip().split(",")
             if len(p) == len(hdr):
                 rows.append(p)
-        f = pd.DataFrame(np.asarray(rows[:-1], dtype=float), columns=hdr)
+        rows = rows[:-1]
+        if saved and warm:
+            if len(rows) <= warm:
+                raise SystemExit(
+                    f"{k.name} has {len(rows)} rows and {warm} of them are warmup; "
+                    f"the run has not left adaptation and there is nothing to plot")
+            rows = rows[warm:]
+        f = pd.DataFrame(np.asarray(rows, dtype=float), columns=hdr)
         f["chain"] = int(k.stem.split("-")[1])
         frames.append(f)
     return pd.concat(frames, ignore_index=True)
@@ -83,7 +116,8 @@ def corner(d: pd.DataFrame, path: Path) -> None:
             if j > i:
                 a.axis("off")
                 continue
-            for ch, colour in zip(sorted(d.chain.unique()), CHAIN_COLOURS):
+            for ch in sorted(d.chain.unique()):
+                colour = CHAIN_COLOURS[(int(ch) - 1) % len(CHAIN_COLOURS)]
                 m = d.chain == ch
                 if i == j:
                     a.hist(val[cols[i]][m], bins=30, histtype="step", color=colour,
@@ -100,10 +134,13 @@ def corner(d: pd.DataFrame, path: Path) -> None:
             else:
                 a.set_yticklabels([])
             a.tick_params(labelsize=6)
-    handles = [plt.Line2D([], [], color=c, lw=2) for c in CHAIN_COLOURS[:d.chain.nunique()]]
-    fig.legend(handles, [f"chain {c}" for c in sorted(d.chain.unique())],
+    used = sorted(int(c) for c in d.chain.unique())
+    handles = [plt.Line2D([], [], color=CHAIN_COLOURS[(c - 1) % len(CHAIN_COLOURS)], lw=2)
+               for c in used]
+    fig.legend(handles, [f"chain {c}" for c in used],
                loc="upper right", fontsize=11, frameon=False)
-    fig.suptitle("Global parameters, by chain", fontsize=13, x=0.35, y=0.98)
+    fig.suptitle(f"Global parameters, by chain  (chains {', '.join(map(str, used))})",
+                 fontsize=13, x=0.35, y=0.98)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(path, dpi=130)
     plt.close(fig)
@@ -254,6 +291,15 @@ def resolve_names(n_sn: int, n_ep_run: np.ndarray, train: list[str],
     cands = [("training_split", train)]
     if n_sn != len(train):
         cands.append(("stage3_sample", list(stage3_sample())))
+        # stage3_hier.py builds its sample as stage3_sample(n_per_fifth=...),
+        # so a run of 5k objects is the k-per-fifth selection and NOT the
+        # default one.  Recovered the same way stage3_hier.py's own
+        # _source_names recovers it, n_per_fifth = n_sn // 5.  Still a
+        # candidate and not a guess: the epoch-count test below is what
+        # accepts it, exactly as for every other entry here.
+        if n_sn % 5 == 0 and n_sn // 5 != 6:
+            cands.append((f"stage3_sample(n_per_fifth={n_sn // 5})",
+                          list(stage3_sample(n_per_fifth=n_sn // 5))))
         cands.append(("stratified", list(stratified(train, n_sn, sample))))
     tried = []
     for label, nm in cands:
@@ -278,6 +324,13 @@ def main():
     ap.add_argument("--n-draws", type=int, default=40)
     ap.add_argument("--names", nargs="*", default=None,
                     help="objects to plot (default: best, median and worst by -2 lp per epoch)")
+    ap.add_argument("--chains", type=int, nargs="*", default=None,
+                    help="chain numbers to plot (default: all).  Dropping a chain asserts "
+                         "it is not sampling the same distribution; the figure titles record "
+                         "which chains were used so the claim travels with the plot.")
+    ap.add_argument("--suffix", default="",
+                    help="appended to the output filenames, to keep a restricted-chain "
+                         "figure beside the full one rather than overwriting it")
     args = ap.parse_args()
 
     out = Path(args.out)
@@ -285,10 +338,17 @@ def main():
     grid = {k: grid_all[k] for k in GRID_KEYS}
     grid["xg"] = grid_all.get("xg", list(np.polynomial.legendre.leggauss(int(grid["J"]))[0]))
     grid["wg"] = grid_all.get("wg", list(np.polynomial.legendre.leggauss(int(grid["J"]))[1]))
-    d = read_draws(out)
-    print(f"{len(d)} draws over {d.chain.nunique()} chains from {out}")
+    keep = set(args.chains) if args.chains else None
+    d = read_draws(out, keep)
+    if keep is not None:
+        missing = keep - set(d.chain.unique())
+        if missing:
+            raise SystemExit(f"--chains asked for {sorted(missing)}, which this run does not have")
+    used = sorted(d.chain.unique())
+    print(f"{len(d)} draws over {d.chain.nunique()} chains from {out}  (chains {used})")
 
-    corner(d, out / "corner.png")
+    sfx = args.suffix
+    corner(d, out / f"corner{sfx}.png")
 
     # the fit's object list, in the order the data were built, identified by
     # the one thing data.json records about it: how many epochs each object
@@ -314,7 +374,7 @@ def main():
         names = [names_fit[order[0]], names_fit[order[len(order) // 2]], names_fit[order[-1]]]
         print("objects: best, median and worst by -2 lp per epoch -> " + ", ".join(names))
 
-    lightcurves(d, names, index, sample, grid, args.n_draws, out / "lightcurves.png")
+    lightcurves(d, names, index, sample, grid, args.n_draws, out / f"lightcurves{sfx}.png")
 
 
 if __name__ == "__main__":
