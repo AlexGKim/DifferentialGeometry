@@ -1495,3 +1495,253 @@ and `flip_psi` are in the output and were not examined); whether Kψ = 12 is
 simply too many turning coefficients at 120 objects, rung 1 having converged at
 the same Kψ without departure modes; and `s_epoch.2250–2253` at R̂ 2.96 with
 object 26's `x_psi` at 2.79, the per-object failures, unexplained.
+
+## 2026-11-23 — why ladder-full-k812-n120 is expensive: four fixes tested and refuted
+
+Five short probes and a set of measurements on `ladder-full-k812-n120`'s posterior,
+all run from its own last draws with adaptation off and the step size fixed at the
+value it adapted to, 1.190520e-03. Probe output is under `runs/white-probe-dense`,
+`runs/regauge-probe`, `runs/kappa-probe`, `runs/depth14-probe` and
+`runs/step-scan-x{1,2,4,8}`. **Four candidate fixes were predicted from the posterior
+covariance to help by 4x to 1370x. None moved the sampler at all.** That is the
+result; what follows is why.
+
+### The target was wrong
+
+`max_treedepth` raised from 12 to 14, everything else identical:
+
+```
+max_depth = 14, 14 draws:  treedepth histogram {12: 14}
+  reached 13 or 14: 0        leapfrog 4095 (one 8191)
+  accept_stat median 0.8832
+```
+
+Given two extra doublings the sampler does not use them. **4095 leapfrogs is where
+the NUTS U-turn criterion is actually satisfied, not a truncation.** The "99.7% at
+the cap" that the ladder-full entry reports, and that this day's work was aimed at
+breaking, was never a cap being hit. Every conclusion below that reads "did not
+come off the cap" should be read as "did not change a trajectory length that was
+already correct".
+
+The step size is the binding constraint, and it is maximal:
+
+```
+  arm   stepsize    draws  med treedepth  med leapfrog   div%  med accept
+   x2  2.381e-03       30              2             5  100.0      0.0537
+   x4  4.762e-03       60              1             3  100.0      0.0000
+   x8  9.524e-03       60              0             1  100.0      0.0000
+```
+
+Doubling it makes **every** transition diverge. The median `accept_stat` of 0.883
+is not headroom: the acceptance distribution is sharply bimodal and the rare
+catastrophic transitions set the limit. Both ends are tight, so 4095 gradients per
+draw is the honest price of this posterior.
+
+### The four fixes, and the single reason they failed
+
+| probe | what it changed | predicted | measured |
+|---|---|---|---|
+| `white-probe-dense` | dense metric on the 36 `w_coef` coords, from the posterior covariance | 4.29x | 16 draws, **100% at depth 12**, 0 div |
+| `regauge-probe` | block-dense metric encoding `x_s' = x_s + 0.4085 x_p_dev` | ~50x | 40 draws, **95.0%** (38 at 12, one 11, one 10), 2 div |
+| `kappa-probe` | `stan/hier_kappa.stan`, the same shear applied **exactly** in Stan | ~1370x on the pairs | 16 draws, **100% at depth 12**, 0 div |
+| Kψ truncation | coefficients deleted (submatrix of the measured Hessian) | — | Kψ = 10 gives **1.01x** |
+
+`hier_kappa.stan` is `hier_full` with `x_s = r_s - kappa * x_p_dev`, a unit-diagonal
+triangular map whose Jacobian is constant. It reproduces `hier_full`'s density
+exactly — 0.00e+00 at a common point, 2e-8 to 9e-7 across all four chains after
+re-centring `r_s` — so it is a change of coordinates and nothing else. It is the
+cleanest of the four tests and the most negative: the approximate metric version
+managed two off-cap draws in forty, the exact version none in sixteen.
+
+**The reason is that the posterior covariance does not describe the local curvature.**
+Measuring `Sigma @ H` over the `w_coef` block at four real draws, where a Gaussian
+posterior would give the identity:
+
+```
+                  draw     eig min     eig max    median
+         chain 1, last  -9.100e-01   3.602e+03     4.631
+         chain 2, last  -6.475e+00   3.597e+03     6.110
+         chain 4, last  -1.896e+00   4.578e+03    10.888
+     chain 1, draw 250  -6.103e-01   1.845e+03     7.791
+```
+
+Three to four orders of magnitude, and **different from draw to draw** — the median
+runs 4.6 to 10.9. A metric or a linear reparameterisation can only encode a constant
+quadratic form, and this curvature is neither constant nor matched by the covariance.
+That is one reason for four failures, not four reasons.
+
+The negative eigenvalues are *not* evidence of non-log-concavity; see the gauge
+section below, where a direct test overrides them.
+
+### Where the stiffness is, and that it cannot be truncated away
+
+Power iteration on the diagonally-preconditioned Hessian of `w_coef`:
+
+```
+  lambda_max = 6.347e5 / 9.314e5 / 1.570e6  (three draws)  -> eps_max 2.07e-03
+  largest axis-aligned lambda 2.126e5       -> eps_max 4.34e-03
+  off-axis amplification 2.99x
+  stiffest direction: 70.4% d_til, 18.5% z_c, 10.8% b_til, 0.2% z_a
+    led by d_til.1 (+0.554), d_til.5 (-0.520), z_c.5 (+0.264), z_c.1 (-0.264)
+```
+
+So the curvature is off-axis, which a diagonal metric cannot rotate to, and it lives
+in the **turning** block. Truncating the basis does not remove it:
+
+```
+  Kpsi       2       4       5       6       8      10      12
+  lmax  4.38e5  5.02e5  5.19e5  8.49e5  9.06e5  9.21e5  9.31e5
+```
+
+Kψ = 10 buys 1.01x and Kψ = 8 buys 1.03x. Everything from 12 down to 6 lies within
+10%; the only step is between 6 and 5. Truncating Ψ₁ alone (`Kc`) is weaker still —
+`Kc = 8` gives 1.02x, `Kc = 2` gives 1.39x — because the stiff direction's largest
+`z_c` components are `z_c.1` and `z_c.5`, which `Kc = 8` keeps. **The curvature is
+carried by turning modes 1 to 4**, which are the model's substance.
+
+By Cauchy interlacing this is one-directional: the restricted Hessian is a principal
+submatrix of the unrestricted one, so **adding** coefficients can only raise
+`lambda_max`. The ladder above is monotone, as it must be. No basis change is a
+route to a larger step size.
+
+Identifiability is a separate axis and is untouched by this. Kψ = 12 supports about
+three or four usable turning directions — participation ratio 1.48 over the 22
+`c`,`d` coefficients, correlations to 0.989, `c.9` decoupled at |r| < 0.45 — so a
+smaller Kψ may still help R̂ while doing nothing for cost per draw. The two symptoms
+of the rung 2 failure are not one symptom.
+
+### The gauge of psi is sound; what is unfixed is a sign
+
+Prompted by the above, the turning gauge was audited three ways — the note alone,
+the Stan code alone, and a finite-difference SVD of the predicted-flux Jacobian.
+
+**The null space of the flux Jacobian is exactly four-dimensional**, with a six-order
+gap (last genuine singular value 4.5e-2, first null 1.0e-7), and the dimension does
+not grow with object count (4 objects / 52 parameters and 8 / 76 both give 4). All
+four are Eq. (gauge)'s own directions. Checked directly on `ladder-full-k812-n120`,
+each carries exactly its prior and no likelihood dependence at all:
+
+```
+direction                      t    actual d lp  prior predicts    excess
+z_a -> (1+t) z_a           0.050      -0.484603       -0.484603  -0.000000
+z_c -> (1+t) z_c           0.050      -0.608732       -0.608732   0.000000
+b_til -> b_til + t a       0.050      -0.014485       -0.014485  -0.000000
+d_til -> d_til + t c       0.050       0.083108        0.083108   0.000000
+```
+
+This also disposes of the negative Hessian eigenvalues: against `lambda_max` 3.18e6
+they are relative 1e-6 effects in a finite-difference estimate, and the exact test
+above overrides them. **Non-log-concavity is not a finding.**
+
+**What is unfixed is discrete.** `(c, x_psi) -> (-c, -x_psi)`, and the traversal
+twin, leave `lp__` unchanged to 0.00e+00 on all four chains (1.46e-11 for the
+traversal, round-off). `c' Gs c = 1` fixes the magnitude, not the sign, and every
+prior term is even. Four mirror modes. All four chains of `ladder-full-k812-n120`
+sit in the same branch — `flip_psi = 1`, `flip_q = 0`, `x_psi_bar` -2.33 to -3.68 —
+so this is **not** the R̂ 1.1772 failure. **The live hazard is that `w_coef` is never
+relabelled while `c_rel`, `x_psi_rel` and friends are, and `w_coef` is exactly what
+`--metric-from` transfers.** A metric carried from a source run in the opposite
+branch would arrive sign-flipped in its `z_a` and `z_c` blocks, and nothing in
+`scripts/stage3_hier.py` checks. No run on record has tripped it.
+
+### The near-degeneracy, in closed form
+
+With `s_n(p) = int_0^{v(p)} exp(x_s_n + qtilde_n) delta_p cosh w dw` and
+`qtilde_n = (b + x_p_n a).(P - P(0))` the anchored traversal function, perturbing
+the per-object rate by `eps` and the global coefficients by `db` gives
+
+```
+  delta s_n(p) = s_n(p) [ eps + < db.(P - P(0)) >_{n,p} ]
+```
+
+with the average taken along the traversal under `ds`. Both terms multiply the same
+function of `p`, so the cancellation is exact for every epoch **iff
+`db.(P - P(0))` is constant along the traversal**. It cannot be exactly constant,
+every anchored basis function vanishing at the anchor; the residual is how badly the
+anchored span fails to contain a constant under the arclength measure:
+
+```
+  db = -eps G^-1 m,   residual 1 - m' G^-1 m = 0.036
+    m_k = <P_k - P_k(0), 1>,  G_jk = <P_j - P_j(0), P_k - P_k(0)>, both at the epochs
+```
+
+**A per-object rate shift is 96.4% absorbable by the global traversal function.**
+Variance inflation 1/(1 - R²) = 27.8, about 5.3x in length — the largest single
+near-degeneracy found, and far short of the ~1.6e7 effective condition number the
+step size implies. One contribution, not the explanation.
+
+Two things follow. The compensation runs through the **shared** coefficients `b`,
+not through any per-object parameter, which is why the κ shear — `x_s` against
+`x_p_dev`, a per-object pairing — could not reach it. And the turning basis imitates
+a constant equally well, R² = 0.966, yet produces no degeneracy at all, because a
+constant in `psi` is a rigid rotation and `(m_peak, colr)` span only translations.
+Identical geometry, opposite consequence, decided by whether a compensating
+parameter exists.
+
+An SVD-based estimate of the same quantity at 4 and 8 objects gave 0.6% to 1.1%
+irreducible rather than 3.6%. The analytic form at the full 120 is the one to use:
+with 7 traversal coefficients against 4 objects the shared `b` can imitate nearly
+anything, and the small-sample figure is an upper bound on absorbability.
+
+### Smaller findings, each verified
+
+**The gauge measure is not the data's.** `cond(G_gauge^-1/2 G_data G_gauge^-1/2)`,
+where 1 means the measures agree: turning 106.92 here and 135.72 on
+`ladder-base-k812-n60`; traversal 17.40 and 108.80. The direction the data constrain
+least overlaps the widest posterior direction at |cos| = 0.846. But **rung 1 has the
+larger mismatch and converged cleanly**, so this is a real defect that is not the
+cause of rung 2's failure. Re-orthonormalising under the data measure improves
+`cond(cov d)` 7.9x here and only 1.3x on rung 1, and barely touches the joint
+`[c,d]` block, 4.60e5 -> 2.52e5.
+
+**Psi_0 and Psi_1 stay nearly orthogonal where the data are.** 90.00 degrees under
+the gauge measure by construction; **95.95 +- 1.49 degrees at the epochs**, with
+98.9% of Ψ₁'s norm orthogonal to Ψ₀. The 0.989 correlations among `c` and `d` are
+induced by the gauge projection, not by the functions resembling each other — and
+they are correlations of *derived* quantities. The sampled coordinates read median
+|r| 0.468 for `z_c`,`d_til` and 0.075 for `z_a`,`b_til`.
+
+**`Psi_0(0) = Psi_1(0) = 0` are restrictions, not gauge conditions.** The turning
+pair has two freedoms, not four, because it carries one per-object amplitude where
+the traversal carries two; a constant in Ψ₁ is a per-object rotation and nothing
+absorbs it. Eq. (gauge)'s two conditions already close the count, so the anchors
+remove capacity. `Psi_1(0) = 0` asserts that the g-maximum sits at the same
+arclength origin for every supernova — a modelling assumption that
+`model-definition.tex` carries as a trailing clause of Eq. (curvlin) and never
+counts. Lifting it cannot loosen the Hessian (interlacing again).
+
+**The note's traversal gauge is stale in three places.** Line 232 says the anchored
+modes carry `G = I + (v_max - v_min) P(0)'P(0)` "rather than the identity"; lines
+299-305, 709 and 724-743 still read `||a||^2 = 1` Euclidean. The code sides with
+line 232. Measured: `a' Gv a = 1.00000000 +- 1.1e-10` but `||a||^2 = 0.26542`, so
+line 742's "unit Jacobian, `a` being a unit vector" is false. The missing term,
+`log||Gv a||`, varies by 0.027 nats across the whole posterior (sd 0.0045) against
+`lp__` spread 23 — a correctness defect with no numerical consequence. Related:
+`hier_full.stan:391` puts the prior on `dot_product(b_til, a)` while the projection
+at `:326` removes `b_til' Gv a`. The direction is still properly constrained.
+
+**`kappa0` names two different quantities.** `forward.stan:44` and
+`single_sn.stan:57` use `(d + x_psi * c)`; all eleven `hier_*` programs use `d`
+alone. Here that is 217.744 against 209.250 at the population mean — 4% against a
+posterior sd of 42.7, so the `kappa0 = 213.7 [175.4, 258.2]` in the
+`ladder-full-k812-n120` entry stands. Cross-program comparisons of `kappa0` do not.
+
+**The clamp is not biting.** `frac_clamped` 0.01%, `frac_tapered` 0.00%, nine epochs
+of 7915 outside `[smin, smax]`, five objects with any clamping and none above 1%.
+The saturated-clamp flat direction is real in principle and absent here.
+
+### What this leaves
+
+The obstruction is the model's own geometry. Nothing that encodes a constant
+quadratic form — no metric, dense or diagonal, and no linear reparameterisation —
+can address a curvature that varies by a factor of several between typical draws.
+What could: `adapt_delta` raised so adaptation targets the curvature it meets;
+Riemannian HMC, which Stan does not offer; or accepting 4095 gradients per draw as
+the price and budgeting for it. A Kψ ladder remains worth running for
+identifiability and for the out-of-sample question `model-definition.tex` actually
+asks, but not as a sampler fix.
+
+Untested and recorded: for objects with large `|x_psi|`, `psi` winds through
+`+3pi/2` and `cos psi = 0` has a second solution, so a second approximate anchor may
+exist and with it a discrete near-degeneracy in `(delta_t, x_s, d)`. Flagged against
+the two modes in `tau_psi` on record from 2026-10-27.
