@@ -196,10 +196,10 @@ def evaluate(grid: dict, draw: pd.Series, idx: int, z: float, k_psi: int, k_q: i
 
 
 def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
-                sample, grid: dict, n_draws: int, path: Path) -> None:
+                sample, grid: dict, n_draws: int, path: Path,
+                span: tuple[np.ndarray, np.ndarray] | None = None) -> None:
     k_psi, k_q = int(grid["Kpsi"]), int(grid["Kq"])
     p_eval = np.linspace(grid["pmin"] + 0.5, grid["pmax"] - 0.5, 160)
-    s_eval = np.linspace(grid["gsmin"], grid["gsmax"], 220)
     rng = np.random.default_rng(0)
     pick = rng.choice(len(d), size=min(n_draws, len(d)), replace=False)
 
@@ -209,32 +209,66 @@ def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
         r = sample.loc[name]
         ep = likelihood_epochs(name, r.t0, r.redshift)
         idx = index[name]
+        # Nothing is drawn outside the phase the object was observed over.
+        # The model is defined well beyond it -- the phase clamp runs to
+        # [pmin, pmax] and the arclength clamp to [smin, smax] -- but what it
+        # says there is not constrained by this object's data, and drawing it
+        # invents features: ZTF19aadoocn carried a flux peak of 1.5e5 at
+        # p = -12.7, three days before its first epoch, larger than anything
+        # the data show.  Those bounds are not the binding ones; the data are.
+        # The tracks take each draw's own epoch reach rather than a pooled
+        # median.  s(p) is monotonic, so each mask is one
+        # contiguous stretch and a line through it joins nothing across a gap.
+        phase = (ep["dt"] - np.median(d[f"delta_t.{idx}"])) / (1 + ep["z"])
+        p_lo, p_hi = float(phase.min()), float(phase.max())
+        p_ok = (p_eval >= p_lo) & (p_eval <= p_hi)
+        # s_pmin and s_pmax are NOT the epochs' reach, whatever this file used
+        # to say: hier_full.stan:518 sets them to arclength([pmin + 5,
+        # pmax - 5]), the modelling window inset by five days, which for
+        # ZTF19aadoocn is s in [-4.1, 3.5] against an epoch reach of about a
+        # third of that.  The arclengths the epochs actually sit at are
+        # s_epoch, sliced by this object's start and stop.
+        if span is not None:
+            lo_e, hi_e = int(span[0][idx - 1]), int(span[1][idx - 1])
+            cols = [f"s_epoch.{j}" for j in range(lo_e, hi_e + 1)]
+            se = d.iloc[pick][cols].to_numpy()
+            s_bounds = list(zip(se.min(1), se.max(1)))
+        else:
+            s_bounds = [(float(d.iloc[i][f"s_pmin.{idx}"]),
+                         float(d.iloc[i][f"s_pmax.{idx}"])) for i in pick]
+        # The arclength grid is this object's, not the gauge span's.  A
+        # well-sampled object reaches past [gsmin, gsmax] -- ZTF20aaodkvl
+        # reaches s = -7.6 against a gauge span starting at -6 -- and a grid
+        # fixed to the gauge span would cut its track at -6 and show a limit
+        # of the plot as though it were a limit of the data.  Clipped to
+        # [smin, smax], beyond which psi is not defined at all.
+        s_eval = np.linspace(max(float(grid["smin"]), min(a for a, _ in s_bounds)),
+                             min(float(grid["smax"]), max(b for _, b in s_bounds)), 220)
         curves = [evaluate(grid, d.iloc[i], idx, ep["z"], k_psi, k_q, p_eval, s_eval)
                   for i in pick]
+        for (a_s, b_s), cv in zip(s_bounds, curves):
+            cv["p_ok"] = p_ok
+            cv["s_ok"] = (s_eval >= a_s) & (s_eval <= b_s)
+        s_lo = float(np.median([a for a, _ in s_bounds]))
+        s_hi = float(np.median([b for _, b in s_bounds]))
 
         # Eq. (modelmag): m_g = gamma_0 + m_peak, m_r = gamma_1 + m_peak - colr,
         # so the colour is gamma_0 - gamma_1 + colr and carries m_peak not at
         # all -- the colour-magnitude track is the curve's own shape plus the
-        # two placement parameters, and nothing else.  The arclengths the
-        # object's epochs actually reach are s_pmin to s_pmax, reported per
-        # draw; outside them the track is extrapolation and is drawn faint.
+        # two placement parameters, and nothing else.
         ac = ax[row, 0]
-        s_lo = np.median(d[f"s_pmin.{idx}"])
-        s_hi = np.median(d[f"s_pmax.{idx}"])
-        reached = (s_eval >= s_lo) & (s_eval <= s_hi)
         for cv in curves:
             gr = cv["gamma"][:, 0] - cv["gamma"][:, 1] + cv["colr"]
             mr = cv["gamma"][:, 1] + cv["m_peak"] - cv["colr"]
-            ac.plot(gr, mr, "-", lw=0.5, alpha=0.12, color="0.55")
-            ac.plot(gr[reached], mr[reached], "-", lw=0.7, alpha=0.3,
-                    color="#6a3d9a")
+            ok = cv["s_ok"]
+            ac.plot(gr[ok], mr[ok], "-", lw=0.7, alpha=0.3, color="#6a3d9a")
         # the anchor, s = 0: gamma = (0,0), so the colour is colr exactly
         ac.plot([cv["colr"] for cv in curves],
                 [cv["m_peak"] - cv["colr"] for cv in curves],
                 ".", ms=3, color="#e31a1c", zorder=4, label="anchor $s=0$")
         ac.plot([], [], "-", color="#6a3d9a", lw=1.4,
-                label=f"$s\\in[{s_lo:.1f},{s_hi:.1f}]$, data reach")
-        ac.plot([], [], "-", color="0.55", lw=1.4, label="extrapolated")
+                label=f"$s\\in[{s_lo:.1f},{s_hi:.1f}]$, the data's reach")
+
         ac.invert_yaxis()
         ac.set_xlabel("$g-r$ (mag)"); ac.set_ylabel("$r$ (mag)")
         ac.set_title(f"{name}: colour-magnitude track", fontsize=10)
@@ -242,8 +276,9 @@ def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
 
         at = ax[row, 1]
         for cv in curves:
-            at.plot(cv["gamma"][:, 0] + cv["m_peak"],
-                    cv["gamma"][:, 1] + cv["m_peak"] - cv["colr"],
+            ok = cv["s_ok"]
+            at.plot((cv["gamma"][:, 0] + cv["m_peak"])[ok],
+                    (cv["gamma"][:, 1] + cv["m_peak"] - cv["colr"])[ok],
                     "-", lw=0.6, alpha=0.25, color="#1f77b4")
         at.plot([], [], "-", color="#1f77b4", label=f"{len(curves)} draws")
         at.invert_xaxis(); at.invert_yaxis()
@@ -253,9 +288,10 @@ def lightcurves(d: pd.DataFrame, names: list[str], index: dict,
 
         al = ax[row, 2]
         for cv in curves:
-            al.plot(p_eval, cv["f_g"], "-", lw=0.6, alpha=0.25, color="#1f77b4")
-            al.plot(p_eval, cv["f_r"], "-", lw=0.6, alpha=0.25, color="#d62728")
-        phase = (ep["dt"] - np.median(d[f"delta_t.{idx}"])) / (1 + ep["z"])
+            ok = cv["p_ok"]
+            al.plot(p_eval[ok], cv["f_g"][ok], "-", lw=0.6, alpha=0.25, color="#1f77b4")
+            al.plot(p_eval[ok], cv["f_r"][ok], "-", lw=0.6, alpha=0.25, color="#d62728")
+        al.set_xlim(p_lo - 1.5, p_hi + 1.5)
         for bnd, colour, mk in ((1, "#1f77b4", "o"), (2, "#d62728", "s")):
             m = ep["band"] == bnd
             al.errorbar(phase[m], ep["f"][m], yerr=ep["sig_f"][m], fmt=mk, ms=3.5,
@@ -374,7 +410,9 @@ def main():
         names = [names_fit[order[0]], names_fit[order[len(order) // 2]], names_fit[order[-1]]]
         print("objects: best, median and worst by -2 lp per epoch -> " + ", ".join(names))
 
-    lightcurves(d, names, index, sample, grid, args.n_draws, out / f"lightcurves{sfx}.png")
+    lightcurves(d, names, index, sample, grid, args.n_draws,
+                out / f"lightcurves{sfx}.png",
+                span=(np.asarray(grid_all["start"]), np.asarray(grid_all["stop"])))
 
 
 if __name__ == "__main__":
