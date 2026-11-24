@@ -497,8 +497,34 @@ def inits_from_run(out_dir, names, k_psi: int, k_q: int, x1_ref: float,
         out["b_0"] = float(xs.mean()) * np.sqrt(_v_span())
         out["x_s"] = xs - xs.mean()
         carried.append("x_s as b_0 + x_s")
-    # the new modes start unused
-    zeroed = [k for k in ("mu_p", "mu_psi") if k in out and k not in src]
+    # A MODE-BEARING source carries Eq. (ampmean)'s mu_x_p and x_p_dev, or x_p
+    # itself.  Neither is one of the hierarchy's names, so neither is in `out`
+    # and the carry loop above cannot see them: the amplitudes would then be
+    # zeroed below as though the source had no modes, which lands the start at
+    # Psi_1 and q_1 unused.  On hier_full -> hier_rot that is lp -7.7e6 against
+    # the source's -6.8e4.  Every earlier transfer came from a base program,
+    # where zeroing is right, which is why this went unnoticed.
+    for amp, mu, dev in (("x_p", "mu_x_p", "x_p_dev"),
+                         ("x_psi", "mu_x_psi", "x_psi_dev")):
+        if amp in src:
+            tot = np.ravel(np.asarray(src[amp], dtype=float))
+        elif mu in src and dev in src:
+            tot = (float(np.ravel(src[mu])[0])
+                   + np.ravel(np.asarray(src[dev], dtype=float)))
+        else:
+            continue
+        if take is not None:
+            placed = np.zeros(len(names))
+            ok = take >= 0
+            placed[ok] = tot[take[ok]]
+            tot = placed
+        if len(tot) == len(names):
+            out[amp] = tot
+            carried.append(amp)
+    # the new modes start unused -- unless the source supplied them above
+    zeroed = [k for k in ("mu_p", "mu_psi")
+              if k in out and k not in src
+              and ("x_p" if k == "mu_p" else "x_psi") not in out]
     for k in zeroed:
         out[k] = 0.0
         out["u" + ("_p" if k == "mu_p" else "_psi")] = np.zeros(len(names))
