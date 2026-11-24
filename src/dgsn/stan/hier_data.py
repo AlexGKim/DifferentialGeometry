@@ -39,7 +39,7 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
           sample=None, R=None, mode: bool = True, trav: bool = True,
           prior_shape: int = 0, sigma_q=None, sigma_psi=None, alpha_q=None,
           alpha_psi=None, nu_coef: float = 1.0, free_mean: bool = True,
-          k_a=None, k_c=None, d_sd: float = 3.0) -> dict:
+          k_a=None, k_c=None, d_sd: float = 3.0, rot: bool = False) -> dict:
     """The data block of ``hier.stan`` for the objects ``names``.
 
     ``mode=False`` is for ``hier_nomode.stan``, where Eq. (curvlin) carries no
@@ -61,7 +61,7 @@ def build(names, k_psi: int, k_q: int, grainsize: int = 1, m_per_side: int = D.M
         dt=np.concatenate(dt), f=np.concatenate(f), sig_f=np.concatenate(sig_f),
         band=np.concatenate(band).astype(int), start=np.array(start), stop=np.array(stop),
         z=np.array(z), m_bright=np.array(m_bright), grainsize=int(grainsize),
-        R=(np.eye(n_coef(k_psi, k_q, mode, trav, k_a, k_c)) if R is None
+        R=(np.eye(n_coef(k_psi, k_q, mode, trav, k_a, k_c, rot)) if R is None
            else np.asarray(R, dtype=float)),
     )
     # Eq. (coefprior)'s treatment, read only by stan/hier_common_scale.stan.
@@ -117,16 +117,22 @@ def _mode_orders(k_psi: int, k_q: int, k_a=None, k_c=None) -> tuple[int, int]:
 
 
 def n_coef(k_psi: int, k_q: int, mode: bool = True, trav: bool = True,
-           k_a=None, k_c=None) -> int:
+           k_a=None, k_c=None, rot: bool = False) -> int:
     """The rotated block: z_a, b_til, z_c, d_til laid end to end, dropping
     z_c when the turning mode is absent and z_a when the traversal mode is.
 
     ``mode`` is Psi_1 of Eq. (curvlin), ``trav`` is q_1 of Eq. (travlog).
     ``k_a`` and ``k_c`` shorten z_a and z_c alone, which is hier_modes.stan's
-    truncation of the departure modes; they default to ``k_q`` and ``k_psi``."""
+    truncation of the departure modes; they default to ``k_q`` and ``k_psi``.
+
+    ``rot`` is hier_rot.stan, where Eq. (basispsi)'s constant modes put one
+    more coefficient in each of z_c and d_til.  It is a separate flag and not
+    a bump to ``k_c`` because the constant is not a Legendre mode: raising
+    ``k_c`` would lengthen z_c and change Psi_1's polynomial order with it."""
     k_a, k_c = _mode_orders(k_psi, k_q, k_a, k_c)
     return (((k_a - 1) if trav else 0) + (k_q - 1)
-            + ((k_c - 1) if mode else 0) + (k_psi - 1))
+            + ((k_c - 1) if mode else 0) + (k_psi - 1)
+            + (2 if rot else 0))
 
 
 def pack(*vectors) -> np.ndarray:

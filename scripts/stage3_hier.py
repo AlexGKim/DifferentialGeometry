@@ -318,6 +318,14 @@ def _wcoef_parts(program: str, k_q: int, k_psi: int, k_a=None, k_c=None):
     check there is.
     """
     n_b, n_d = k_q - 1, k_psi - 1
+    if _canon(program) == "hier_rot":
+        # Eq. (basispsi): z_c and d_til each carry one more coefficient, index
+        # 1 being the constant mode.  So hier_rot's w_coef is TWO longer than
+        # hier_full's at the same orders, and the two cannot be transferred
+        # entry for entry -- metric_from_run pads the new entries instead.
+        n_a = (k_q if k_a is None else int(k_a)) - 1
+        n_c = (k_psi if k_c is None else int(k_c))
+        return [("z_a", n_a), ("b_til", n_b), ("z_c", n_c), ("d_til", k_psi)]
     if _canon(program) in ("hier_full", "hier_modes"):
         n_a = (k_q if k_a is None else int(k_a)) - 1
         n_c = (k_psi if k_c is None else int(k_c)) - 1
@@ -345,7 +353,7 @@ def _metric_layout(n_sn: int, k_q: int, k_psi: int, free_mean: int,
                 ("c_bar", 1), ("c_dev", n_sn - 1), ("b_0", 1),
                 ("x_s", n_sn - 1), ("mu_delta", 1), ("d_dev", n_sn - 1),
                 ("sigma_b", 2)]
-    if program == "hier_full":
+    if program in ("hier_full", "hier_rot"):
         # hier_base's blocks plus the two departure vectors and the two
         # per-object amplitudes.  w_coef is z_a, b_til, z_c, d_til laid end to
         # end, which is why n_a and n_c appear before the mean blocks.
@@ -655,6 +663,39 @@ def for_full(ini: dict, k_psi: int, k_q: int, k_a=None, k_c=None, R=None) -> dic
     return out
 
 
+def for_rot(ini: dict, k_psi: int, k_q: int, k_a=None, k_c=None, R=None) -> dict:
+    """hier_rot's parameter set: hier_full's, plus Eq. (basispsi)'s constants.
+
+    Both constants start at zero, which is hier_full's model exactly, so a
+    hier_rot chain begins where a hier_full chain would and any departure from
+    Psi_0(0) = Psi_1(0) = 0 is something the data have to produce rather than
+    something the start asserts.
+
+    The insertion is done on the UNROTATED vector and the result turned back
+    through R, because the two programs' w_coef differ in LENGTH: hier_rot's
+    is two longer at the same orders, so there is no rotation under which a
+    hier_full vector and a hier_rot vector can be compared entry for entry.
+    """
+    from dgsn.stan.hier_data import _mode_orders
+    ka, kc = _mode_orders(k_psi, k_q, k_a, k_c)
+    na, nb, nc = ka - 1, k_q - 1, kc - 1
+    want = na + nb + nc + (k_psi - 1)
+    have = len(np.atleast_1d(ini["w_coef"]))
+    if have != want:
+        raise SystemExit(
+            f"for_rot expects a hier_full-shaped start: w_coef of {want} at "
+            f"(Kq, Kpsi, Ka, Kc) = ({k_q}, {k_psi}, {ka}, {kc}), found {have}. "
+            f"A start already carrying the constants needs no adapter.")
+    out = for_full(ini, k_psi, k_q, k_a, k_c, R=None)
+    raw = np.asarray(out["w_coef"], dtype=float)
+    w = np.concatenate([raw[:na + nb], [0.0],
+                        raw[na + nb:na + nb + nc], [0.0],
+                        raw[na + nb + nc:]])
+    out["w_coef"] = (w if R is None
+                     else np.linalg.solve(np.asarray(R, dtype=float), w))
+    return out
+
+
 def dispersed_starts(ini, R, k_psi: int, k_q: int, mode: bool, trav: bool = True,
                      n: int = 4, seed: int = 7):
     """``n`` starts jittered about ``ini``, for the dispersed-start check.
@@ -799,6 +840,15 @@ def main():
                          "amplitudes flat on a box instead of N(mu, 1).  Keeps the gauge "
                          "priors: unit width on the discarded components and the oblique "
                          "turning Jacobian.  --flat is the old name and still works")
+    ap.add_argument("--rot", action="store_true",
+                    help="stan/hier_rot.stan: hier_full with Eq. (basispsi)'s constant "
+                         "modes, so Psi_1(0) and Psi_0(0) are fitted rather than held at "
+                         "zero.  They reach the likelihood only as the rotation "
+                         "d_0 + x_psi c_0 of each track about the anchor; c_0 = d_0 = 0 "
+                         "is hier_full's likelihood exactly, so --full against --rot tests "
+                         "whether the anchor rotation earns its place.  w_coef is two "
+                         "longer than hier_full's, so a metric cannot transfer entry for "
+                         "entry and the two new coordinates are padded")
     ap.add_argument("--base", action="store_true",
                     help="stan/hier_base.stan: hier_full with both departure modes removed "
                          "and nothing else changed, so one function describes the traversal "
@@ -875,7 +925,8 @@ def main():
     K_PSI, K_Q = args.k_psi, args.k_q
     if args.no_trav_mode:
         args.no_mode = True           # hier_common drops both departure modes
-    prog = ("hier_base" if args.base
+    prog = ("hier_rot" if args.rot
+            else "hier_base" if args.base
             else "hier_common" if args.no_trav_mode
             else "hier_nomode" if args.no_mode
             else "hier_full" if args.full
@@ -883,11 +934,14 @@ def main():
     # Ka and Kc are hier_modes.stan's alone: no other program declares them,
     # and CmdStan leaves data a program does not declare, so a run that asked
     # for a truncated mode without --modes would silently get a full one.
-    if (args.k_a is not None or args.k_c is not None) and prog not in ("hier_modes", "hier_full"):
+    if (args.k_a is not None or args.k_c is not None) and prog not in ("hier_modes", "hier_full", "hier_rot"):
         raise SystemExit(f"--k-a/--k-c need --modes or --full; "
                          f"{prog} declares neither and would ignore them.")
     if args.base and (args.full or args.modes or args.no_mode or args.no_trav_mode):
         raise SystemExit("--base is its own program and takes no other structure flag.")
+    if args.rot and (args.base or args.full or args.modes or args.no_mode
+                     or args.no_trav_mode):
+        raise SystemExit("--rot is its own program and takes no other structure flag.")
     if args.full and (args.no_mode or args.no_trav_mode):
         raise SystemExit("--full is a mode-bearing program; it cannot be combined "
                          "with --no-mode or --no-trav-mode.")
@@ -913,8 +967,11 @@ def main():
     x1_ref = median_x1()
     G = fit_globals(K_PSI, K_Q, x1_ref)
     k_psi, k_q = args.k_psi, args.k_q
+    # hier_rot's R is two wider: Eq. (basispsi)'s constants add a coefficient
+    # to each of z_c and d_til, and R is declared over the whole w_coef.
+    rot = prog == "hier_rot"
     data = build(names, k_psi, k_q, sample=sample, mode=mode, trav=trav,
-                 free_mean=free_mean, k_a=ka, k_c=kc, d_sd=args.d_sd)
+                 free_mean=free_mean, k_a=ka, k_c=kc, d_sd=args.d_sd, rot=rot)
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, mode=mode, trav=trav,
                 k_a=ka, k_c=kc)
     R = None
@@ -924,14 +981,14 @@ def main():
         t0 = _t.time()
         R = from_optimize(data, ini, k_psi, k_q)
         data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean,
-                     mode=mode, trav=trav, k_a=ka, k_c=kc, d_sd=args.d_sd)
+                     mode=mode, trav=trav, k_a=ka, k_c=kc, d_sd=args.d_sd, rot=rot)
         print(f"preconditioned at the optimize mode in {_t.time()-t0:.0f} s, "
               f"rotation condition {np.linalg.cond(R):.1e}")
     elif args.precondition_from:
         from dgsn.stan.precondition import from_run
         R = from_run(args.precondition_from, data, k_psi, k_q)
         data = build(names, k_psi, k_q, sample=sample, R=R, free_mean=free_mean,
-                     mode=mode, trav=trav, k_a=ka, k_c=kc, d_sd=args.d_sd)
+                     mode=mode, trav=trav, k_a=ka, k_c=kc, d_sd=args.d_sd, rot=rot)
         print(f"preconditioned from {args.precondition_from}: "
               f"rotation condition {np.linalg.cond(R):.1e}")
     ini = inits(names, k_psi, k_q, x1_ref, sample=sample, globals_=G, R=R, mode=mode,
@@ -959,6 +1016,9 @@ def main():
         if prog == "hier_full":
             def adapt(d):
                 return for_full(d, k_psi, k_q, ka, kc, R)
+        elif prog == "hier_rot":
+            def adapt(d):
+                return for_rot(d, k_psi, k_q, ka, kc, R)
         elif prog == "hier_base":
             adapt = for_base
         ini = inits_from_run(args.init_from, names, k_psi, k_q, x1_ref, mode=mode,
@@ -997,6 +1057,8 @@ def main():
     # a random amplitude.
     if prog == "hier_full":
         ini = for_full(ini, k_psi, k_q, ka, kc, R)
+    elif prog == "hier_rot":
+        ini = for_rot(ini, k_psi, k_q, ka, kc, R)
     elif prog == "hier_base":
         ini = for_base(ini)
 
