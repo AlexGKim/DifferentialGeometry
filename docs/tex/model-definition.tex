@@ -150,8 +150,7 @@ The parameterized curves are given by $\curve(\arc;\shapeturn)$, which in turn a
 specified by the turning.  It is the tangent angle that is expanded,
 \begin{equation}
   \psi(\arc; \shapeturn) = -\frac{\pi}{2} + \turnzero(\arc)
-                            + \shapeturn\,\turnone(\arc) ,
-  \qquad \turnzero(0) = \turnone(0) = 0.
+                            + \shapeturn\,\turnone(\arc) .
   \label{eq:curvlin}
 \end{equation}
 The traversal $\arc(\phase;\, \xstretch, x_p)$ is expanded through its rate, as a function
@@ -200,9 +199,26 @@ The traversal has
 four such freedoms, $q_{1} \mapsto \lambda q_{1} + \mu$ and
 $q_{0} \mapsto q_{0} + \beta + \nu q_{1}$, absorbed by $(\xstretch, x_p)$; the turning has
 two, $\turnone \mapsto \lambda\turnone$ and
-$\turnzero \mapsto \turnzero + \nu\turnone$, absorbed by $\shapeturn$. The turning admits
-no additive constant among these, $\turnzero(0) = \turnone(0) = 0$ having already pinned
-it. We specify the gauge as follows:
+$\turnzero \mapsto \turnzero + \nu\turnone$, absorbed by $\shapeturn$.
+
+The turning has two and not four because it carries one per-supernova amplitude where the
+traversal carries two. An additive constant in $\turnone$ puts $\shapeturn\mu$ into $\psi$,
+a rotation of that supernova's track in the magnitude plane, and a constant in $\turnzero$
+rotates every track; $m_{\mathrm{peak}}$ and $\colr$ span the translations of that plane
+and nothing else, so neither is absorbable and neither is a freedom. Until
+2026-11-23 this note carried $\turnzero(0) = \turnone(0) = 0$ inside
+\eqref{eq:curvlin} and attributed the missing constants to them. That was wrong twice
+over: the conditions fix nothing, since the transformations they would fix are not
+symmetries, and they are therefore restrictions on the family rather than bookkeeping.
+$\turnone(0) = 0$ in particular asserts that the $g$ maximum sits at the same arclength
+origin for every supernova whatever its departure amplitude. They are lifted here, and
+both constants are fitted; $\turnzero(0) = \turnone(0) = 0$ is the nested model and is
+testable. A per-object anchor rotation is the best-identified direction in the per-object
+sector, three times better determined than $m_{\mathrm{peak}}$ and $\colr$ and an order of
+magnitude better than $\Delta$, so the capacity the restriction declined is capacity the
+data can use.
+
+We specify the gauge as follows:
 Writing $\langle f,g\rangle$ for $\int fg\,\dd v$ in the
 coordinate $v$ of \eqref{eq:vmap} when the arguments are $q_{0}, q_{1}$ and for
 $\int fg\,\dd\arc$ over the gauge span $[\arc_{\mathrm{g}-}, \arc_{\mathrm{g}+}] = [-6, +5]$
@@ -326,10 +342,9 @@ cannot meet that compression, so the turning is expanded in
 smooth and strictly increasing, linear for $|\arc| \ll \delta$ and logarithmic beyond, so
 that resolution spread evenly in $u$ is resolution in $\arc$ concentrated where the track
 turns. Too small a $\delta$ costs little and too large a $\delta$ fails, so it is set from
-the sharpest track rather than the average one. The constant mode is absent here because
-the basis is built to vanish at $\arc = 0$, which is what makes
-$\turnzero(0) = \turnone(0) = 0$ of \eqref{eq:curvlin} hold identically rather than by
-constraint: the $\tilde P_{k}$ are the Legendre polynomials in $u$, each shifted by its
+the sharpest track rather than the average one. The $\tilde P_{k}$ are built to vanish at
+$\arc = 0$, and the constant mode is carried beside them rather than within them: the
+$\tilde P_{k}$ are the Legendre polynomials in $u$, each shifted by its
 value at $\arc = 0$ and the set re-orthonormalized afterwards. The shift costs
 orthonormality by a rank-one term, $\langle P_{j} - P_{j}(0), P_{k} - P_{k}(0)\rangle
 = \mathbb{I}_{jk} + (u_{\max} - u_{\min})P_{j}(0)P_{k}(0)$ with $\mathbb{I}$ the identity,
@@ -343,16 +358,30 @@ rank-one update of the identity, so its Cholesky factor is available in closed f
 transformation is computed once for the run; at $K_{\psi} = 24$ its condition number is
 $15$. Writing
 \begin{equation}
-  \turnone = \sum_{k \geq 1} c_{k}\tilde P_{k}(u), \qquad
-  \turnzero = \sum_{k \geq 1} d_{k}\tilde P_{k}(u),
+  \turnone = c_{0} + \sum_{k \geq 1} c_{k}\tilde P_{k}(u), \qquad
+  \turnzero = d_{0} + \sum_{k \geq 1} d_{k}\tilde P_{k}(u),
   \label{eq:basispsi}
 \end{equation}
-the conditions of \eqref{eq:gauge} on this pair are
+so that $\turnone(0) = c_{0}$ and $\turnzero(0) = d_{0}$ are fitted and the old model is
+$c_{0} = d_{0} = 0$. Through \eqref{eq:curvlin} they enter only as the per-supernova
+rotation $d_{0} + \shapeturn c_{0}$ of the tangent angle, and since
+$\curve(\arc) = \int_{0}^{\arc}(\cos\psi, \sin\psi)\,\dd\arc'$ with $\curve(0) = 0$, that
+is exactly a rotation $R(d_{0} + \shapeturn c_{0})$ of the track about the anchor, with no
+translation remainder. The anchor is then a reference point on the track and not
+necessarily the $g$ maximum, which it is only at $d_{0} + \shapeturn c_{0} = 0$.
+
+The conditions of \eqref{eq:gauge} on this pair are
 $\mathbf{c}^{\mathsf T}G_{\arc}\mathbf{c} = 1$ and
-$\mathbf{d}^{\mathsf T}G_{\arc}\mathbf{c} = 0$, with
+$\mathbf{d}^{\mathsf T}G_{\arc}\mathbf{c} = 0$ over the extended coefficient vectors
+$\mathbf{c} = (c_{0}, c_{1}, \ldots)$ and $\mathbf{d} = (d_{0}, d_{1}, \ldots)$, with
 $(G_{\arc})_{jk} = \int \tilde P_{j}\tilde P_{k}\,\dd\arc = \int \tilde P_{j}\tilde P_{k}\,\delta\cosh u\,\dd u$
-the Gram matrix of the basis under arclength over the gauge span, computed once for the run; imposed as
-above with $G_{\arc}$ in place of the identity. The basis stays orthonormal in $u$, which
+the Gram matrix under arclength over the gauge span, $\tilde P_{0} \equiv 1$, computed once
+for the run; imposed as above with $G_{\arc}$ in place of the identity. Both conditions are
+needed on the extended pair and neither may be traded for a point condition at the anchor:
+$\turnzero(0) = 0$ fixes $\nu$ only while $c_{0} \neq 0$ and so degenerates at the nested
+model, and $\turnone'(0) = 1$ is unusable because $\turnone'(0)$ sits $0.2\sigma$ from zero
+and changes sign in a third of consecutive draws. The sign of $\mathbf{c}$ is therefore
+still unfixed by \eqref{eq:gauge} and is relabelled downstream. The basis stays orthonormal in $u$, which
 is the measure the prior of \eqref{eq:coefprior} is written in; only the gauge inner
 product is taken in $\arc$. Against \salt, $K_{\psi} = 24$ reproduces the curve at the track's own arclengths to
 $0.011$~mag at $x_{1} = 0$, $0.026$ at $-1$, and $0.019$ and $0.032$ at $+1$ and $+1.7$;

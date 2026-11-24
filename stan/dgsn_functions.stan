@@ -450,4 +450,114 @@ functions {
     }
     return -0.5 * total;
   }
+
+  // ---- Eq. (basispsi)'s constant modes ---------------------------------
+  // Added 2026-11-23.  Nothing above this line changes, so every program on
+  // record generates the same code and reproduces its runs; these names are
+  // used only by hier_rot.stan.
+
+  // The turning Gram EXTENDED by the constant mode: index 1 is Ptilde_0 = 1
+  // and 2..Kpsi are the Ptilde_k of turning_row.  Eq. (gauge) is imposed on
+  // the extended vectors once Psi_0 and Psi_1 carry d_0 and c_0;
+  // turning_gram_s is this matrix's lower-right block.
+  matrix turning_gram_ext(int Kpsi, real ulo, real uhi, real glo, real ghi,
+                          real delta, row_vector P0, matrix T,
+                          int m, vector xg, vector wg) {
+    matrix[Kpsi, Kpsi] G = rep_matrix(0, Kpsi, Kpsi);
+    vector[2 * m + 1] edges;
+    for (i in 0:m) edges[i + 1] = glo * (m - i) / m;
+    for (i in 0:m) edges[m + 1 + i] = ghi * i / m;
+    for (q in 1:(2 * m)) {
+      real half = 0.5 * (edges[q + 1] - edges[q]);
+      real mid = 0.5 * (edges[q + 1] + edges[q]);
+      for (j in 1:rows(xg)) {
+        real u = mid + half * xg[j];
+        row_vector[Kpsi] re
+          = append_col(1.0, (legendre_row(u, Kpsi, ulo, uhi)[2:Kpsi] - P0) * T);
+        G += (half * wg[j] * delta * cosh(u)) * (re' * re);
+      }
+    }
+    return G;
+  }
+
+  // log_flux with the per-supernova anchor rotation of Eq. (basispsi).  A
+  // constant alpha added to psi rotates gamma about the anchor exactly --
+  // gamma(s) = int_0^s (cos psi, sin psi) ds' and gamma(0) = 0, so the
+  // rotation comes outside the integral with no translation remainder --
+  // and that is cheaper and more exact than re-running the quadrature.
+  // alpha = 0 reproduces log_flux to the bit.
+  matrix log_flux_rot(vector dt, array[] int band, real z,
+                      real m_peak, real colr, real x_s, real x_p, real x_psi,
+                      real delta_t, real alpha,
+                      vector a, vector b, vector c, vector d,
+                      real pmin, real pmax, real smin, real smax,
+                      real eps, real eps_t, real eps_s, real zp,
+                      int Kq, real vlo, real vhi, real delta_p,
+                      int Kpsi, real ulo, real uhi, real delta,
+                      int m, int J, vector edges_v, matrix Xv_nodes, vector jacw_v,
+                      vector edges_u, matrix Xu_nodes, vector jacw_u,
+                      vector xg, vector wg, row_vector P0, matrix T) {
+    int N = rows(dt);
+    matrix[N, 4] out;
+    vector[N] p_hat;
+    vector[N] s_hat;
+    for (i in 1:N) {
+      real w = ((dt[i] - delta_t) / (1 + z) - pmin) / (pmax - pmin);
+      p_hat[i] = pmin + (pmax - pmin) * clamp01(w, eps);
+      out[i, 2] = log_taper(w, eps_t);
+    }
+    {
+      vector[N] s = arclength(p_hat, x_s, b + x_p * a, Kq, vlo, vhi, delta_p,
+                              m, J, edges_v, Xv_nodes, jacw_v, xg, wg);
+      for (i in 1:N) {
+        real vs = (s[i] - smin) / (smax - smin);
+        s_hat[i] = smin + (smax - smin) * clamp01(vs, eps_s);
+        out[i, 3] = s[i];
+        out[i, 4] = s_hat[i];
+      }
+    }
+    {
+      matrix[N, 2] g = curve(s_hat, d + x_psi * c, Kpsi, ulo, uhi, delta, m, J,
+                             edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
+      real ca = cos(alpha);
+      real sa = sin(alpha);
+      for (i in 1:N) {
+        real g0 = ca * g[i, 1] - sa * g[i, 2];
+        real g1 = sa * g[i, 1] + ca * g[i, 2];
+        real mag = (band[i] == 1) ? g0 + m_peak : g1 + m_peak - colr;
+        out[i, 1] = -0.4 * log(10) * (mag - zp);
+      }
+    }
+    return out;
+  }
+
+  // partial_sum_floor with the rotation carried per supernova.
+  real partial_sum_floor_rot(array[] int sn, int first, int last,
+                   vector dt, vector f, vector sig_f, vector sfrac,
+                   array[] int band,
+                   array[] int start, array[] int stop, vector z,
+                   vector m_peak, vector colr, vector x_s, vector x_p, vector x_psi,
+                   vector delta_t, vector alpha,
+                   vector a, vector b, vector c, vector d,
+                   real pmin, real pmax, real smin, real smax,
+                   real eps, real eps_t, real eps_s, real zp,
+                   int Kq, real vlo, real vhi, real delta_p,
+                   int Kpsi, real ulo, real uhi, real delta,
+                   int m, int J, vector edges_v, matrix Xv_nodes, vector jacw_v,
+                   vector edges_u, matrix Xu_nodes, vector jacw_u,
+                   vector xg, vector wg, row_vector P0, matrix T) {
+    real total = 0;
+    for (n in sn) {
+      int lo = start[n];
+      int hi = stop[n];
+      matrix[hi - lo + 1, 4] lf = log_flux_rot(dt[lo:hi], band[lo:hi], z[n],
+          m_peak[n], colr[n], x_s[n], x_p[n], x_psi[n], delta_t[n], alpha[n],
+          a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
+          Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
+          edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
+      total += neg2_loglike_floor(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]),
+                                  exp(lf[:, 2]), sfrac[lo:hi]);
+    }
+    return -0.5 * total;
+  }
 }
