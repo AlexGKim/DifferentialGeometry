@@ -496,7 +496,8 @@ functions {
                       int Kpsi, real ulo, real uhi, real delta,
                       int m, int J, vector edges_v, matrix Xv_nodes, vector jacw_v,
                       vector edges_u, matrix Xu_nodes, vector jacw_u,
-                      vector xg, vector wg, row_vector P0, matrix T) {
+                      vector xg, vector wg, row_vector P0, matrix T,
+                      row_vector anchor) {
     int N = rows(dt);
     matrix[N, 4] out;
     vector[N] p_hat;
@@ -507,8 +508,9 @@ functions {
       out[i, 2] = log_taper(w, eps_t);
     }
     {
-      vector[N] s = arclength(p_hat, x_s, b + x_p * a, Kq, vlo, vhi, delta_p,
-                              m, J, edges_v, Xv_nodes, jacw_v, xg, wg);
+      vector[N] s = arclength_a(p_hat, x_s, b + x_p * a, anchor,
+                                Kq, vlo, vhi, delta_p,
+                                m, J, edges_v, Xv_nodes, jacw_v, xg, wg);
       for (i in 1:N) {
         real vs = (s[i] - smin) / (smax - smin);
         s_hat[i] = smin + (smax - smin) * clamp01(vs, eps_s);
@@ -545,7 +547,8 @@ functions {
                    int Kpsi, real ulo, real uhi, real delta,
                    int m, int J, vector edges_v, matrix Xv_nodes, vector jacw_v,
                    vector edges_u, matrix Xu_nodes, vector jacw_u,
-                   vector xg, vector wg, row_vector P0, matrix T) {
+                   vector xg, vector wg, row_vector P0, matrix T,
+                   row_vector anchor) {
     real total = 0;
     for (n in sn) {
       int lo = start[n];
@@ -554,10 +557,116 @@ functions {
           m_peak[n], colr[n], x_s[n], x_p[n], x_psi[n], delta_t[n], alpha[n],
           a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
           Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
-          edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
+          edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T,
+          anchor);
       total += neg2_loglike_floor(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]),
                                   exp(lf[:, 2]), sfrac[lo:hi]);
     }
     return -0.5 * total;
+  }
+
+  // ---- Eq. (gauge) on the traversal pair under the data's measure --------
+  // Added 2026-11-24.  The anchor q_0(0) = q_1(0) = 0 fixes the additive
+  // constant of q at a point; this fixes it as a mean instead.  Why: shift
+  // the common log rate by epsilon and the coefficients by dq and
+  //
+  //   dlog s_n(p_i) = epsilon + <dq.(P - P(0))>_i ,
+  //
+  // the average against that epoch's traversal integrand over [0, v_i].  So
+  // the shift in x_s is invisible to the extent the constant lies in the
+  // anchored basis's span under the pooled measure of those averages, and
+  // measured on runs/rot-k812-n60's epochs it lies 95.6 percent inside it
+  // (runs/trav-degen).  Subtracting the mean puts the constant exactly
+  // orthogonal to the span, so the residual is one rather than 0.0438.
+  //
+  // The subtracted row is data, not a parameter: the integrand average is
+  // taken at the flat-rate reference qtilde = 0 and the phases at
+  // delta_t = 0.  An error Delta in it leaves R^2 = Delta' M^-1 Delta,
+  // quadratic, so the reference costs little.
+  //
+  // This is a gauge change and not a change of family.  exp(x_s) already
+  // spans the constant direction, so the representable traversals are the
+  // same set before and after; what moves is the meaning of x_s, from the
+  // log rate at the anchor to the log rate at the measure's centre, and with
+  // it what the hierarchy on x_s is a prior over.  One consequence worth
+  // naming: qc = b + x_p a, so the shift qbar.qc is per supernova, equal to
+  // qbar.b + x_p (qbar.a).  The fix therefore also sets the x_s--x_p
+  // coupling that hier_kappa.stan fits, at kappa = -qbar.a, from the basis.
+  row_vector traversal_qbar(vector v_ep, int Kq, real vlo, real vhi,
+                            int npan, vector xg, vector wg,
+                            row_vector P0v) {
+    int n = Kq - 1;
+    int N = rows(v_ep);
+    int J = rows(xg);
+    row_vector[n] acc = rep_row_vector(0, n);
+    for (i in 1:N) {
+      row_vector[n] num = rep_row_vector(0, n);
+      real den = 0;
+      for (q in 1:npan) {
+        real a0 = v_ep[i] * (q - 1.0) / npan;
+        real a1 = v_ep[i] * (q * 1.0) / npan;
+        vector[J] vj = fresh_abscissae(a1, a0, xg);
+        vector[J] wj = fresh_weights(a1, a0, wg);
+        for (j in 1:J) {
+          real cw = cosh(vj[j]);
+          num += (wj[j] * cw) * (traversal_row(vj[j], Kq, vlo, vhi) - P0v);
+          den += wj[j] * cw;
+        }
+      }
+      // v_i = 0 gives 0/0 and the limit is the anchored row at zero, which
+      // is zero by construction.
+      acc += abs(den) < 1e-12 ? rep_row_vector(0, n) : num / den;
+    }
+    return acc / N;
+  }
+
+  // The traversal Gram of Eq. (gauge) for the basis P_k(v) - shift_k, under
+  // int f g dv over the modelling window.  shift = P0v reproduces Gv of
+  // dgsn_grid_tdata.stan, which is the test that this is the same object.
+  // r' r is degree 2(Kq - 1), so a J-point rule is exact for J >= Kq - 1/2
+  // and npan is a margin rather than a necessity.
+  matrix traversal_gram_shift(int Kq, real vlo, real vhi, row_vector shift,
+                              int npan, vector xg, vector wg) {
+    int n = Kq - 1;
+    int J = rows(xg);
+    matrix[n, n] G = rep_matrix(0, n, n);
+    for (q in 1:npan) {
+      real a0 = vlo + (vhi - vlo) * (q - 1.0) / npan;
+      real a1 = vlo + (vhi - vlo) * (q * 1.0) / npan;
+      vector[J] vj = fresh_abscissae(a1, a0, xg);
+      vector[J] wj = fresh_weights(a1, a0, wg);
+      for (j in 1:J) {
+        row_vector[n] r = traversal_row(vj[j], Kq, vlo, vhi) - shift;
+        G += wj[j] * (r' * r);
+      }
+    }
+    return G;
+  }
+
+  // arclength with the subtracted row passed in rather than taken as P(0).
+  // anchor = P0v is arclength() exactly; anchor = P0v + qbar is the gauge
+  // above.  The constant rides out of the integrand into the prefactor
+  // either way, so this costs nothing beyond the row it is handed.
+  vector arclength_a(vector p, real x_s, vector qc, row_vector anchor,
+                     int Kq, real vlo, real vhi, real delta_p, int m, int J,
+                     vector edges_v, matrix Xv_nodes, vector jacw_v,
+                     vector xg, vector wg) {
+    int N = rows(p);
+    vector[N] s;
+    real x_s_a = x_s - anchor * qc;
+    vector[2 * m + 1] C = prefix_from_zero(exp(Xv_nodes * qc) .* jacw_v, m, J);
+    for (i in 1:N) {
+      real v = v_of_p(p[i], delta_p);
+      int q = panel_of(v, edges_v);
+      real e0 = edges_v[q];
+      vector[J] vj = fresh_abscissae(v, e0, xg);
+      vector[J] wj = fresh_weights(v, e0, wg);
+      real part = 0;
+      for (j in 1:J)
+        part += wj[j] * exp(traversal_row(vj[j], Kq, vlo, vhi) * qc)
+                * delta_p * cosh(vj[j]);
+      s[i] = exp(x_s_a) * (C[q] + part);
+    }
+    return s;
   }
 }

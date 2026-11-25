@@ -106,9 +106,23 @@ data {
   // modes put one more coefficient in each turning block.
   matrix[(Ka - 1) + (Kq - 1) + Kc + Kpsi,
          (Ka - 1) + (Kq - 1) + Kc + Kpsi] R;
+  // Eq. (gauge)'s traversal conditions: 0 anchors the pair at v = 0, as every
+  // run before 2026-11-24 did, and 1 anchors its mean under the measure the
+  // epochs impose.  Kept as a switch rather than a rewrite so that the
+  // earlier parameterisation stays samplable and the two can be compared on
+  // one data dict.  See traversal_qbar in dgsn_functions.stan.
+  int<lower=0, upper=1> qbar_on;
+  int<lower=1> qbar_npan;          // panels on [0, v_i]; converged at 2
 }
 transformed data {
 #include dgsn_grid_tdata.stan
+  // Eq. (gauge)'s traversal pair, anchored at the measure's centre when
+  // qbar_on.  The phases are built at delta_t = 0 and clamped exactly as
+  // log_flux_rot clamps them, so Qbar is a function of the data dict alone.
+  vector[N] v_ep0;
+  row_vector[Kq - 1] Qbar;
+  row_vector[Kq - 1] anchor_v;
+  matrix[Kq - 1, Kq - 1] Gvq;
   // Eq. (gauge) on the extended turning pair; Gs is its lower-right block.
   matrix[Kpsi, Kpsi] Gse = turning_gram_ext(Kpsi, ulo, uhi, gulo, guhi, delta,
                                             P0, T, 200, xg, wg);
@@ -139,6 +153,19 @@ transformed data {
   kbar_q = exp(mean(log(kq)));
   kbar_psi = exp(mean(log(kpsi)));
   for (n in 1:N_sn) sn_index[n] = n;
+  for (n in 1:N_sn)
+    for (i in start[n]:stop[n]) {
+      real wph = (dt[i] / (1 + z[n]) - pmin) / (pmax - pmin);
+      v_ep0[i] = v_of_p(pmin + (pmax - pmin) * clamp01(wph, eps), delta_p);
+    }
+  Qbar = qbar_on == 1
+         ? traversal_qbar(v_ep0, Kq, vlo, vhi, qbar_npan, xg, wg, P0v)
+         : rep_row_vector(0, Kq - 1);
+  anchor_v = P0v + Qbar;
+  // Gv of dgsn_grid_tdata.stan is this at shift = P0v, which is the test
+  // that the gauge still means <q_1,q_1> = 1 and <q_0,q_1> = 0 under the
+  // same integral.  Checked numerically before this program was run.
+  Gvq = traversal_gram_shift(Kq, vlo, vhi, anchor_v, 4, xg, wg);
 }
 parameters {
   // The departure coefficients non-centred, a_tilde = tau_q k^-alpha_q z_a:
@@ -362,8 +389,8 @@ transformed parameters {
     vector[Kpsi] ct = rep_vector(0, Kpsi);
     at[1:n_a] = z_a;
     ct[1:n_c] = z_c;
-    a = at / sqrt(quad_form(Gv, at));
-    b = b_til - (b_til' * Gv * a) * a;
+    a = at / sqrt(quad_form(Gvq, at));
+    b = b_til - (b_til' * Gvq * a) * a;
     {
       // Eq. (gauge) on the extended vectors, under turning_gram_ext.
       vector[Kpsi] ce = ct / sqrt(quad_form(Gse, ct));
@@ -500,7 +527,8 @@ model {
                        m_peak, colr, x_s_tot, x_p, x_psi, delta_t, alpha,
                        a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
                        Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
-                       edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
+                       edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T,
+                       anchor_v);
 }
 generated quantities {
   // The two sign conventions of Section 2.3, as joint relabelings.
@@ -555,7 +583,8 @@ generated quantities {
         m_peak[n], colr[n], x_s_tot[n], x_p[n], x_psi[n], delta_t[n], alpha[n],
         a, b, c, d, pmin, pmax, smin, smax, eps, eps_t, eps_s, zp,
         Kq, vlo, vhi, delta_p, Kpsi, ulo, uhi, delta, m, J,
-        edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T);
+        edges_v, Xv_nodes, jacw_v, edges_u, Xu_nodes, jacw_u, xg, wg, P0, T,
+        anchor_v);
     lp_sn[n] = -0.5 * neg2_loglike(f[lo:hi], sig_f[lo:hi], exp(lf[:, 1]), exp(lf[:, 2]));
     {
       vector[hi - lo + 1] sfr = MAG2FRAC * sigma_b[band[lo:hi]];
