@@ -669,4 +669,65 @@ functions {
     }
     return s;
   }
+
+  // ---- Eq. (gauge) as a comoving frame -----------------------------------
+  // Added 2026-11-25.  Eq. (gauge) asks <q_0,q_1> = 0 and <Psi_0,Psi_1> = 0.
+  // Through 2026-11-24 both were imposed by projection: sample b_til (d_til)
+  // in the ambient space and subtract its component along the normalised
+  // partner.  That leaves the sampled coordinates attached to the ambient
+  // axes while the admissible space is the partner's complement, so rotating
+  // a (or c) drags the whole space the other vector lives in.  Measured on
+  // runs/qbar-gfix-k812-n60 draws 251+, |corr(c_k, d_k)| runs 0.69 to 0.90 at
+  // every matched order k = 1..11, uniformly positive, which is that drag and
+  // not a covariance accident of one draw.  It is also curvature that varies
+  // with position -- the constraint surface is curved -- which is why the
+  // four constant-metric and constant-linear-map fixes of 2026-11-23 could
+  // not encode it.
+  //
+  // Here the frame moves instead.  With G = L L' and e normalised so that
+  // e' G e = 1, ehat = L' e is Euclidean-unit, and the Householder
+  // reflection H = I - 2 v v'/(v'v) with v = ehat + sign(ehat_1) e_1 is
+  // symmetric, involutive and takes ehat to -sign(ehat_1) e_1.  So for any y
+  // of length n - 1,
+  //
+  //     de = L^-T H [0; y]
+  //
+  // satisfies de' G e = [0;y]' H (L' e) = [0;y]' (-s e_1) = 0 exactly, and
+  // de' G de = y' y, so y are the components of the free part in a
+  // G-orthonormal frame carried by e.  The gauge holds by construction, with
+  // no component to discard and no prior owed on one: the dimension drops by
+  // one per pair and the four-dimensional null space of the flux Jacobian
+  // loses its two projection directions.
+  //
+  // The prior is unchanged where it is observable.  Flat on y is flat on the
+  // hyperplane in G-orthonormal coordinates, which differs from flat in the
+  // ambient coordinates restricted to that hyperplane by |det L| alone, a
+  // constant.  What is dropped is the unit width on the discarded component
+  // and its Jacobian, which were priors on directions reaching neither the
+  // forward map nor the likelihood.
+  //
+  // sign(ehat_1) is taken on the stable branch, so v never cancels; ehat_1 is
+  // c_0 and b's first coefficient after whitening and is not pinned near
+  // zero by anything, but the branch costs nothing either way.  The sign flip
+  // the branch introduces is absorbed into y, which is free.
+  vector frame_lift(matrix Lt, matrix Ltinv, vector e, vector y) {
+    int n = rows(e);
+    vector[n] ehat = Lt * e;
+    vector[n] v = ehat;
+    vector[n] full = append_row(0, y);
+    v[1] += ehat[1] >= 0 ? 1 : -1;
+    return Ltinv * (full - (2 * dot_product(v, full) / dot_self(v)) * v);
+  }
+
+  // The inverse, for mapping stored draws into the frame coordinates:
+  // [0; y] = H (L' de), so y is that product's tail.  Exact to rounding, and
+  // the test that frame_lift is the map it claims to be.
+  vector frame_drop(matrix Lt, vector e, vector de) {
+    int n = rows(e);
+    vector[n] ehat = Lt * e;
+    vector[n] v = ehat;
+    vector[n] z = Lt * de;
+    v[1] += ehat[1] >= 0 ? 1 : -1;
+    return (z - (2 * dot_product(v, z) / dot_self(v)) * v)[2:n];
+  }
 }
