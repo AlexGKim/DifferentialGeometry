@@ -430,11 +430,22 @@ model {
   //     p(d_til | c) integrate to one at every c, so that c's marginal prior
   //     stays the projected normal z_c carries.  Dropping it tilts c by 1.8x
   //     over six prior draws and 6 to 8 across the prior's range;
-  //   * the Jacobian of b_til -> (b, b_til.a), which is unity for the
-  //     traversal pair since a is Euclidean-unit, and ||Gs c|| for the
-  //     turning pair since c is Gs-normalised instead, so the decomposition
-  //     is oblique in the coefficient basis.  |det[B | c]| = 1/||Gs c||,
-  //     verified numerically at three orders, and -log|det| = +log||Gs c||.
+  //   * the Jacobian of b_til -> (b, b_til' Gvq a) and of
+  //     d_til -> (d, d_til' Gs c).  Both decompositions are oblique in the
+  //     coefficient basis, because both normalisations are: a is Gvq-unit
+  //     and c is Gs-unit, neither Euclidean.  With B a Euclidean-orthonormal
+  //     basis of the hyperplane, |det[B | a]| = 1/||Gvq a|| and
+  //     |det[B | c]| = 1/||Gs c||, so -log|det| = +log||Gvq a|| and
+  //     +log||Gs c||.  Corrected 2026-11-24: through runs/rot-k812-n60 this
+  //     file and hier.stan, hier_full.stan and hier_kappa.stan with it
+  //     declared unit width on the EUCLIDEAN b_til.a and added no traversal
+  //     Jacobian, on the stated grounds that a is Euclidean-unit.  It is
+  //     not: ||a||_2 is 0.50 while ||a||_Gv is 1 by construction, the
+  //     discarded coordinate b_til' Gv a has sd 0.452 against 0.118 for
+  //     b_til.a, so the declared prior was 3.8x the intended width on a
+  //     direction of b_til, and the omitted log||Gv a|| is +0.790 +- 0.003
+  //     over twenty draws -- nearly a constant, and so nearly harmless to
+  //     the posterior shape, which is why only the coordinate mattered.
   // The discarded components take unit width.  Their priors are
   // unobservable, so the choice is free, and unit is what makes the
   // precision along them independent of tau.
@@ -447,17 +458,21 @@ model {
     // b and d are flat; only the gauge is declared.  Each pair contributes
     // two terms instead of three:
     //
-    //   * unit width on the discarded component, b_til . a and
-    //     d_til' Gs c.  These reach neither the forward map nor the
-    //     likelihood, so a prior on them is required for propriety and is
-    //     otherwise unobservable; unit width is what makes the precision
-    //     along them independent of everything else.
+    //   * unit width on the discarded component.  That component is the
+    //     one the projection removes, so it is b_til' Gvq a for the
+    //     traversal pair and d_til' Gs c for the turning pair: the same
+    //     form in the same inner product that b = b_til - (b_til' Gvq a) a
+    //     and d = d_til - (d_til' Gs c) c subtract.  Neither reaches the
+    //     forward map nor the likelihood, so a prior on them is required
+    //     for propriety and is otherwise unobservable; unit width is what
+    //     makes the precision along them independent of everything else.
     //
-    //   * the Jacobian of the decomposition.  For the traversal pair the map
-    //     b_til -> (b, b_til . a) is orthogonal, a being Euclidean-unit, so
-    //     the Jacobian is 1 and nothing is added.  For the turning pair the
-    //     decomposition is oblique in the coefficient basis,
-    //     |det[B | c]| = 1/||Gs c||, so -log|det| = +log||Gs c||.
+    //   * the Jacobian of the decomposition, oblique for both pairs because
+    //     both normalisations are oblique in the coefficient basis:
+    //     |det[B | a]| = 1/||Gvq a|| and |det[B | c]| = 1/||Gs c||, so
+    //     -log|det| = +log||Gvq a|| and +log||Gs c||.  The traversal term
+    //     was missing before 2026-11-24 and the discarded coordinate was
+    //     the Euclidean b_til.a; see the note above.
     //
     // Eq. (hypernorm) is NOT here and must not be: it normalized a Gaussian
     // restricted to a hyperplane whose orientation is a parameter, and with
@@ -465,7 +480,8 @@ model {
     // the hyperplane is its own (K-2)-dimensional Lebesgue measure, which
     // does not depend on the orientation, so no orientation-dependent
     // constant is owed.  The Jacobian is owed either way and stays.
-    target += std_normal_lpdf(dot_product(b_til, a));
+    target += std_normal_lpdf(b_til' * Gvq * a)
+              + log(sqrt(dot_self(Gvq * a)));
     {
       // the extended turning vector of Eq. (basispsi); Gse replaces Gs
       // throughout because d_til and the normalised mode now carry c_0.
