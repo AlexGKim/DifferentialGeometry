@@ -234,20 +234,32 @@ whole interval, $\turnone$ put half its norm outside the arclengths reached, and
 and every $\shapeturn$ grew to compensate --- a direction the gauge was meant to have
 removed --- the gauge conditions are
 \begin{equation}
-  q_{1}(0) = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
-  q_{0}(0) = 0, \quad \langle q_{0},q_{1}\rangle = 0;
+  \qmean{q_{1}} = 0, \quad \langle q_{1},q_{1}\rangle = 1, \quad
+  \qmean{q_{0}} = 0, \quad \langle q_{0},q_{1}\rangle = 0;
   \qquad
   \langle \turnone,\turnone\rangle = 1, \quad
   \langle \turnzero,\turnone\rangle = 0 ,
   \label{eq:gauge}
 \end{equation}
-four conditions for four freedoms and two for two. Both pairs are anchored at the origin,
-so the traversal reads as the turning already did, and the per-supernova constant in
-$\ln \dd\arc/\dd p$ is that rate at $p = 0$ exactly rather than its mean over $v$. The
-traversal inner products are taken on the anchored modes $P_{k} - P_{k}(0)$, which carry the
-Gram matrix $G = I + (v_{\max} - v_{\min})\,\mathbf{P}(0)^{\top}\mathbf{P}(0)$ rather than
-the identity, the cross terms vanishing because every retained $P_{k}$ is orthogonal to the
-constant. Anchoring changes no prediction --- per supernova the reachable family is
+four conditions for four freedoms and two for two. The turning pair is anchored at the
+origin; the traversal pair is anchored at the mean the epochs impose,
+\begin{equation}
+  \qmean{f} = \frac{1}{N}\sum_{i}
+    \frac{\int_{0}^{v_{i}} f\,\cosh v\,\dd v}{\int_{0}^{v_{i}} \cosh v\,\dd v} ,
+  \label{eq:qbar}
+\end{equation}
+the inner average being over arclength, since $\cosh v$ is $\dd\arc/\dd v$ up to
+$\delta_{p}$, and the outer over the sample's epochs. So the per-supernova constant in
+$\ln \dd\arc/\dd p$ is the mean rate over the stretch the data cover rather than the rate at
+$p = 0$: $\xstretch$ is what a supernova's traversal averages where it is observed, not an
+instantaneous rate at $g$ maximum that no epoch measures. Anchoring at $v = 0$ instead,
+which every run before 2026-11-24 did, is kept as a switch (\texttt{qbar\_on}) so that the
+two are comparable on one data dictionary. The traversal inner products are taken on the
+anchored modes $P_{k} - P_{k}(0) - \qmean{P_{k} - P_{k}(0)}$, whose Gram $G_{v}$ is not the
+identity: a shifted Legendre basis is orthogonal under $\dd v$ only about the constant it
+was shifted by. $G_{v}$ is \texttt{transformed data} --- \eqref{eq:qbar} depends on the
+epochs alone --- and is measured at condition number $1.2319$, so the departure from
+orthonormality here is slight; the turning side's is not (Section~\ref{sec:inference}). Anchoring changes no prediction --- per supernova the reachable family is
 $q_{0} + \mathrm{span}\{1, q_{1}\}$ under either choice --- but \eqref{eq:coefprior} is read
 in the anchored basis, and a coefficient prior is basis dependent, so the posterior is not
 the mean-zero gauge's. Each pair leaves a sign, fixed by
@@ -305,20 +317,24 @@ traversal's face of the hairpin the turning meets in arclength, and it is met th
 \end{equation}
 with $\delta_{p}$ set, like $\delta$ below, from the sharpest dip rather than the typical
 one. The constant mode is omitted because $\xstretch$
-already carries it, and each retained mode is taken relative to its value at the anchor, so
-that $q_{0}(0) = q_{1}(0) = 0$ holds identically. Writing
+already carries it, and each retained mode is taken relative to its value at the origin and
+then to its sample mean \eqref{eq:qbar}, so that $\qmean{q_{0}} = \qmean{q_{1}} = 0$ holds
+identically. Writing
 \begin{equation}
   q_{1} = \sum_{k \geq 1} a_{k}\bigl[P_{k}(v) - P_{k}(0)\bigr], \qquad
   q_{0} = \sum_{k \geq 1} b_{k}\bigl[P_{k}(v) - P_{k}(0)\bigr],
   \label{eq:basisq}
 \end{equation}
-the conditions of \eqref{eq:gauge} on this pair are $\norm{\mathbf{a}}^{2} = 1$ and
-$\mathbf{b} \cdot \mathbf{a} = 0$, since $\langle q_{1}, q_{1}\rangle = \norm{\mathbf{a}}^{2}$
-and $\langle q_{0}, q_{1}\rangle = \mathbf{b} \cdot \mathbf{a}$; fitting unconstrained
+the conditions of \eqref{eq:gauge} on this pair are
+$\mathbf{a}^{\top}G_{v}\mathbf{a} = 1$ and $\mathbf{b}^{\top}G_{v}\mathbf{a} = 0$, since
+$\langle q_{1}, q_{1}\rangle = \mathbf{a}^{\top}G_{v}\mathbf{a}$ and
+$\langle q_{0}, q_{1}\rangle = \mathbf{b}^{\top}G_{v}\mathbf{a}$ --- the quadratic forms and
+not the Euclidean ones, the anchored basis of \eqref{eq:basisq} being orthogonal under
+$\dd v$ only about the constant it was shifted by. Fitting unconstrained
 $\tilde{\mathbf{a}}, \tilde{\mathbf{b}}$ and setting
-$\mathbf{a} = \tilde{\mathbf{a}}/\norm{\tilde{\mathbf{a}}}$ and
-$\mathbf{b} = \tilde{\mathbf{b}} - (\tilde{\mathbf{b}} \cdot \mathbf{a})\,\mathbf{a}$ imposes
-them to machine precision. Only $a$ is normalized: $q_{0}$ is orthogonalized against
+$\mathbf{a} = \tilde{\mathbf{a}}/(\tilde{\mathbf{a}}^{\top}G_{v}\tilde{\mathbf{a}})^{1/2}$,
+with $\mathbf{b}$ taken in the frame of \eqref{eq:frame} below, imposes them to machine
+precision. Only $a$ is normalized: $q_{0}$ is orthogonalized against
 $q_{1}$ but keeps its own norm, which is physical. Against \salt\ in $v$
 (\texttt{scripts/salt\_orders.py}, the track's light curve fit in magnitude space at
 each pair of orders), $K_{q} = 16$ suffices at every $x_{1} \geq -1$ and $K_{q} = 32$
@@ -703,11 +719,48 @@ the clearest instance --- profiling the per-supernova parameters would push the 
 down and the fitted scatters with them --- and the reason for sampling rather than
 profiling is unchanged.
 
-The gauge is imposed by construction rather than sampled. The sampler moves on the
-unconstrained raw coefficients $(\tilde{\mathbf{a}}, \tilde{\mathbf{b}}, \tilde{\mathbf{c}}, \tilde{\mathbf{d}})$ of
-Section~\ref{sec:traversal}, whose normalization and orthogonalization are deterministic
-transforms of them, so \eqref{eq:gauge} holds at every iteration and no constraint enters
-the likelihood. The two sign conventions are not among these transforms, being
+The gauge is imposed by construction rather than sampled, and the orthogonality half of it
+is imposed in a frame that moves with the mode it is orthogonal to. Let $G$ be the Gram of
+the pair's basis, $G = LL^{\top}$, and let $\mathbf{e}$ be the normalized departure
+coefficient, $\mathbf{e}^{\top}G\mathbf{e} = 1$, so that $\hat{\mathbf{e}} =
+L^{\top}\mathbf{e}$ is Euclidean-unit. The Householder reflection
+$H = I - 2\mathbf{w}\mathbf{w}^{\top}/\mathbf{w}^{\top}\mathbf{w}$ with
+$\mathbf{w} = \hat{\mathbf{e}} + \sign(\hat{e}_{1})\,\mathbf{e}_{1}$ is symmetric and
+involutive and carries $\hat{\mathbf{e}}$ to $-\sign(\hat{e}_{1})\mathbf{e}_{1}$, so for any
+$\mathbf{y}$ of length $n-1$,
+\begin{equation}
+  \mathbf{b} = L^{-\top} H \begin{pmatrix} 0 \\ \mathbf{y}\end{pmatrix}
+  \quad\text{satisfies}\quad
+  \mathbf{b}^{\top}G\mathbf{e} = 0 , \qquad
+  \mathbf{b}^{\top}G\mathbf{b} = \mathbf{y}^{\top}\mathbf{y} ,
+  \label{eq:frame}
+\end{equation}
+exactly, and likewise for $\mathbf{d}$ against $\mathbf{c}$. The $\mathbf{y}$ are the
+components of the mean mode's free part in a $G$-orthonormal frame carried by the departure
+mode, so the sampler moves on $(\tilde{\mathbf{a}}, \mathbf{y}_{b}, \tilde{\mathbf{c}},
+\mathbf{y}_{d})$ --- one coordinate fewer per pair --- and \eqref{eq:gauge} holds at every
+iteration with nothing discarded and no constraint entering the likelihood. The earlier
+construction, which sampled $\tilde{\mathbf{b}}, \tilde{\mathbf{d}}$ in the ambient space and
+subtracted their components along the partner, left the sampled coordinates attached to
+ambient axes while the admissible space is the partner's complement, so rotating
+$\mathbf{a}$ or $\mathbf{c}$ dragged the space the other lives in: measured,
+$|\mathrm{corr}(c_{k}, d_{k})| = 0.64$ to $0.85$ at every matched order $k = 1 \ldots 11$,
+uniformly positive, in a chain with no divergences. The two forms are not quite the same
+posterior. The discarded component is an independent standard normal reaching neither the
+forward map nor the likelihood, so it integrates out exactly; what remains is the projection
+Jacobian $\log(\norm{G_{v}\mathbf{a}}\,\norm{G_{\arc}\mathbf{c}})$, which depends on where
+$\mathbf{a}$ and $\mathbf{c}$ point and is measured at $0.3776, 0.3976, 0.3834$ nats at
+three draws --- a reweighting spanning $1.020$, recorded rather than neglected.
+
+A fixed linear map $R$ of the coefficient coordinates, $\mathbf{w} \mapsto R\mathbf{w}$ with
+$R$ constant, is a reparameterization and leaves the posterior untouched. Taking $R$ to
+whiten the turning block against $G_{\arc}$ --- which is \texttt{transformed data}, so
+nothing is fitted to a draw --- takes the spread of the preconditioned Hessian's largest
+eigenvalue from $7.4\%$ to $2.7\%$ across sixteen posterior draws and the cost proxy
+$\sqrt{\lambda_{\max}/\lambda_{10}}$ down by a factor $1.53$. Whether that reaches the
+sampler is open: two realizations of one model, differing only in last-bit arithmetic, part
+company by draw ten and differ by a factor two in gradients per usable draw at forty, so the
+question is settled on effective sample size per gradient and not on warmup diagnostics. The two sign conventions are not among these transforms, being
 discontinuous; they are applied per draw in \texttt{generated quantities}, where they
 cannot reach the gradient. Each is a joint relabeling and has to be applied as one:
 flipping $q_{1}$ carries every supernova's $x_p$ with it, and flipping $\turnone$ every
@@ -735,7 +788,7 @@ cosmetic. \eqref{eq:coefprior} is a statement about the smoothness of $q_{0}$ an
 $\turnzero$, and those functions are built from $\mathbf{b}$ and $\mathbf{d}$; the tilde is
 an artifact of how the gauge is imposed. Writing the prior on the tilde instead gives a
 prior to a direction that reaches nothing. The orthogonalization
-$\mathbf{b} = \tilde{\mathbf{b}} - (\tilde{\mathbf{b}}\!\cdot\!\mathbf{a})\mathbf{a}$
+$\mathbf{b} = \tilde{\mathbf{b}} - (\tilde{\mathbf{b}}^{\mathsf T}G_{v}\mathbf{a})\mathbf{a}$
 discards $\tilde{\mathbf{b}}$'s component along $\mathbf{a}$, and
 $\mathbf{d} = \tilde{\mathbf{d}} - (\tilde{\mathbf{d}}^{\mathsf T}G_{\arc}\mathbf{c})\mathbf{c}$
 discards $\tilde{\mathbf{d}}$'s, so those two components enter neither the forward map nor
@@ -767,11 +820,14 @@ The discarded components are given unit width, $\tilde{\mathbf{b}}\!\cdot\!\math
 \mathcal{N}(0,1)$ and $\tilde{\mathbf{d}}^{\mathsf T}G_{\arc}\mathbf{c} \sim
 \mathcal{N}(0,1)$. Their priors are unobservable --- nothing downstream of them depends on
 either --- so the choice is free, and unit width is what makes the precision along them
-independent of $\tau$. The change of variables from $\tilde{\mathbf{b}}$ to the pair
-$(\mathbf{b}, \tilde{\mathbf{b}}\!\cdot\!\mathbf{a})$ has unit Jacobian, $\mathbf{a}$ being
-a unit vector; for the turning pair the decomposition is oblique in the coefficient basis,
-$\mathbf{c}$ being normalized under $G_{\arc}$ rather than Euclidean, and the Jacobian is
-$\|G_{\arc}\mathbf{c}\|^{-1}$.
+independent of $\tau$. Both decompositions are oblique in the coefficient basis, each mode
+being normalized under its own Gram rather than Euclidean, so the change of variables from
+$\tilde{\mathbf{b}}$ to $(\mathbf{b}, \tilde{\mathbf{b}}^{\top}G_{v}\mathbf{a})$ carries
+Jacobian $\norm{G_{v}\mathbf{a}}^{-1}$ and the turning pair $\norm{G_{\arc}\mathbf{c}}^{-1}$.
+The traversal term was absent before 2026-11-24, when the pair was taken to be Euclidean-unit;
+it is not, $\mathbf{a}^{\top}G_{v}\mathbf{a} = 1$ holding to $1.1\times10^{-10}$ while
+$\norm{\mathbf{a}}^{2} = 0.2654$. Under \eqref{eq:frame} neither term is owed: there is no
+discarded component to give a width to and no decomposition to take a Jacobian of.
 
 What \eqref{eq:hypernorm} does \emph{not} do is say anything about where $q_{1}$ and
 $\turnone$ point, and it is worth being explicit because the opposite is easy to
@@ -858,14 +914,18 @@ $\tmax = t_{0} + \Delta$ with $\Delta \sim \mathcal{N}(\mu_{\Delta}, s_{\Delta}^
 $\mu_{\Delta}$ flat and $s_{\Delta}$ flat on $s_{\Delta} > 0$: $t_{0}$ is $B$ maximum and
 $\tmax$ is $g$ maximum, and the offset between them is measured by the fit, centre and
 sign included, rather than assumed. The traversal basis of \eqref{eq:basisq} drops the constant Legendre term and anchors each
-mode at the origin, so $q_{0}(0) = 0$ identically and $q_{0}$ cannot carry the mean log rate:
-it is $\xstretch$ that carries it outright, and under this gauge it is $\ln \dd\arc/\dd p$
-at $p = 0$ exactly rather than a mean speed over the window. Under the mean-zero gauge the
-same parameter was instead the $v$-weighted mean of the log rate, which that measure pulls
-towards the anchor where the rate is smallest, and it differed from a mean speed by more than
-a unit ($-1.8$ for the log of the median span over the window against $-3.0$ for the
-parameter, the same to $0.1$ across $x_{1}$ and for the \citet{Hsiao2007} template); the
-anchored value has not been measured. That mean is written as a parameter of its own,
+mode at the sample mean \eqref{eq:qbar}, so $\qmean{q_{0}} = 0$ identically and $q_{0}$
+cannot carry the mean log rate: it is $\xstretch$ that carries it outright, and under this
+gauge it is the mean of $\ln \dd\arc/\dd p$ over the stretch the epochs cover. Two earlier
+choices are on record and both are available through \texttt{qbar\_on}. Anchoring at $v = 0$
+makes $\xstretch$ the rate at $p = 0$ exactly, which no epoch measures and which diverges in
+the limit that the two maxima coincide. Taking the $v$-weighted mean instead, as the
+mean-zero gauge did, pulls the average towards the anchor where the rate is smallest, and
+differed from a mean speed by more than a unit --- $-1.8$ for the log of the median span over
+the window against $-3.0$ for the parameter, the same to $0.1$ across $x_{1}$ and for the
+\citet{Hsiao2007} template. \eqref{eq:qbar} averages in arclength and over the epochs
+actually observed, which is the quantity a mean speed names; the value it takes has not been
+measured against the span. That mean is written as a parameter of its own,
 \begin{equation}
   x_{s,n} = \bar s + \delta_{n} , \qquad \sum_{n} \delta_{n} = 0 ,
   \label{eq:xsmean}

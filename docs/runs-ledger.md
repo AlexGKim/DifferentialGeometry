@@ -1745,3 +1745,263 @@ Untested and recorded: for objects with large `|x_psi|`, `psi` winds through
 `+3pi/2` and `cos psi = 0` has a second solution, so a second approximate anchor may
 exist and with it a discrete near-degeneracy in `(delta_t, x_s, d)`. Flagged against
 the two modes in `tau_psi` on record from 2026-10-27.
+
+## qbar-gfix-k812-n60 — the mean-anchor gauge at sixty objects; three chains clean, chain 1 lost in the terminal buffer
+
+`stan/hier_rot`, four chains, 500 warmup + 500 sampling, `adapt delta=0.8`,
+`max_depth=12`, seed 1, sixty objects, `Kq = 8`, `Kpsi = 12`, `qbar_on = 1`. The
+run carries two fixes committed on `comoving-frame`: Eq. (gauge)'s traversal pair
+anchored at the measure's mean rather than at `v = 0` (`634c4c6`), and the
+gauge-prior Jacobian `+log||Gvq a||` declared in the inner product `a` is
+normalised in (`06cef5f`).
+
+Chain 1 finished in 107604 s (72639 warmup, 34966 sampling). Chains 2, 3, 4 ran
+to 855/855/840 of 1000 at 44.1 h with 0.13/0.11/0.10 divergence over the whole
+run, zero divergences after about draw 620, every draw at the 4095 cap, steps
+frozen at 8.288e-4, 6.334e-4, 8.876e-4.
+
+### Chain 1 failed numerically, not by sitting in a second mode
+
+| draws | step | leapfrog | cap(12) | divergent |
+|---|---|---|---|---|
+| 401-500 | 1.337e-3 | 4070 | 0.47 | 0.48 |
+| 501-600 | 1.044e-3 | 1526 | 0.13 | 0.87 |
+| 701-800 | 1.044e-3 | 1248 | 0.09 | 0.91 |
+| 901-1000 | 1.044e-3 | 980 | 0.01 | 0.99 |
+
+93% of its 500 sampling draws are divergent. The falling leapfrog count is not
+efficiency: trajectories terminate on divergence rather than at a U-turn. The
+chain contributes nothing and the run delivers three chains, not four.
+
+**Dual averaging hit its target and the target is the wrong thing to control
+here.** Mean `accept_stat__` by window, chain 1: 0.724, 0.794, 0.766, 0.791,
+0.789, 0.785; chain 2: 0.730, 0.760, 0.766, 0.778, 0.789, 0.770. Every window of
+every chain lands on 0.8. The tenth percentile over the same windows of chain 1
+is 0.076, 0.543, 0.031, 0.262, 0.130, 0.232. A mean of 0.79 with a tenth
+percentile of 0.03: most draws accept at ~0.95, 15-25% accept at ~0.03 and are
+recorded as divergences. A scheme that matches the mean cannot see that tail.
+
+**The threshold is a cliff, bracketed to 17%.** Frozen step and sampling-phase
+divergence: c3 6.334e-4 → 0.00, c2 8.288e-4 → 0.00, c4 8.876e-4 → 0.00, c1
+1.044e-3 → 0.93. Leapfrog above `eps sqrt(lambda_max) ~ 2` is unstable, not
+merely inaccurate, so there is no intermediate regime to land in.
+
+**The metric is exonerated.** Geometric means of the four adapted diagonal
+inverse metrics: 8.9105e-3, 9.5715e-3, 1.0096e-2, 8.7834e-3 — within 15%.
+Condition numbers 2.860e5, 4.207e5, 3.553e5, 2.812e5. Chain 1's per-coordinate
+ratio against the geometric mean of the other three has median 0.967, p5 0.647,
+p95 1.329. Same model, same metric, step differing by 18-65%, opposite outcomes.
+
+**The break is at draw 451, when the metric freezes, not at 501.** Chain 1 goes
+from div 0.14 / 4095 leapfrogs over 251-450 to 0.78 / 1320 over 451-500; chain 2
+goes 0.18 → 0.24 with leapfrogs unchanged. Both chains' steps rose ~30% during the
+50-iteration terminal buffer; chain 1 entered it 40% higher and came out above the
+cliff. The run is decided by 50 dual-averaging updates on a bimodal signal.
+
+**`accept_stat__` is worthless after the freeze.** Chain 1's sampling-phase mean
+is 0.829-0.927 with tenth percentile 0.478-0.814 while 87-99% divergent: once the
+divergent subtree is discarded, what remains is short, local and accepts well.
+Read `divergent__` and `n_leapfrog__`.
+
+### The three survivors, and the chain-3 offset narrowed rather than closed
+
+Posterior means over the last 100 draws available at 44.1 h (sampling draws
+~128-227):
+
+| | kappa0 | mu_x_psi | mu_delta | c_bar |
+|---|---|---|---|---|
+| c2 | 287.460 +- 38.579 | -3.621 +- 0.225 | 0.785 +- 0.239 | 0.080 |
+| c3 | 234.876 +- 40.131 | -3.471 +- 0.314 | 0.529 +- 0.139 | 0.075 |
+| c4 | 291.593 +- 37.780 | -3.485 +- 0.260 | 0.785 +- 0.224 | 0.081 |
+
+`mu_x_psi` and `c_bar` agree. `kappa0` and `mu_delta` do not: chain 3 sits 1.4 and
+1.3 within-chain sd low, in the same direction as the `ladder-full-k812-n120`
+split. **Correcting an earlier reading in this session**: at 88 and at ~650 draws
+the displacement looked closed; with 100 more draws it is narrowed, not closed.
+The mean-anchor gauge did not remove it. No posterior is quoted from this run as a
+result; `R-hat` waits on the run finishing.
+
+## 2026-11-25 — the gauge's inner product is badly conditioned, and what whitening it is worth
+
+### Gse, not Gvq, is the defect
+
+Both gauge Gram matrices read out of `stan/frame_map` (diagnostics added this
+date, which also emit the Jacobian split below):
+
+| | condition number | worst off-diagonal, correlation form |
+|---|---|---|
+| `Gvq`, traversal | 1.2319 | 0.0932 |
+| `Gse`, turning | **8.4416e3** | **0.9693**, components 1 and 3 |
+
+`Gvq` is essentially the identity; nothing to fix on the traversal side. `Gse` has
+diagonal spanning 11.0 to 0.608, eigenvalues 0.001607 to 13.57, and its first and
+third basis functions are 97% collinear under it.
+
+The cause is a mismatch of inner products, not a bug. `dgsn_functions.stan:71`
+builds `T = inv(R)'` from the **plain Lebesgue Gram** on `[ulo, uhi]`, so
+`turning_row` is orthonormal under that. Eq. (gauge) uses `turning_gram_ext` — the
+Gram of `[1, P~T]` in **arclength measure** `delta cosh(u)` over the extended span,
+with a constant prepended. Different measure, different interval, one extra
+component. The basis is orthonormal under the wrong one of the two, and the 11.0
+diagonal entry is simply the total arclength.
+
+This matters because the stiff direction lives there: the top eigenvector of the
+diagonally preconditioned 38x38 `w_coef` Hessian puts 87-89% of its energy in the
+`Psi_3` subspace, with `cos(c, d) = -0.999` to `-1.000`.
+
+### Whitening against Gse: a reparameterisation, verified
+
+`stan/rot_white.stan` is `stan/rot_frame.stan` with one line changed — the sampled
+coordinate becomes `c'' = L' c` with `Gse = L L'`, and `z_c = L^-T c''` is the same
+coefficient the old program fed to `Gse`, under the same `z_c ~ std_normal()`.
+A linear map owes no offset, so the test is sharp: **lp must be identical**.
+
+| draw | lp difference | g_white - L^-1 g_frame on z_c | other 24 components |
+|---|---|---|---|
+| draw1 | 0.000e+00 | 1.64e-9 (vs \|g\| ~ 2.3e3) | 5.8e-10 |
+| c3 | -7.28e-12, one ulp | 1.65e-9 | 6.0e-10 |
+| c2w | +7.28e-12 | 5.99e-10 | 1.2e-10 |
+
+The residual on the shared components is the round trip `L^-T(L' z_c)` through a
+cond-8442 matrix: 1e-16 x 8442 ~ 1e-12 relative.
+
+Equivalently and at no cost in tape, the map folds into `R`, which the program
+already applies as `raw = R * w_coef`: `R` block-diagonal with `L^-T` in the `z_c`
+block (rows/cols 14-25), identity elsewhere, `det R = 3.1496e3`,
+`cond R = 91.88 = sqrt(8442)`. `rot_frame` under that `R` and `rot_white` under
+`R = I` agree in lp to 0, 0, one ulp, 0 at the four dispersed inits and in every
+gradient component to 1.01e-10 — 1.11e-9. They also reproduce each other's sampler
+trajectories exactly through the first 8 draws.
+
+Realised geometry matches the predicted conjugation to four or five figures and is
+stable across `FDH` = 1e-4 and 3e-4:
+
+| | lmax | rank-6 | rank-10 | sqrt(lmax/r10) |
+|---|---|---|---|---|
+| draw1 `rot_frame` | 10.076 | 2.766e-3 | 1.322e-2 | 27.6 |
+| draw1 `rot_white`, both h | 9.642 | 9.559e-3 | 2.625e-2 | 19.2 |
+| c3 `rot_frame` | 10.177 | 2.062e-3 | 1.258e-2 | 28.4 |
+| c3 `rot_white` | 9.526 | 8.856e-3 | 2.327e-2 | 20.2 |
+| c2w `rot_frame` | 10.228 | 1.417e-3 | 9.647e-3 | 32.6 |
+| c2w `rot_white` | 9.997 | 5.827e-3 | 2.364e-2 | 20.6 |
+
+### Sixteen posterior draws: the excursions in lambda_max are coordinate artefacts
+
+Draws 500, 515, ... 725 of `qbar-gfix` chain 2's sampling phase — the chain with
+zero divergences — mapped through `frame_map` and then `L'`:
+
+| | `rot_frame` | `rot_white` |
+|---|---|---|
+| lmax mean | 10.587 | 9.740 |
+| lmax sd | 0.782 | **0.266** |
+| lmax min / max | 9.902 / **12.656** | 9.281 / **10.210** |
+| coefficient of variation | 7.4% | **2.7%** |
+
+The sd falls 2.9x, and it falls by removing the excursions: draws 575, 635, 680
+read 12.656, 11.974, 11.599 under `rot_frame` and 10.100, 9.694, 9.375 under
+`rot_white`, mid-distribution. The implied step cap `2/sqrt(lmax)` has
+worst/mean 0.913 under `rot_frame` and 0.976 under `rot_white`, so the safety
+margin a single step size must carry to survive the worst visited point falls from
+9.5% to 2.4%. Cost proxy gain 1.28x to 1.76x, median 1.57x, geometric mean 1.53x,
+positive at all sixteen. Rank-6 lifts 3.5-4.3x.
+
+**This is not the refuted class.** `Gse` is transformed data, constant over the
+whole posterior; nothing is fitted to a draw. The fixed Fisher rotation of
+2026-11-23 gave sqrt(cond) 1.000 / 240.7 / 907.4 at build / median / lowest-lp
+draws because the soft directions rotate with position — measured here at |cos|
+0.891, 0.962, 0.963 between the three probe draws, against 0.997-0.999 for the
+stiff direction.
+
+### The sampling test has a noise floor of 2x and cannot resolve 1.5x
+
+`runs/white-k812-n60` (`rot_white`, `R = I`) and `runs/whiteR-k812-n60`
+(`rot_frame`, folded `R`) are the same model, same seed, same inits, differing
+only in last-bit arithmetic. They part company at draws 10, 9, 8, 12 with lp
+differing in the seventh figure, and by draw 42:
+
+| chain | `rot_white` lf per clean draw | `whiteR` | ratio |
+|---|---|---|---|
+| c1 | 4662 (div 0.36) | 4174 (0.29) | 1.12 |
+| c2 | 4592 (0.36) | 4749 (0.40) | 0.97 |
+| c3 | 4109 (0.26) | 4110 (0.29) | 1.00 |
+| c4 | **9870 (0.81)** | **4971 (0.50)** | **1.99** |
+
+Two realisations of one model differ by 2x in cost per usable draw. The effect
+sought is 1.53x. **Every warmup-window comparison of parameterisations at four
+chains and tens of draws in this ledger is therefore underpowered**, including the
+ones recorded above as evidence against the comoving frame. What can resolve 1.5x
+is the finished run: ESS per leapfrog in the sampling phase.
+
+`hier_rot`'s apparent uniformity over the same window — 4097, 4097, 4096, 4130 at
+div 0.24-0.31 — is not low noise but saturation: all four chains sit at the 4095
+cap, so lf per clean draw is 4095/(1-div) and nothing varies. The frame-family
+chains are truncated by divergence instead and their statistic moves freely.
+
+Per-gradient cost, for budgeting: `hier_rot` 50.2-50.5 ms/leapfrog, `rot_frame`
+~52-54, `rot_white` 58.7-59.9, `whiteR` 58.9-62.1. The whitened programs are ~18%
+dearer and folding into `R` changed nothing, so the cause is not the extra tape
+node; untested candidate is that the whitened chains visit larger arclength extent
+and the forward map's panel count scales with it.
+
+### Six retractions
+
+1. **The Psi_2/Psi_3 rotation does not help; the 26x does not reproduce.**
+   `Psi_2 = Psi_0 + Psi_1`, `Psi_3 = Psi_0 - Psi_1`, and `delta d = -delta c` is
+   confirmed as the stiff direction (87-89% of the top eigenvector). But rotating
+   there takes lmax from 13.301 to 12.915, 14.076 to 13.680, 13.900 to 13.686 —
+   1.5 to 2.9% — while lowering the soft end at every rank at all three draws, so
+   sqrt(lmax/r10) goes 59.3 to 74.6, 82.7 to 93.1, 91.5 to 93.1: **2 to 26%
+   worse**. On the c,d sub-block alone the measured gain is 1.07x, 0.83x, 0.74x.
+   The reason: a per-order 2x2 rotation axis-aligns the c-versus-d split, but the
+   stiff mode is a combination across the twelve orders within the `Psi_3`
+   subspace, and lmax is precisely what a diagonal metric cannot absorb.
+2. **The comoving frame's step size is not 3.4-6.4x `hier_rot`'s.** That compared
+   mid-warmup to final. At the matched window 76-104 the median steps are
+   1.42-1.62e-4 against 1.33-1.51e-4 — the same to within 10% — and the frame's
+   divergence is 0.28-0.59 against 0.14-0.21.
+3. **The frame's prior does not differ from the projection's "by a constant."**
+   `lp(frame) - lp(rot) = 1.837877 + (t_b^2 + t_d^2)/2 - log(||Gvq a|| ||Gse ce||)`,
+   verified to full double precision. The `t` part integrates out exactly. The
+   remainder is 0.3776, 0.3976, 0.3834 nats at the three probe draws — a prior
+   reweighting spanning 1.020, too small to move a number and not zero. The
+   comment in `dgsn_functions.stan` was corrected on this date.
+4. **The 18% per-gradient overhead is not the in-tape `block()` call.** Folding
+   the map into `R`, where a dense 36x36 product already happens, left it at
+   58.9-62.1 ms/leapfrog against 58.7-59.9. Cause unidentified.
+5. **Chain 3's displacement in `qbar-gfix` narrowed, it did not close.** See above.
+6. **The near-null mode count is not a read on unconstrained flexibility.**
+   Whitening lifts the rank-6 eigenvalue 3.5-4.3x, so several modes at the frame's
+   null floor are artefacts of the cond-8442 Gram. Counting them in the
+   unwhitened coordinates and calling the excess "flexibility g and r cannot
+   constrain" would have been wrong.
+
+### What this leaves
+
+The free clean gauge is a reparameterisation with no modelling cost, worth a
+measured 1.53x in the cost proxy and a 2.9x reduction in the spread of lmax, which
+is the quantity dual averaging cannot see and which killed chain 1. Whether that
+converts is open and cannot be settled from warmup windows. `runs/whiteR-k812-n60`
+is running to answer it on ESS per leapfrog.
+
+Not free and not done: orthonormalising `turning_row` against `Gse` itself, so
+that `Gse = I` and the gauge conditions become Euclidean with no Cholesky and no
+Householder. That changes the basis, hence the prior that `z_c ~ std_normal()`
+states — the implied prior sd on the current coefficients becomes `1/sqrt(lambda)`,
+24.9 down to 0.271, a 92x anisotropic reshaping. The conditioning gain and the
+prior change are the same operation and cannot be separated: diagonal rescaling of
+`Gse` buys exactly zero, 59.3 to 59.3, 82.7 to 82.7, 91.6 to 91.6, because
+lmax/lmin of a diagonally preconditioned Hessian is invariant under diagonal
+reparameterisation. The underlying defect is that the prior is isotropic in
+whatever basis the code uses, so every basis choice is a model choice. Restoring
+Eq. (coefprior)'s explicit per-order scale decouples them, and is prerequisite.
+
+Also recorded, from the same measurements: a Chebyshev turning expansion is the
+**identical** basis. `turning_row` already orthonormalises, and Cholesky
+orthonormalisation in degree order is unique up to sign on a given degree
+filtration under a given inner product, so shifted Legendre and shifted Chebyshev
+produce the same functions — `max|phi_leg - sign phi_cheb| = 5.1e-14` at
+`n = 11`. For the traversal the spans genuinely differ, the constant being
+excluded: the relative residual of `T_k` outside `span{P_1..P_n}` is 0.488 at
+`k = 2`, 0.095 at 4, 0.041 at 6, 0.022 at 8, 0.014 at 10, so `span{T_k}` is the
+zero-Chebyshev-mean polynomials where `span{P_k}` is the zero-Lebesgue-mean ones.
+Switching there would move the anchor `634c4c6` deliberately set.
