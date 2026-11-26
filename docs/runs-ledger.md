@@ -1746,7 +1746,7 @@ Untested and recorded: for objects with large `|x_psi|`, `psi` winds through
 exist and with it a discrete near-degeneracy in `(delta_t, x_s, d)`. Flagged against
 the two modes in `tau_psi` on record from 2026-10-27.
 
-## qbar-gfix-k812-n60 — the mean-anchor gauge at sixty objects; three chains clean, chain 1 lost in the terminal buffer
+## qbar-gfix-k812-n60 — the mean-anchor gauge at sixty objects; chain 1 lost in the terminal buffer, and the other three failed the gate
 
 `stan/hier_rot`, four chains, 500 warmup + 500 sampling, `adapt delta=0.8`,
 `max_depth=12`, seed 1, sixty objects, `Kq = 8`, `Kpsi = 12`, `qbar_on = 1`. The
@@ -1818,8 +1818,50 @@ Posterior means over the last 100 draws available at 44.1 h (sampling draws
 1.3 within-chain sd low, in the same direction as the `ladder-full-k812-n120`
 split. **Correcting an earlier reading in this session**: at 88 and at ~650 draws
 the displacement looked closed; with 100 more draws it is narrowed, not closed.
-The mean-anchor gauge did not remove it. No posterior is quoted from this run as a
-result; `R-hat` waits on the run finishing.
+The mean-anchor gauge did not remove it.
+
+### Finished 2026-11-26, and it failed
+
+193843 s per chain, 75519 warmup and 118324 sampling. `stansummary` over chains
+2, 3 and 4 — 1500 post-warmup draws, chain 1 excluded as unusable:
+
+**Max split R-hat 1.6811** (`x_psi_dev[38]`, with `x_psi[14]` at 1.6671), **441
+parameters above 1.1**, 1105 above 1.05, 3528 above 1.01. The per-object
+`x_psi` are the worst; among the globals,
+
+| | mean | sd | split R-hat | ESS bulk |
+|---|---|---|---|---|
+| `mu_delta` | 0.78497 | 0.23899 | **1.1908** | **11.0** |
+| `kappa0` | 276.47 | 44.931 | **1.1263** | **16.3** |
+| `c_bar` | 0.080416 | 0.0075344 | 1.0639 | 32.0 |
+| `lp__` | -31397 | 16.753 | 1.0427 | 213.5 |
+| `mu_x_psi` | -3.5395 | 0.24526 | 1.0189 | 183.7 |
+| `mu_x_p` | 2.9724 | 0.21039 | 1.0123 | 98.4 |
+| `b_0` | -8.2768 | 0.10981 | 1.0219 | 121.7 |
+| `sigma_b[1]`, `[2]` | 0.033663, 0.044491 | 0.0011757, 0.0011378 | 1.0015 | 859, 1022 |
+
+ESS of 11 for `mu_delta` and 16 for `kappa0` out of 1500 draws is the measurement
+that matters: the posterior is not being explored, and the chain-3 displacement
+tracked through this run is that failure showing up as a between-chain offset.
+Per-chain means over the full 500 sampling draws, with the between-chain spread
+of means in units of the mean within-chain sd:
+
+| | c2 | c3 | c4 | spread / sd |
+|---|---|---|---|---|
+| `kappa0` | 285.94 +- 39.33 | **249.92** +- 42.53 | 293.56 +- 40.24 | 1.07 |
+| `mu_delta` | 0.8973 +- 0.2073 | **0.6316** +- 0.2103 | 0.8260 +- 0.2156 | 1.26 |
+| `mu_x_psi` | -3.5885 | -3.4949 | -3.5350 | 0.39 |
+| `c_bar` | 0.0821 | 0.0776 | 0.0815 | 0.62 |
+| `b_0` | -8.2699 | -8.2969 | -8.2637 | 0.31 |
+
+Chain 3 is low on both of the two that fail, as it was at every checkpoint. Only
+`sigma_b` is converged.
+
+**So the mean-anchor gauge and the gauge-prior Jacobian did not deliver chain
+agreement.** That was the stated objective of this run and it is not met. No
+posterior from it is a result. It joins `ladder-full-k812-n120` as a run whose
+numbers are recorded for comparison and not for quotation, and for the same
+reason: two or three chains that never mix in `mu_delta` and `kappa0`.
 
 ## 2026-11-25 — the gauge's inner product is badly conditioned, and what whitening it is worth
 
@@ -2005,3 +2047,165 @@ excluded: the relative residual of `T_k` outside `span{P_1..P_n}` is 0.488 at
 `k = 2`, 0.095 at 4, 0.041 at 6, 0.022 at 8, 0.014 at 10, so `span{T_k}` is the
 zero-Chebyshev-mean polynomials where `span{P_k}` is the zero-Lebesgue-mean ones.
 Switching there would move the anchor `634c4c6` deliberately set.
+
+## 2026-11-26 — Eq. (gauge) as a point on a Grassmannian: the screen, the run, and one alternative refuted
+
+### What the reformulation is
+
+The gauge-invariant content of a pair is the affine line `{f_0 + x f_1}`: a
+2-plane in the coefficient space, plus the direction of `f_1` within it and the
+perpendicular extent of `f_0`. Counting, `2K - 2` invariants against
+`Gr(2,K)`'s `2(K-2)` plus an angle plus a length. `stan/rot_grass.stan` samples
+those three directly, so both conditions of Eq. (gauge) hold by construction
+with no normalisation of a sampled vector, no projection and no frame carried by
+a moving partner: 34 coordinates where the projection form needed 36. Prior flat
+under the O(n)-invariant measure, which in the chart is
+`det(I + X'X)^{-n/2} dX`; theta flat on its fundamental domain, h flat on the
+line as b and d already were.
+
+Because the invariant measure is a measure on planes and does not see frames,
+**no orientation condition can reach the posterior**. That retires the question
+of what to anchor it to: it is fixed intrinsically by the in-plane projection of
+the first basis vector and needs no external reference. Measured for interest,
+the SALT2 `Psi_1` direction sits 56.3 to 59.3 degrees from the posterior's under
+`Gse` (|cos| 0.510, 0.541, 0.552 across the three clean chains of
+`qbar-gfix-k812-n60`, per-draw scatter 11 to 13 degrees), so anchoring there
+would have placed the frame nowhere near the data's own mode direction. It was
+worth 2 percent in conditioning against the intrinsic choice.
+
+### The screen that chose it
+
+Sixteen sampling draws of `qbar-gfix-k812-n60` chain 2 — the chain with zero
+divergences — with each draw's Hessian conjugated into the candidate frame and
+the prior restated, not inherited:
+
+| frame | dim | lmax (mean +- sd) | rank-10 (med) | proxy (med) | gain |
+|---|---|---|---|---|---|
+| `rot_frame` baseline | 36 | 10.587 +- 0.782 | 1.086e-2 | 30.4 | — |
+| Gse-whitened (`whiteR`) | 36 | 9.740 +- 0.266 | 2.458e-2 | 19.9 | 1.57x |
+| turning pair only | 35 | 8.932 +- 0.278 | 4.337e-2 | 14.4 | 2.16x |
+| **both pairs** | 34 | 9.096 +- 0.423 | 5.443e-2 | **13.0** | **2.36x** |
+
+The flat invariant prior gives 2.16x where the borrowed `std_normal` gave 2.17x,
+so the gain is in the likelihood geometry and not an artefact of the prior. The
+traversal half is a wash on its own terms — it buys at the soft end and costs at
+the stiff one, `lmax`'s spread rising 0.278 to 0.423 — and that spread is what
+dual averaging cannot see. Both are reformulated at the user's direction;
+turning-only is the fallback if the chains scatter in step size.
+
+**The Grassmannian form subsumes the whitening.** Parameterising the plane by a
+`Gse`-orthonormal frame already absorbs `Gse`, so the whitening adds exactly
+nothing on top: identical to four figures in `lmax`, rank-10 and the proxy. The
+92x prior-reshaping question that the non-free whitening would have raised is
+therefore moot.
+
+### One alternative parameterisation, refuted
+
+The obvious structural alternative removes both of the chart's risks at once:
+sample `M` in R^{Kx2} with iid standard normal entries and take the plane to be
+its column span, which is exactly uniform on the Grassmannian — no Jacobian term
+to get wrong, no chart boundary. Measured on the same sixteen draws it is
+**12x worse**: proxy 158.7 against 13.0, `lmax` 13.933 +- 0.960 against
+9.096 +- 0.423, rank-10 5.446e-4 against 5.443e-2, and worse at every draw
+(0.032 to 0.166x).
+
+Not a bug in the Jacobian: it has rank exactly 22 per pair — 20 for the plane,
+plus theta and h — with a clean four-dimensional null space annihilating the four
+gl(2) fibre generators to 1e-10.
+
+The mechanism is intrinsic and cannot be tuned away. With `M = sigma M_0`, the
+likelihood depends on `M` only through its column span so its curvature in `M`
+coordinates scales as `1/sigma^2`, and the prior's precision scales as
+`1/sigma^2` too; the ratio, and hence the preconditioned spectrum, is
+sigma-independent. The four redundant dimensions dilute the likelihood's
+curvature against a prior that is the only thing holding the fibre, and the soft
+plane directions pay for it. So: no Jacobian requires redundancy, and redundancy
+costs an order of magnitude here. The remaining alternatives — Cayley,
+Householder products, the geodesic chart — parameterise the same 20-dimensional
+manifold with the same measure and differ from the affine chart only by a smooth
+map, so they are reparameterisations of one another and screenable the same way.
+
+**The chart is not the binding constraint.** `||X||` over the sixteen draws is at
+most 0.162 for the turning plane and 0.519 for the traversal against a reference
+taken from one of them, and 0.72 to 0.80 and 0.10 to 0.56 at the four dispersed
+inits. The boundary is far. The free lever, since the measure does not depend on
+the chart, is re-centring the reference plane on this run's own posterior once it
+produces one.
+
+### What the posterior's shape says
+
+Covariance of the 22 turning coefficients, 1149 pooled sampling draws from the
+three clean chains of `qbar-gfix-k812-n60`:
+
+| | top mode | 2 | 4 | modes > 1e-3 | participation ratio |
+|---|---|---|---|---|---|
+| raw coefficient basis | 75.9% | 93.4% | 98.2% | 7 of 22 | 1.64 |
+| `Gs`-orthonormal basis | **94.2%** | 97.0% | 99.6% | 6 of 22 | **1.12** |
+
+To 94 percent the posterior on the turning pair is motion along a single
+direction. Its condition number is 5.1e6, so `sqrt(cond)` is 2258: **the turning
+block alone demands about 2300 leapfrog steps** with an optimal diagonal metric,
+against a cap of 4095. That is where the cost is, and it is a second reason the
+`max_depth` cap is the binding constraint rather than a detail.
+
+Two consequences. A post-hoc decorrelating rotation is sharply determined for the
+top mode and fits MCMC noise below the third — with 1149 draws in 22 dimensions,
+eigenvalues closer than about 4 percent are not separated. And "uncorrelated" is
+undefined until the inner product is named: the same posterior gives
+participation ratio 1.64 or 1.12 and a top mode of 76 or 94 percent depending on
+whether it is read in the raw coefficient basis or the `Gs`-orthonormal one, and
+those two Grams differ by cond 8442.
+
+Also: the direction carrying 94 percent of the variance is the Hessian's
+*softest*, and that is the one measured not to hold still — |cos| 0.891, 0.962,
+0.963 between the three probe draws, 16 to 27 degrees. So a single decorrelating
+rotation describes an average of a direction that moves. For reporting that is
+acceptable and worth stating; it is also why the same rotation cannot serve as a
+fitting frame, which is what the refuted Fisher-rotation entry found from the
+other side.
+
+### Verification
+
+`lp(rot_grass) - lp(rot_frame)` at the four mapped inits equals the intended
+prior difference to 1e-11 absolute on `lp ~ 3e4` — so the likelihood is the same
+function of the same `a, b, c, d`. Inverting the construction reproduces
+`(c, d)` to 3.4e-15. Eq. (gauge) on sampled draws, read from the CSV:
+`|a' Gvq a - 1|` at most 9.7e-9, `|b' Gvq a|` 2.3e-8, `|ce' Gse ce - 1|` 2.1e-8,
+`|de' Gse ce|` 1.9e-7, all below the roughly 5e-6 those quadratic forms can show
+at six significant figures.
+
+### runs/grass-k812-n60, in progress
+
+Four chains, 500 warmup + 500 sampling, `adapt delta=0.8`, `max_depth=12`, seed
+1, the same four dispersed inits as `frame-k812-n60` and `whiteR-k812-n60`
+mapped through the chart inversion, reference planes from draw 500 of
+`qbar-gfix` chain 2.
+
+At the matched window of draws 1 to 76, every chain pinned at the cap and the
+metric still the identity:
+
+| | divergence, c1 to c4 | spread | gradients per clean draw |
+|---|---|---|---|
+| `hier_rot` | 0.21 0.24 0.21 0.24 | 0.03 | 4097 to 4113 |
+| `rot_frame` | 0.34 0.57 0.24 0.55 | 0.33 | 4123 to 5578 |
+| `whiteR` | 0.29 0.33 0.22 0.54 | 0.32 | 4170 to 5481 |
+| `rot_grass` | 0.20 0.20 0.18 0.21 | **0.03** | 4096 to 4098 |
+
+The lowest divergence rate of any run, marginally under `hier_rot`'s, with the
+chain-to-chain spread back to `hier_rot`'s 0.03 from the frame family's 0.32.
+Chain 4, which collapsed to 1.00 divergence in both frame-family runs from the
+identical init, sits with its siblings here. So the comoving frame's damage is
+gone and the Grassmannian form recovers the projection form's stability while
+carrying the better-conditioned geometry. Note the caveat above: at four chains
+this window screens for a collapsed chain and does not rank.
+
+Per gradient the program costs 62.5 ms against `hier_rot`'s 50.2, a 1.25x
+penalty, so a 2.36x geometric gain would net about 1.9x if it converts. That
+figure read 107 to 143 ms at eight draws and 78.8 to 88.6 at fourteen, when most
+draws carried a single leapfrog and per-draw overhead dominated; it is quoted
+here only because it has settled to within 1 ms across all four chains.
+
+`whiteR` was stopped at 96 to 115 draws to free cores, with divergence 0.27 to
+0.47 and 4365 to 5332 gradients per clean draw — it never showed the predicted
+1.57x, which at this noise floor is not evidence against the whitening and is
+moot now that the Grassmannian form subsumes it.

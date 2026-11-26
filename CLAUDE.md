@@ -105,6 +105,62 @@ in the module it `exec`s. Twice, "refinements" reran the identical calculation.
 Results identical to many digits across a supposed change are the tell: treat
 them as evidence that nothing changed, not as evidence of convergence.
 
+**`stepsize__` is in the adapted metric's units and is not comparable across
+programs.** The metric differs between runs, so a larger `eps` can mean a better
+geometry or a differently scaled metric and nothing else. Two claims were
+withdrawn for this on 2026-11-25: "the comoving frame's step is 3.4 to 6.4x
+larger", which compared a mid-warmup value to a finished one, and "7.5e-3 is 2.6
+to 4.2x above every hier_rot chain", where `eps * n_leapfrog__` — the trajectory
+length in each chain's own units, the quantity that is comparable — read 13.29
+against hier_rot's 12.97. Compare `eps * n_leapfrog__`, or compare within one
+program.
+
+**A falling `n_leapfrog__` beside a rising `divergent__` is truncation, not
+speed.** A divergence ends tree growth, so a failing chain does fewer gradients
+per draw and reports more draws per hour. `hier_rot` chain 1 fell from 4095 to
+980 leapfrogs while its divergence rate went 0.14 to 0.99, and `rot_white` chain
+4 ran 1.5x faster per draw than its siblings at 72 percent divergent. Count
+gradients per draw you can keep, not per draw.
+
+**At `max_depth` saturation the leapfrog count carries no information.** When
+`cap(12)` is near 1 every clean draw costs 4095 and the divergent ones cost
+almost nothing, so gradients per clean draw is just 4095/(1 - div) and
+chain-to-chain agreement in it is arithmetic, not a virtue: `hier_rot`'s 4097,
+4097, 4096, 4130 was read as uniformity when it was saturation. It also means
+the trajectory length the posterior actually wants is unmeasured and larger than
+4095 — raising `max_depth` is the only way to learn it.
+
+**`accept_stat__` is worthless once the metric is frozen.** After a divergence
+the retained subtree is short and local and accepts well, so the statistic
+improves as the chain fails. `hier_rot` chain 1's sampling phase reported mean
+0.829 to 0.927 with tenth percentile 0.478 to 0.814 while 93 percent of its
+draws were divergent. Read `divergent__`.
+
+**`~` drops the normalising constant; `target +=` does not.** A predicted `lp`
+difference was out by exactly 17.4598 = 3.5 log(2 pi) + 6 log(2 pi) because
+`z_a ~ std_normal()` omits the constant while the hand calculation included it.
+A constant offset equal across all chains is the signature.
+
+**The warmup schedule decides which draws are comparable.** `init_buffer` 75,
+`window` 25 doubling, `term_buffer` 50, so for `num_warmup = 500` the metric
+updates at the end of 100, 150, 250 and 450 and is frozen from 451. Draws either
+side of one of those boundaries are different samplers. `hier_rot` chain 1 broke
+at exactly 451 — divergence 0.14 to 0.78, leapfrogs 4095 to 1320 — when the
+metric froze and dual averaging restarted with 50 iterations to settle a step
+size on a bimodal acceptance signal.
+
+**Two runs of one model differ by 2x, so warmup-window comparisons cannot
+resolve 1.5x.** `runs/white-k812-n60` and `runs/whiteR-k812-n60` are the same
+model, same seed, same inits, differing only in the order of two floating-point
+operations. They part company at draws 8 to 12 with `lp` differing in the
+seventh figure and by draw 42 differ by 1.99x in gradients per clean draw. Four
+chains and tens of draws is not a measurement of a parameterisation; the finished
+run's effective sample size per gradient is. The Hessian of `lp` at stored draws
+is the cheap and reproducible alternative — two finite-difference step sizes
+agreeing to five figures, 2.7 percent coefficient of variation over sixteen
+draws — and it predicted a reparameterisation's realised spectrum to four
+figures where the sampling comparison could not see it at all.
+
 ## Stack
 
 Stan, and only Stan, for the model: the forward map, the likelihood and the
