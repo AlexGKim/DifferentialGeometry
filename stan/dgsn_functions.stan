@@ -699,17 +699,66 @@ functions {
   // one per pair and the four-dimensional null space of the flux Jacobian
   // loses its two projection directions.
   //
-  // The prior is unchanged where it is observable.  Flat on y is flat on the
-  // hyperplane in G-orthonormal coordinates, which differs from flat in the
-  // ambient coordinates restricted to that hyperplane by |det L| alone, a
-  // constant.  What is dropped is the unit width on the discarded component
-  // and its Jacobian, which were priors on directions reaching neither the
-  // forward map nor the likelihood.
+  // The likelihood is unchanged: at three matched draws all 362 gradient
+  // components the two programs share are bit-identical.  The prior is not
+  // quite unchanged, and the earlier wording here ("a constant") was wrong.
+  // lp(rot_frame) - lp(hier_rot) is predicted to full double precision as
+  //
+  //     1.837877 + (t_b^2 + t_d^2)/2 - log(||Gvq a|| ||Gse ce||),
+  //
+  // t being the discarded component.  The t part is an independent standard
+  // normal on a coordinate reaching neither the forward map nor the
+  // likelihood, so it integrates out exactly and nothing is owed for it.
+  // The remainder, log(||Gvq a|| ||Gse ce||), is the projection Jacobian and
+  // does depend on where a and ce point, so the two priors on the admissible
+  // space differ.  Measured by stan/frame_map at the three probe draws of
+  // runs/frame-probe it is 0.3776, 0.3976, 0.3834 nats: a reweighting of the
+  // posterior spanning 1.020 across the sampled region, against lp ~ -31400
+  // and globals with posterior sd of 10 to 20 per cent.  Too small to move a
+  // reported number, and not zero.
   //
   // sign(ehat_1) is taken on the stable branch, so v never cancels; ehat_1 is
   // c_0 and b's first coefficient after whitening and is not pinned near
   // zero by anything, but the branch costs nothing either way.  The sign flip
   // the branch introduces is absorbed into y, which is free.
+  // ---- Eq. (gauge) as a point on a Grassmannian --------------------------
+  // Added 2026-11-26.  The gauge-invariant content of a pair is the affine
+  // line {f_0 + x f_1}: a 2-plane in the K-dimensional coefficient space,
+  // plus the direction of f_1 within it and the perpendicular extent of f_0.
+  // So sample the plane, an angle and a length, and both conditions of
+  // Eq. (gauge) hold identically -- no normalisation of a sampled vector, no
+  // projection, and no frame carried by a moving partner.
+  //
+  // Everything is done in the whitened coordinates xhat = L' x, where
+  // G = L L' so that <x,y>_G = xhat . yhat: the plane's chart, its
+  // orthonormalisation and the orientation are all Euclidean there, and the
+  // pair is returned by L^-T at the end.  With Qhat the whitened plane's
+  // Euclidean-orthonormal 2-frame and u the unit 2-vector fixing the
+  // orientation, R(theta) u and R(theta + pi/2) u are orthonormal in the
+  // plane, so <f_1,f_1>_G = 1 and <f_0,f_1>_G = 0 by construction and the
+  // length h is the free, physical norm of f_0.
+  //
+  // mgs2 is modified Gram-Schmidt on two columns: smooth wherever the two
+  // are independent, which the chart guarantees near its reference plane.
+  // Measured on runs/qbar-gfix-k812-n60 chain 2, sixteen sampling draws, the
+  // chart centred on one of them has ||X|| at most 0.162 for the turning
+  // pair and 0.519 for the traversal, so the posterior sits well inside it.
+  matrix mgs2(matrix M) {
+    int n = rows(M);
+    vector[n] q1 = M[, 1] / sqrt(dot_self(M[, 1]));
+    vector[n] v2 = M[, 2] - dot_product(M[, 2], q1) * q1;
+    return append_col(q1, v2 / sqrt(dot_self(v2)));
+  }
+
+  // log det(I_2 + X' X), the chart's Jacobian up to the power -n/2 that makes
+  // the measure the O(n)-invariant one on the Grassmannian.  Flat in X is a
+  // different and chart-dependent prior; this term is what makes "flat" mean
+  // flat on the space of planes.
+  real log_det_ipxtx(matrix X) {
+    matrix[2, 2] S = crossprod(X);
+    return log((1 + S[1, 1]) * (1 + S[2, 2]) - S[1, 2] * S[2, 1]);
+  }
+
   vector frame_lift(matrix Lt, matrix Ltinv, vector e, vector y) {
     int n = rows(e);
     vector[n] ehat = Lt * e;

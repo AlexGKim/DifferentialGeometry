@@ -212,6 +212,15 @@ generated quantities {
   vector[Kpsi - 1] y_d_p;
   real round_b;                    // ||b_proj - b_in||_inf, the CSV rounding
   real round_d;
+  // the two halves of drop_*: t is the discarded coordinate (integrates out
+  // exactly, so the frame owes nothing for it), logn is the projection
+  // Jacobian, a function of a and ce that the frame does not carry.
+  real t_b;
+  real t_d;
+  real logn_b;
+  real logn_d;
+  matrix[Kq-1,Kq-1] Gvq_out;
+  matrix[Kpsi,Kpsi] Gse_out;
   {
     vector[Kq - 1] at = rep_vector(0, Kq - 1);
     vector[Kpsi] ct = rep_vector(0, Kpsi);
@@ -234,6 +243,12 @@ generated quantities {
     drop_d = std_normal_lpdf(d_til_in' * Gse * ce_s)
              + log(sqrt(dot_self(Gse * ce_s)));
     dlp_pred = -(drop_b + drop_d);
+    t_b = b_til_in' * Gvq * a_s;
+    t_d = d_til_in' * Gse * ce_s;
+    logn_b = log(sqrt(dot_self(Gvq * a_s)));
+    logn_d = log(sqrt(dot_self(Gse * ce_s)));
+    Gvq_out = Gvq;
+    Gse_out = Gse;
     {
       vector[Kq - 1] bp = b_til_in - (b_til_in' * Gvq * a_s) * a_s;
       vector[Kpsi] dp = d_til_in - (d_til_in' * Gse * ce_s) * ce_s;
