@@ -719,48 +719,107 @@ the clearest instance --- profiling the per-supernova parameters would push the 
 down and the fitted scatters with them --- and the reason for sampling rather than
 profiling is unchanged.
 
-The gauge is imposed by construction rather than sampled, and the orthogonality half of it
-is imposed in a frame that moves with the mode it is orthogonal to. Let $G$ be the Gram of
-the pair's basis, $G = LL^{\top}$, and let $\mathbf{e}$ be the normalized departure
-coefficient, $\mathbf{e}^{\top}G\mathbf{e} = 1$, so that $\hat{\mathbf{e}} =
-L^{\top}\mathbf{e}$ is Euclidean-unit. The Householder reflection
-$H = I - 2\mathbf{w}\mathbf{w}^{\top}/\mathbf{w}^{\top}\mathbf{w}$ with
-$\mathbf{w} = \hat{\mathbf{e}} + \sign(\hat{e}_{1})\,\mathbf{e}_{1}$ is symmetric and
-involutive and carries $\hat{\mathbf{e}}$ to $-\sign(\hat{e}_{1})\mathbf{e}_{1}$, so for any
-$\mathbf{y}$ of length $n-1$,
+The gauge is imposed by construction rather than sampled, and what is sampled is the
+gauge-invariant object itself. Each pair's invariant content is the affine line
+$\{f_{0} + x f_{1}\}$, since the group
 \begin{equation}
-  \mathbf{b} = L^{-\top} H \begin{pmatrix} 0 \\ \mathbf{y}\end{pmatrix}
-  \quad\text{satisfies}\quad
-  \mathbf{b}^{\top}G\mathbf{e} = 0 , \qquad
-  \mathbf{b}^{\top}G\mathbf{b} = \mathbf{y}^{\top}\mathbf{y} ,
+  (f_{0}, f_{1}, x) \;\longmapsto\;
+  \bigl(f_{0} + \lambda f_{1},\; \mu f_{1},\; (x - \lambda)/\mu\bigr),
+  \qquad \lambda \in \mathbb{R},\; \mu \neq 0 ,
+  \label{eq:gaugegroup}
+\end{equation}
+leaves that line fixed. Equivalently: the plane $P = \mathrm{span}\{f_{0}, f_{1}\}$, a point
+of the Grassmannian $\mathrm{Gr}(2,K)$ with $2(K-2)$ degrees of freedom; the direction of
+$f_{1}$ within $P$, one angle; and the signed length of $f_{0}$, one scalar. That is
+$2K - 2$, which is $2K$ coefficients less the two of \eqref{eq:gaugegroup}, and the three
+are sampled directly.
+
+Write $G$ for the pair's Gram, $G = LL^{\top}$, and $\hat{\mathbf{x}} = L^{\top}\mathbf{x}$
+for the whitened coefficients, so that $\langle f_{\mathbf{x}}, f_{\mathbf{y}}\rangle =
+\mathbf{x}^{\top}G\mathbf{y} = \hat{\mathbf{x}}^{\top}\hat{\mathbf{y}}$: in hatted
+coordinates the gauge inner product is the Euclidean one and everything below is Euclidean
+linear algebra. Fix a reference plane by any two independent columns $R$, whiten and
+orthonormalize them to $Q_{0} = \mathrm{GS}(L^{\top}R)$ with $Q_{0}^{\top}Q_{0} = I_{2}$,
+and complete to $[\,Q_{0} \mid Q_{0}^{\perp}\,]$ orthogonal. The chart is
+\begin{equation}
+  X \in \mathbb{R}^{(K-2)\times 2}
+  \;\longmapsto\;
+  Q(X) = \mathrm{GS}\bigl(Q_{0} + Q_{0}^{\perp}X\bigr) ,
+  \qquad Q(X)^{\top}Q(X) = I_{2} ,
+  \label{eq:grasschart}
+\end{equation}
+whose column span is $P$; $X = 0$ returns the reference plane and the chart covers every
+plane whose projection on $\mathrm{span}(Q_{0})$ is nonsingular. $\mathrm{GS}$ is
+Gram--Schmidt on two columns and only chooses a representative: the model depends on the
+span, not on $Q$.
+
+The frame $Q(X)$ is determined only up to $O(2)$ on the right, and the model must not see
+that choice. Fix it with a reference direction $\mathbf{r} = L^{\top}\mathbf{e}_{1}$ and
+\begin{equation}
+  \hat{\mathbf{u}} = \frac{Q(X)^{\top}\mathbf{r}}{\norm{Q(X)^{\top}\mathbf{r}}} \in S^{1} ,
+  \label{eq:orient}
+\end{equation}
+so that $Q(X)\hat{\mathbf{u}}$ is the unit vector of $P$ nearest in direction to
+$\mathbf{e}_{1}$. It is invariant: under $Q \mapsto QO$ we have
+$\hat{\mathbf{u}} \mapsto O^{\top}\hat{\mathbf{u}}$ and the product is unchanged, and the
+in-plane perpendicular changes sign only under a reflection, which the sign convention
+already carries. With $\mathcal{R}(\theta)$ the plane rotation, set
+$\mathbf{w}_{1} = \mathcal{R}(\theta)\hat{\mathbf{u}}$ and
+$\mathbf{w}_{0} = \mathcal{R}(\theta + \pi/2)\hat{\mathbf{u}}$, and
+\begin{equation}
+  \mathbf{c} = L^{-\top} Q(X)\,\mathbf{w}_{1} , \qquad
+  \mathbf{d} = h\, L^{-\top} Q(X)\,\mathbf{w}_{0} .
   \label{eq:frame}
 \end{equation}
-exactly, and likewise for $\mathbf{d}$ against $\mathbf{c}$. The $\mathbf{y}$ are the
-components of the mean mode's free part in a $G$-orthonormal frame carried by the departure
-mode, so the sampler moves on $(\tilde{\mathbf{a}}, \mathbf{y}_{b}, \tilde{\mathbf{c}},
-\mathbf{y}_{d})$ --- one coordinate fewer per pair --- and \eqref{eq:gauge} holds at every
-iteration with nothing discarded and no constraint entering the likelihood. The earlier
-construction, which sampled $\tilde{\mathbf{b}}, \tilde{\mathbf{d}}$ in the ambient space and
-subtracted their components along the partner, left the sampled coordinates attached to
-ambient axes while the admissible space is the partner's complement, so rotating
-$\mathbf{a}$ or $\mathbf{c}$ dragged the space the other lives in: measured,
-$|\mathrm{corr}(c_{k}, d_{k})| = 0.64$ to $0.85$ at every matched order $k = 1 \ldots 11$,
-uniformly positive, in a chain with no divergences. The two forms are not quite the same
-posterior. The discarded component is an independent standard normal reaching neither the
-forward map nor the likelihood, so it integrates out exactly; what remains is the projection
-Jacobian $\log(\norm{G_{v}\mathbf{a}}\,\norm{G_{\arc}\mathbf{c}})$, which depends on where
-$\mathbf{a}$ and $\mathbf{c}$ point and is measured at $0.3776, 0.3976, 0.3834$ nats at
-three draws --- a reweighting spanning $1.020$, recorded rather than neglected.
+Because $\mathbf{w}_{1}, \mathbf{w}_{0}$ are orthonormal in $\mathbb{R}^{2}$ and
+$Q(X)$ has orthonormal columns,
+\begin{equation}
+  \mathbf{c}^{\top}G\mathbf{c} = \mathbf{w}_{1}^{\top}\mathbf{w}_{1} = 1 , \qquad
+  \mathbf{d}^{\top}G\mathbf{c} = h\,\mathbf{w}_{0}^{\top}\mathbf{w}_{1} = 0 , \qquad
+  \mathbf{d}^{\top}G\mathbf{d} = h^{2} ,
+  \label{eq:gaugeid}
+\end{equation}
+so \eqref{eq:gauge} holds identically at every $(X, \theta, h)$ and $h$ is the free,
+physical norm of $f_{0}$. No sampled vector is normalized, nothing is projected away, and no
+frame is carried by a moving partner --- the three devices every earlier form needed.
+Verified against the projection form at four dispersed starts, the log density differs by
+exactly the intended change of prior, to $10^{-11}$ on $\lvert \ln p\rvert \sim 3\times10^{4}$,
+and inverting \eqref{eq:frame} recovers $(\mathbf{c}, \mathbf{d})$ to $3\times10^{-15}$.
 
-A fixed linear map $R$ of the coefficient coordinates, $\mathbf{w} \mapsto R\mathbf{w}$ with
-$R$ constant, is a reparameterization and leaves the posterior untouched. Taking $R$ to
-whiten the turning block against $G_{\arc}$ --- which is \texttt{transformed data}, so
-nothing is fitted to a draw --- takes the spread of the preconditioned Hessian's largest
-eigenvalue from $7.4\%$ to $2.7\%$ across sixteen posterior draws and the cost proxy
-$\sqrt{\lambda_{\max}/\lambda_{10}}$ down by a factor $1.53$. Whether that reaches the
-sampler is open: two realizations of one model, differing only in last-bit arithmetic, part
-company by draw ten and differ by a factor two in gradients per usable draw at forty, so the
-question is settled on effective sample size per gradient and not on warmup diagnostics. The two sign conventions are not among these transforms, being
+$\mathrm{Gr}(2,K)$ is compact and carries a unique $O(K)$-invariant probability measure. In
+the chart \eqref{eq:grasschart} it is
+\begin{equation}
+  \dd\mu(X) \;\propto\; \det\bigl(I_{2} + X^{\top}X\bigr)^{-K/2}\,\dd X ,
+  \label{eq:grassmeasure}
+\end{equation}
+so flat on planes contributes $-\tfrac{K}{2}\ln\det(I_{2} + X^{\top}X)$ to the target;
+$\theta$ is flat on a fundamental domain, $(\theta, h) \mapsto (\theta + \pi, -h)$ being the
+sign convention, and $h$ is flat on the line as $\mathbf{b}$ and $\mathbf{d}$ already were.
+Omitting \eqref{eq:grassmeasure}'s determinant is not a harmless simplification: flat in $X$
+is improper and depends on the reference plane, whereas \eqref{eq:grassmeasure} is a measure
+on \emph{planes} and therefore cannot see \eqref{eq:orient} at all, so the orientation
+reference has no effect on the posterior and needs no external justification.
+
+Two measurements place this. First, what it replaces: the projection form sampled
+$\tilde{\mathbf{b}}, \tilde{\mathbf{d}}$ in the ambient space and subtracted their components
+along the partner, which left the sampled coordinates attached to ambient axes while the
+admissible space is the partner's complement, so rotating $\mathbf{a}$ or $\mathbf{c}$
+dragged the space the other lives in --- $|\mathrm{corr}(c_{k}, d_{k})| = 0.64$ to $0.85$ at
+every matched order $k = 1 \ldots 11$, uniformly positive, in a chain with no divergences.
+Second, what it is worth: over sixteen sampling draws the cost proxy
+$\sqrt{\lambda_{\max}/\lambda_{10}}$ of the diagonally preconditioned Hessian falls from
+$30.4$ to $13.0$, a median factor $2.36$, with $\lambda_{\max}$'s spread across draws
+falling from $0.782$ to $0.423$. A redundant alternative --- sample $M$ with independent
+standard normal entries and take its column span, which is exactly
+\eqref{eq:grassmeasure} with no Jacobian and no chart boundary --- measures twelve times
+worse, and intrinsically so: writing $M = \sigma M_{0}$, the likelihood depends on $M$ only
+through its span so its curvature scales as $\sigma^{-2}$, the prior's precision scales as
+$\sigma^{-2}$, and the preconditioned spectrum is therefore independent of $\sigma$.
+Whether any of this reaches the sampler is a separate question, settled on effective sample
+size per gradient and not on warmup diagnostics: two realizations of one model differing
+only in the order of two floating-point operations part company by draw ten and differ by a
+factor two in gradients per usable draw at forty.
+
 discontinuous; they are applied per draw in \texttt{generated quantities}, where they
 cannot reach the gradient. Each is a joint relabeling and has to be applied as one:
 flipping $q_{1}$ carries every supernova's $x_p$ with it, and flipping $\turnone$ every
